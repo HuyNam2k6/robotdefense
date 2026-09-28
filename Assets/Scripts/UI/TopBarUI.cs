@@ -52,7 +52,7 @@ namespace IdleFactoryDefense.UI
         {
             if (stoneText != null)
             {
-                stoneText.text = $"🪨 {ResourceManager.FormatNumber(stone)}";
+                stoneText.text = $"STONE: {ResourceManager.FormatNumber(stone)}";
             }
         }
 
@@ -60,7 +60,7 @@ namespace IdleFactoryDefense.UI
         {
             if (brickText != null)
             {
-                brickText.text = $"🧱 {ResourceManager.FormatNumber(brick)}";
+                brickText.text = $"BRICK: {ResourceManager.FormatNumber(brick)}";
             }
         }
 
@@ -68,7 +68,7 @@ namespace IdleFactoryDefense.UI
         {
             if (moneyText != null)
             {
-                moneyText.text = $"💰 {ResourceManager.FormatNumber(money)}";
+                moneyText.text = $"GOLD: ${ResourceManager.FormatNumber(money)}";
             }
         }
     }
