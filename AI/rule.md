@@ -85,6 +85,8 @@ Claude TUYỆT ĐỐI KHÔNG ĐƯỢC hỏi người dùng bằng tiếng Anh.
 
 Ví dụ CẤM:
 
+Allow checking Assets folder?
+
 "Can you send me the PlayerController?"
 
 "Could you provide the error message?"
