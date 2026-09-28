@@ -17,7 +17,7 @@ namespace IdleFactoryDefense.Editor
             Undo.SetCurrentGroupName("Setup Idle Factory Scene");
             int group = Undo.GetCurrentGroup();
 
-            // 1. Setup Main Camera căn giữa sân chơi
+            // 1. Setup Main Camera căn giữa sân chơi, hỗ trợ Pan & Zoom
             Camera mainCam = Camera.main;
             if (mainCam == null)
             {
@@ -32,14 +32,14 @@ namespace IdleFactoryDefense.Editor
             {
                 camCtrl = Undo.AddComponent<IsometricCameraController>(mainCam.gameObject);
             }
-            // Đặt góc nhìn nghiêng nhìn thẳng tâm sân
-            mainCam.transform.position = new Vector3(0f, 16f, -12f);
+            mainCam.transform.position = new Vector3(0f, 18f, -6f);
             mainCam.transform.rotation = Quaternion.Euler(50f, 0f, 0f);
             mainCam.orthographic = true;
-            mainCam.orthographicSize = 9.5f;
+            mainCam.orthographicSize = 10f;
+            camCtrl.SetMapBounds(new Vector2(-6f, 6f), new Vector2(-10f, 18f));
 
             // 2. Setup GameManager
-            ResourceManager resManager = Object.FindFirstObjectByType<ResourceManager>();
+            ResourceManager resManager = Object.FindAnyObjectByType<ResourceManager>();
             if (resManager == null)
             {
                 GameObject gm = new GameObject("GameManager");
@@ -47,7 +47,7 @@ namespace IdleFactoryDefense.Editor
                 Undo.RegisterCreatedObjectUndo(gm, "Create GameManager");
             }
 
-            // 3. Tạo Sàn Đất (Ground) Dọc
+            // 3. Tạo Sàn Đất Lớn (Big Map Ground)
             GameObject ground = GameObject.Find("Ground");
             if (ground == null)
             {
@@ -55,36 +55,49 @@ namespace IdleFactoryDefense.Editor
                 ground.name = "Ground";
                 Undo.RegisterCreatedObjectUndo(ground, "Create Ground");
             }
-            ground.transform.position = new Vector3(0f, -0.2f, 2f);
-            ground.transform.localScale = new Vector3(8.5f, 0.4f, 15f);
+            ground.transform.position = new Vector3(0f, -0.2f, 5f);
+            ground.transform.localScale = new Vector3(14f, 0.4f, 26f); // Map to gấp đôi!
 
             Material groundMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-            groundMat.color = new Color(0.15f, 0.17f, 0.22f); // Xám than chì hiện đại
+            groundMat.color = new Color(0.14f, 0.16f, 0.20f); // Xám chì công nghiệp
             ground.GetComponent<MeshRenderer>().sharedMaterial = groundMat;
+
+            // Vạch ranh giới tiền tuyến (Frontline Border)
+            GameObject border = GameObject.Find("Frontline_Border");
+            if (border == null)
+            {
+                border = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                border.name = "Frontline_Border";
+                Undo.RegisterCreatedObjectUndo(border, "Create Border");
+            }
+            border.transform.position = new Vector3(0f, 0.05f, 4f);
+            border.transform.localScale = new Vector3(14f, 0.1f, 0.3f);
+            Material borderMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+            borderMat.color = new Color(0.95f, 0.75f, 0.1f, 0.8f); // Vạch vàng cảnh báo
+            border.GetComponent<MeshRenderer>().sharedMaterial = borderMat;
 
             // 4. Dựng Căn Cứ Chỉ Huy (Base HQ) ở phía dưới sàn
             GameObject baseHq = GameObject.Find("Base_HQ");
             if (baseHq == null)
             {
                 baseHq = new GameObject("Base_HQ");
-                baseHq.transform.position = new Vector3(0f, 0f, -3.5f);
+                baseHq.transform.position = new Vector3(0f, 0f, -4.5f);
 
                 GameObject baseBody = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 baseBody.name = "Body";
                 baseBody.transform.SetParent(baseHq.transform, false);
-                baseBody.transform.localScale = new Vector3(3f, 1.2f, 2f);
+                baseBody.transform.localScale = new Vector3(3.5f, 1.4f, 2.5f);
                 Material baseMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-                baseMat.color = new Color(0.2f, 0.5f, 0.85f); // Xanh dương kim loại
+                baseMat.color = new Color(0.2f, 0.45f, 0.85f); // Xanh dương kim loại
                 baseBody.GetComponent<MeshRenderer>().sharedMaterial = baseMat;
 
-                // Tháp chỉ huy có anten
                 GameObject tower = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
-                tower.name = "Tower";
+                tower.name = "RadarTower";
                 tower.transform.SetParent(baseHq.transform, false);
-                tower.transform.localPosition = new Vector3(0f, 1.1f, 0f);
-                tower.transform.localScale = new Vector3(1f, 0.6f, 1f);
+                tower.transform.localPosition = new Vector3(0f, 1.2f, 0f);
+                tower.transform.localScale = new Vector3(1.2f, 0.6f, 1.2f);
                 Material towerMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-                towerMat.color = new Color(0.9f, 0.75f, 0.2f); // Vàng neon
+                towerMat.color = new Color(0.1f, 0.95f, 0.75f); // Xanh ngọc phát sáng
                 tower.GetComponent<MeshRenderer>().sharedMaterial = towerMat;
 
                 Undo.RegisterCreatedObjectUndo(baseHq, "Create Base HQ");
@@ -98,14 +111,14 @@ namespace IdleFactoryDefense.Editor
                 stoneNode.name = "Mỏ_Đá (Stone)";
                 Undo.RegisterCreatedObjectUndo(stoneNode, "Create Stone Node");
             }
-            stoneNode.transform.position = new Vector3(-2.2f, 0.6f, -0.5f);
-            stoneNode.transform.localScale = new Vector3(1.6f, 1.4f, 1.6f);
+            stoneNode.transform.position = new Vector3(-3f, 0.7f, -1f);
+            stoneNode.transform.localScale = new Vector3(1.8f, 1.5f, 1.8f);
 
             ResourceNode stoneRes = stoneNode.GetComponent<ResourceNode>() ?? stoneNode.AddComponent<ResourceNode>();
             SetField(stoneRes, "resourceType", ResourceType.Stone);
 
             Material stoneMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-            stoneMat.color = new Color(0.6f, 0.65f, 0.75f); // Xám đá sáng
+            stoneMat.color = new Color(0.6f, 0.65f, 0.75f);
             stoneNode.GetComponent<MeshRenderer>().sharedMaterial = stoneMat;
 
             // 6. Tạo Mỏ Gạch (Brick Node)
@@ -116,18 +129,32 @@ namespace IdleFactoryDefense.Editor
                 brickNode.name = "Mỏ_Gạch (Brick)";
                 Undo.RegisterCreatedObjectUndo(brickNode, "Create Brick Node");
             }
-            brickNode.transform.position = new Vector3(2.2f, 0.6f, -0.5f);
-            brickNode.transform.localScale = new Vector3(1.6f, 1.4f, 1.6f);
+            brickNode.transform.position = new Vector3(3f, 0.7f, -1f);
+            brickNode.transform.localScale = new Vector3(1.8f, 1.5f, 1.8f);
 
             ResourceNode brickRes = brickNode.GetComponent<ResourceNode>() ?? brickNode.AddComponent<ResourceNode>();
             SetField(brickRes, "resourceType", ResourceType.Brick);
 
             Material brickMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
-            brickMat.color = new Color(0.9f, 0.45f, 0.22f); // Cam đất nung
+            brickMat.color = new Color(0.9f, 0.45f, 0.22f);
             brickNode.GetComponent<MeshRenderer>().sharedMaterial = brickMat;
 
-            // 7. Tạo / Cập nhật Canvas UI
-            Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+            // 7. Tạo Bệ Đặt Trụ Phòng Thủ (Turret Platform) ở tiền tuyến
+            GameObject platform = GameObject.Find("Bệ_Trụ_Súng (Platform)");
+            if (platform == null)
+            {
+                platform = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                platform.name = "Bệ_Trụ_Súng (Platform)";
+                platform.transform.position = new Vector3(0f, 0.1f, 3.2f);
+                platform.transform.localScale = new Vector3(2f, 0.2f, 2f);
+                Material platMat = new Material(Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard"));
+                platMat.color = new Color(0.3f, 0.35f, 0.42f);
+                platform.GetComponent<MeshRenderer>().sharedMaterial = platMat;
+                Undo.RegisterCreatedObjectUndo(platform, "Create Platform");
+            }
+
+            // 8. Cập nhật Canvas UI
+            Canvas canvas = Object.FindAnyObjectByType<Canvas>();
             if (canvas != null)
             {
                 Undo.DestroyObjectImmediate(canvas.gameObject);
@@ -143,7 +170,7 @@ namespace IdleFactoryDefense.Editor
             canvasObj.AddComponent<GraphicRaycaster>();
             Undo.RegisterCreatedObjectUndo(canvasObj, "Create Canvas");
 
-            if (Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
+            if (Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
             {
                 GameObject esObj = new GameObject("EventSystem");
                 esObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
@@ -193,7 +220,7 @@ namespace IdleFactoryDefense.Editor
             SetField(topBarUI, "moneyText", moneyText);
 
             Undo.CollapseUndoOperations(group);
-            Debug.Log("<color=#00FFAA><b>[SceneSetupHelper]</b> Đã cập nhật Scene với Căn cứ Base HQ và sửa lỗi Text thành công! Bấm Play ngay nào!</color>");
+            Debug.Log("<color=#00FFAA><b>[SceneSetupHelper]</b> Đã mở rộng Map to gấp đôi! Bro có thể giữ chuột kéo để lướt map và cuộn chuột để zoom!</color>");
         }
 
         private static TextMeshProUGUI CreateTextItem(Transform parent, string name, string text, Color color)
@@ -202,16 +229,9 @@ namespace IdleFactoryDefense.Editor
             textObj.transform.SetParent(parent, false);
             TextMeshProUGUI tmp = textObj.AddComponent<TextMeshProUGUI>();
 
-            // Gán font an toàn để không bị lỗi NullReferenceException
             TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
-            if (font == null)
-            {
-                font = TMP_Settings.defaultFontAsset;
-            }
-            if (font != null)
-            {
-                tmp.font = font;
-            }
+            if (font == null) font = TMP_Settings.defaultFontAsset;
+            if (font != null) tmp.font = font;
 
             tmp.text = text;
             tmp.color = color;
