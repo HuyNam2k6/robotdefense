@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using IdleFactoryDefense.Managers;
 
 namespace IdleFactoryDefense.Gameplay
@@ -12,10 +13,10 @@ namespace IdleFactoryDefense.Gameplay
 
     /// <summary>
     /// Gắn vào mỏ quặng (Đá hoặc Gạch) trên sân đấu.
-    /// Cho phép người chơi chạm tay/click chuột để thu hoạch tài nguyên thủ công ban đầu.
+    /// Hỗ trợ cả Click chuột máy tính lẫn Chạm cảm ứng điện thoại (IPointerClickHandler).
     /// Có hiệu ứng đàn hồi nảy nhẹ (Squash & Stretch Juice) cực kỳ đã tay.
     /// </summary>
-    public class ResourceNode : MonoBehaviour
+    public class ResourceNode : MonoBehaviour, IPointerClickHandler
     {
         [Header("Cấu Hình Mỏ")]
         [SerializeField] private ResourceType resourceType = ResourceType.Stone;
@@ -33,7 +34,14 @@ namespace IdleFactoryDefense.Gameplay
             _originalScale = transform.localScale;
         }
 
+        // Hỗ trợ Click chuột truyền thống
         private void OnMouseDown()
+        {
+            Harvest();
+        }
+
+        // Hỗ trợ New Input System & Cảm ứng Mobile
+        public void OnPointerClick(PointerEventData eventData)
         {
             Harvest();
         }
@@ -60,7 +68,6 @@ namespace IdleFactoryDefense.Gameplay
 
         private IEnumerator BounceAnimation()
         {
-            // Nở to nhẹ
             float elapsed = 0f;
             Vector3 targetScale = _originalScale * bounceScale;
             float halfDuration = bounceDuration * 0.5f;
@@ -72,7 +79,6 @@ namespace IdleFactoryDefense.Gameplay
                 yield return null;
             }
 
-            // Thu về bình thường
             elapsed = 0f;
             while (elapsed < halfDuration)
             {
@@ -86,4 +92,3 @@ namespace IdleFactoryDefense.Gameplay
         }
     }
 }
-

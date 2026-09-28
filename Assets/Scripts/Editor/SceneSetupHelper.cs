@@ -170,12 +170,36 @@ namespace IdleFactoryDefense.Editor
             canvasObj.AddComponent<GraphicRaycaster>();
             Undo.RegisterCreatedObjectUndo(canvasObj, "Create Canvas");
 
-            if (Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
+            // Cấu hình EventSystem tương thích New Input System
+            var existingES = Object.FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>();
+            var inputSystemType = System.Type.GetType("UnityEngine.InputSystem.UI.InputSystemUIInputModule, Unity.InputSystem");
+
+            if (existingES == null)
             {
                 GameObject esObj = new GameObject("EventSystem");
-                esObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
-                esObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+                existingES = esObj.AddComponent<UnityEngine.EventSystems.EventSystem>();
+                if (inputSystemType != null)
+                {
+                    esObj.AddComponent(inputSystemType);
+                }
+                else
+                {
+                    esObj.AddComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+                }
                 Undo.RegisterCreatedObjectUndo(esObj, "Create EventSystem");
+            }
+            else
+            {
+                // Nếu EventSystem cũ đang dùng StandaloneInputModule bị lỗi, tự động đổi sang InputSystemUIInputModule
+                var oldModule = existingES.GetComponent<UnityEngine.EventSystems.StandaloneInputModule>();
+                if (oldModule != null && inputSystemType != null)
+                {
+                    Undo.DestroyObjectImmediate(oldModule);
+                    if (existingES.GetComponent(inputSystemType) == null)
+                    {
+                        Undo.AddComponent(existingES.gameObject, inputSystemType);
+                    }
+                }
             }
 
             // SafeArea Panel
