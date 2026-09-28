@@ -201,6 +201,18 @@ namespace IdleFactoryDefense.Editor
             GameObject textObj = new GameObject(name, typeof(RectTransform));
             textObj.transform.SetParent(parent, false);
             TextMeshProUGUI tmp = textObj.AddComponent<TextMeshProUGUI>();
+
+            // Gán font an toàn để không bị lỗi NullReferenceException
+            TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
+            if (font == null)
+            {
+                font = TMP_Settings.defaultFontAsset;
+            }
+            if (font != null)
+            {
+                tmp.font = font;
+            }
+
             tmp.text = text;
             tmp.color = color;
             tmp.fontSize = 38;
