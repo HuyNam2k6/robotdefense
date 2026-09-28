@@ -5,18 +5,18 @@
 ---
 
 ## 🚀 PHASE 0: SETUP PROJECT, MÀN HÌNH DỌC & TỐI ƯU SNAPDRAGON 810+
-- [ ] **Màn hình dọc (Portrait 9:16):** 
-  - [ ] Thiết lập tỷ lệ màn hình trong Unity Game View là **9:16 (1080x1920)** hoặc **9:20**.
-  - [ ] Cấu hình Player Settings: Khóa hướng màn hình chỉ cho phép chạy dọc (`Portrait` / `Portrait Upside Down`).
-- [ ] **Xử lý Safe Area:** Viết script `SafeAreaHandler.cs` tự động căn chỉnh RectTransform của Canvas để UI không bị che bởi tai thỏ, nốt ruồi camera hay thanh điều hướng vuốt.
-- [ ] **Khóa 60 FPS & Mát máy (Chống bóp xung Snap 810):**
-  - [ ] Viết script `GameBootstrapper.cs`: Đặt `Application.targetFrameRate = 60;` và `QualitySettings.vSyncCount = 0;`.
-  - [ ] Cấu hình Physics: Đặt `Time.fixedDeltaTime = 0.02f` (50Hz) để giữ CPU mát mẻ.
-- [ ] **Cấu hình URP Low-End:** Thiết lập Universal Render Pipeline: Tắt Realtime Shadow mềm nặng, dùng FXAA nhẹ, bật GPU Instancing cho Material.
-- [ ] **Git Local Repository:** Khởi tạo `git init` và tạo `.gitignore` chuẩn Unity lưu mã nguồn an toàn tại máy.
-- [ ] **Camera Isometric Dọc:** Đặt Main Camera góc nghiêng 40° - 45° hướng xuống, điều chỉnh Orthographic Size bao quát trọn vẹn Căn cứ ở dưới và đường quái tràn từ phía trên dốc xuống.
+- [x] **Màn hình dọc (Portrait 9:16):** 
+  - [ ] Thiết lập tỷ lệ màn hình trong Unity Game View là **9:16 (1080x1920)** hoặc **9:20** (Người dùng chỉnh trong Editor Game View).
+  - [x] Cấu hình Player Settings: Khóa hướng màn hình chỉ cho phép chạy dọc (`Portrait`).
+- [x] **Xử lý Safe Area:** Viết script `SafeAreaHandler.cs` tự động căn chỉnh RectTransform của Canvas để UI không bị che bởi tai thỏ, nốt ruồi camera hay thanh điều hướng vuốt.
+- [x] **Khóa 60 FPS & Mát máy (Chống bóp xung Snap 810):**
+  - [x] Viết script `GameBootstrapper.cs`: Đặt `Application.targetFrameRate = 60;` và `QualitySettings.vSyncCount = 0;`.
+  - [x] Cấu hình Physics: Đặt `Time.fixedDeltaTime = 0.02f` (50Hz) để giữ CPU mát mẻ.
+- [x] **Cấu hình URP Low-End:** Thiết lập Universal Render Pipeline: Tắt Realtime Shadow mềm nặng, dùng FXAA nhẹ, bật GPU Instancing cho Material.
+- [x] **Git Local Repository:** Khởi tạo `git init` và tạo `.gitignore` chuẩn Unity lưu mã nguồn an toàn tại máy.
+- [x] **Camera Isometric Dọc:** Đặt Main Camera góc nghiêng 40° - 45° hướng xuống, điều chỉnh Orthographic Size bao quát trọn vẹn Căn cứ ở dưới và đường quái tràn từ phía trên dốc xuống (`IsometricCameraController.cs`).
 - [ ] **Mặt sàn (Ground):** Tạo sàn đất hình chữ nhật dài theo chiều dọc màn hình.
-- [ ] 📌 **Git Checkpoint:** Commit (*"Phase 0: Setup Portrait Mode, 60FPS Snap810 & Isometric Camera"*).
+- [x] 📌 **Git Checkpoint:** Commit (*"Phase 0: Setup Portrait Mode, 60FPS Snap810 & Isometric Camera"*).
 
 ---
 
