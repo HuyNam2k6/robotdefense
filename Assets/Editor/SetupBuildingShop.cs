@@ -330,6 +330,7 @@ namespace IdleFactoryDefense.Editor
 				"3. Nhấn vào Ụ Pháo hoặc Tường: Bảng tự đóng lại, bóng xanh Hologram xuất hiện để bạn kéo/đặt!\n" +
 				"4. Khi đang đặt: Nổi lên nút tròn Biểu tượng xoay (⟳) và nút Hủy (✕).\n" +
 				"5. Kéo dài tường: Giữ chuột và kéo để xây cả hàng tường cùng lúc!", 
+				"Tuyệt vời!");
 		}
 
 		// Tạo thẻ món hàng trong shop (Card giao diện đẹp, giá 0đ)
