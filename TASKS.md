@@ -1,4 +1,4 @@
-# 📋 LỘ TRÌNH TRIỂN KHAI DỰ ÁN: IDLE FACTORY DEFENSE 3D (MOBILE PORTRAIT)
+﻿# 📋 LỘ TRÌNH TRIỂN KHAI DỰ ÁN: ROBOT DEFENSE 3D (MOBILE PORTRAIT)
 *Nền tảng: Mobile Android & iOS | Góc nhìn: 3D Isometric Màn Hình Dọc (9:16) | Tiêu chuẩn: Chạy mượt 60 FPS trên Snapdragon 810+*
 *Hướng dẫn: Đánh dấu `[x]` vào các ô trống sau khi hoàn thành từng việc để theo dõi tiến độ.*
 
@@ -63,58 +63,18 @@
 
 ---
 
-## 🤖 PHASE 4: TỰ ĐỘNG HÓA BẰNG ROBOT (AUTOMATION ERA)
+## 🤖 PHASE 4: TỰ ĐỘNG HÓA BẰNG ROBOT (WORKER BOT)
 - [ ] **Worker Robot (Robot Khai thác):**
-  - [ ] Dựng mô hình Robot Low-poly nhỏ nhắn, ngộ nghĩnh.
-  - [ ] Vòng lặp AI nhẹ (Waypoint): Đi từ Căn cứ -> Đến mỏ Đá -> Đào 1s -> Cõng đá về Căn cứ -> Đổ vào kho (+1 Đá).
-- [ ] **Robot Vận chuyển / Băng chuyền:** Tự động đưa quặng từ Căn cứ vào lò luyện tự động sản xuất linh kiện nâng cấp.
-- [ ] **Tab Quản lý Robot ở đáy màn hình:** Dùng Tiền mua thêm số lượng Robot đào đá/gạch -> Toàn bộ việc thu thập tài nguyên được tự động hóa 100%, người chơi rảnh tay.
-- [ ] 📌 **Git Checkpoint:** Commit (*"Phase 4: Worker Robots & Full Automation"*).
+  - [ ] Dựng mô hình Robot Low-poly nhỏ nhắn.
+  - [ ] Vòng lặp AI (Waypoint): Đi từ Căn cứ -> Đến mỏ (Đá/Gỗ/Gạch) -> Đào 1s -> Mang quặng về Căn cứ -> Tăng tài nguyên tương ứng.
+- [ ] **Tab Quản lý Robot (Bottom UI):** Dùng Tài nguyên mua thêm số lượng Worker Bot (Tối đa 10 con) để tự động hóa 100%.
+- [ ] 📌 **Git Checkpoint:** Commit (*"Phase 4: Worker Bots & Automation"*).
 
 ---
 
-## 📈 PHASE 5: HỆ THỐNG WAVE & CƠ CHẾ LÙI WAVE (FARM TIỀN KHÔNG BAO GIỜ THUA)
+## 📈 PHASE 5: HỆ THỐNG WAVE & ĐÁNH BOSS (END GAME SPRINT)
 - [ ] **Wave Manager:** Quản lý đợt quái tràn xuống theo chiều dọc.
-- [ ] **Thanh tiến trình Wave ở Top Bar:** Hiển thị Wave hiện tại (VD: Wave 15/20) và thanh máu Boss.
-- [ ] **Công thức quái vật leo thang:**
-  - [ ] `HP Quái = Base_HP * (1.15 ^ Wave)`.
-  - [ ] `Tiền rớt = Base_Reward * (1.12 ^ Wave)`.
-- [ ] **Cơ chế Lùi Wave (AFK Farm Mode):**
-  - [ ] Khi quái quá đông phá vỡ Căn cứ: Game tự động lùi về Wave trước để căn cứ tự bắn quái farm tiền tích lũy.
-  - [ ] Hiện nút nổi "Thử Lại Wave [X]" ngay tầm ngón tay cái khi người chơi đã nâng cấp xong đồ xịn.
-- [ ] 📌 **Git Checkpoint:** Commit (*"Phase 5: Wave Scaling & Auto-Retreat Farm Mode"*).
-
----
-
-## ⚡ PHASE 6: BỘ 3 TÍNH NĂNG ĐẶC BIỆT MỚI (SPECIAL ABILITIES)
-- [ ] **1. Ép Xung Quá Tải (Overclock / Red Alert):**
-  - [ ] Nút tròn to `[⚡ OVERCLOCK]` đặt phía trên thanh Bottom Tabs (rất dễ ấn ngón cái).
-  - [ ] Hiệu ứng kích hoạt (10s): **x3 tốc bắn Trụ** + **x2 tốc chạy Robot** + Màn hình viền đỏ chớp cảnh báo + tia điện giật.
-  - [ ] Hết 10s: Xịt khói tản nhiệt 2s (Cooldown 60s có vòng tròn hồi chiêu).
-- [ ] **2. Chi Viện Vệ Tinh (Orbital Strike & Drop Pod):**
-  - [ ] Dựng mô hình Đĩa Radar trên nóc Căn cứ.
-  - [ ] *Tia Laser Quỹ Đạo:* Bấm nút Vệ tinh -> Chạm ngón tay vào bầy quái trên màn hình -> Chùm laser vũ trụ từ trời phóng xuống thiêu rụi quái trong vùng (Dùng LineRenderer tối ưu).
-  - [ ] *Kén Tiếp Tế (Drop Pod):* Mỗi 3 phút rơi dù 1 kén từ đỉnh màn hình xuống -> Chạm vào nhận bọc tiền lớn hoặc buff tạm thời.
-- [ ] **3. Drone Mini Đồng Hành Hút Đồ (Companion Drone):**
-  - [ ] 1 chú Robot bay tí hon bám sát theo vị trí ngón tay chạm/vuốt trên màn hình cảm ứng.
-  - [ ] Tia nam châm tự động hút tài nguyên & tiền rơi quanh ngón tay về kho.
-  - [ ] Tích hợp súng laser mini tỉa phụ và làm chậm (Slow 20%) con quái đi đầu.
-- [ ] 📌 **Git Checkpoint:** Commit (*"Phase 6: Special Abilities - Overclock, Orbital Strike & Drone"*).
-
----
-
-## 💾 PHASE 7: OFFLINE PROGRESS & TỐI ƯU CUỐI CÙNG (CHIP SNAPDRAGON 810+)
-- [ ] **Lưu Game Cục Bộ (Local Save System):**
-  - [ ] Lưu toàn bộ vàng, tài nguyên, cấp độ nâng cấp, wave cao nhất vào file JSON mã hóa nhẹ lưu trực tiếp trong bộ nhớ máy (`Application.persistentDataPath`).
-  - [ ] Tự động lưu mỗi 30 giây và khi pause/thoát ứng dụng (`OnApplicationPause`, `OnApplicationQuit`).
-- [ ] **Nhận Thưởng Khi Rời Game (Offline Earnings):**
-  - [ ] Ghi nhận mốc thời gian thoát game (`DateTime.UtcNow`).
-  - [ ] Khi người chơi mở lại game: Tính toán số phút vắng mặt -> Quy đổi số tiền & đá mà đàn Robot đã tự động đào trong lúc offline -> Hiện bảng thông báo Popup nhận thưởng cực kỳ thỏa mãn.
-- [ ] **Kiểm Tra Hiệu Năng Thực Tế (Profiling):**
-  - [ ] Kiểm tra Draw Calls (Batches) duy trì ổn định **dưới 30 Batches**.
-  - [ ] Kiểm tra GC Alloc = 0 bytes trong khi đánh trận.
-  - [ ] Đảm bảo FPS luôn giữ mốc 60 FPS ổn định, nhiệt độ máy mát mẻ trên Snapdragon 810+.
-- [ ] **Âm thanh & Rung cảm ứng (Haptics & SFX):**
-  - [ ] Thêm âm thanh cơ khí máy móc, tiếng súng đạn xả liên thanh, tiếng bíp báo động.
-  - [ ] Thêm rung nhẹ (Haptic feedback) khi bấm nâng cấp hoặc khi kích hoạt Overclock.
-- [ ] 📌 **Git Checkpoint:** Commit (*"Phase 7: Offline Progress, Profile 60FPS Snap810 & Final Polish"*).
+- [ ] **Thanh tiến trình Wave ở Top Bar:** Hiển thị Wave hiện tại (VD: Wave 1/10) và thanh máu Boss.
+- [ ] **Boss Cuối (Wave 10):** Sinh ra Boss khổng lồ ở Wave 10. Đánh bại Boss hiện màn hình Victory (Mục tiêu Game Sprint).
+- [ ] **Công thức quái vật leo thang:** HP Quái = Base_HP * (1.15 ^ Wave).
+- [ ] 📌 **Git Checkpoint:** Commit (*"Phase 5: Wave Manager & Boss 10"*).
