@@ -42,7 +42,7 @@ public class PlayerController : MonoBehaviour
 		mainCam = Camera.main;
 
 		if (joystick == null)
-			joystick = FindObjectOfType<VirtualJoystick>();
+			joystick = FindAnyObjectByType<VirtualJoystick>();
 
 		// Lên lịch ngẫu nhiên lần đầu tiên (từ 5 đến 10 giây)
 		nextIdleActionTime = Random.Range(minIdleTime, maxIdleTime);

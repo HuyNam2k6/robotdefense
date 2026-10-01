@@ -5,12 +5,11 @@ public class Bullet : MonoBehaviour
 	public float speed = 25f;
 	public int damage = 10;
 	public float lifeTime = 3f;
-	public float radius = 0.2f;          // độ dày đạn, tăng lên cho dễ trúng
-	public LayerMask hitMask = ~0;       // bỏ layer của trụ súng/đạn ra khỏi mask
+	public float radius = 0.2f;
+	public LayerMask hitMask = ~0;
 
 	private Vector3 direction;
 
-	// Gọi ngay sau Instantiate
 	public void Fire(Vector3 dir)
 	{
 		direction = dir.normalized;
@@ -38,7 +37,6 @@ public class Bullet : MonoBehaviour
 		if (other.CompareTag("Enemy"))
 		{
 			Debug.Log($"<color=red>[Đạn]</color> Bắn trúng quái: {other.name}! Sát thương: {damage}");
-			// TODO: other.GetComponentInParent<EnemyHealth>()?.TakeDamage(damage);
 		}
 		else
 		{
