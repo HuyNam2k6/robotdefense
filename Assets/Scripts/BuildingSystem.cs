@@ -95,7 +95,7 @@ public class BuildingSystem : MonoBehaviour
 
 		bool isCurrentWall = items[selectedIndex].isWall;
 
-		// 1. XỬ LÝ CHO BỨC TƯỜNG (KÉO DÀI THÀNH HÀNG TƯỜNG HOẶC CLICK ĐẶT LIÊN TỤC)
+		// 1. XỬ LÝ CHO BỨC TƯỜNG (KÉO DÀI THÀNH HÀNG TƯỜNG THEO PHONG CÁCH CLASH OF CLANS)
 		if (isCurrentWall)
 		{
 			if (hasGroundHit)
@@ -112,82 +112,109 @@ public class BuildingSystem : MonoBehaviour
 					}
 				}
 
+				float segLen = Mathf.Max(0.5f, items[selectedIndex].segmentLength);
+				Vector3 startSnap = SnapToGrid(wallDragStart, segLen);
+				Vector3 curSnap = SnapToGrid(wallDragCurrent, segLen);
+
+				float dx = curSnap.x - startSnap.x;
+				float dz = curSnap.z - startSnap.z;
+				bool isHorizontal = Mathf.Abs(dx) >= Mathf.Abs(dz);
+
+				int count = isHorizontal 
+					? Mathf.RoundToInt(Mathf.Abs(dx) / segLen) + 1 
+					: Mathf.RoundToInt(Mathf.Abs(dz) / segLen) + 1;
+
+				float dirSign = isHorizontal ? (dx >= 0 ? 1f : -1f) : (dz >= 0 ? 1f : -1f);
+				// Tường prefab dài 1m theo trục X cục bộ:
+				// Nếu kéo ngang (X): rotation = identity (chiều dài nối tiếp nhau theo trục X)
+				// Nếu kéo dọc (Z): rotation = Euler(0, 90, 0) (xoay 90 độ để chiều dài nối tiếp nhau theo trục Z)
+				Quaternion wallRot = isHorizontal ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
+
+				int wallCost = (GameEconomy.Instance != null) ? GameEconomy.Instance.wallSegmentCost : 0;
+				int currentCoins = (GameEconomy.Instance != null) ? GameEconomy.Instance.coins : 0;
+				int maxCanAfford = (wallCost <= 0) ? 99999 : Mathf.Max(0, currentCoins / wallCost);
+
 				// Trong lúc giữ chuột kéo
 				if (isDraggingWall)
 				{
-					Vector3 delta = wallDragCurrent - wallDragStart;
-					delta.y = 0f;
-					float dist = delta.magnitude;
-
-					if (dist < 0.6f)
+					if (wallCost > 0 && maxCanAfford <= 0)
 					{
-						// Khoảng cách ngắn: hiển thị 1 đoạn tường
-						EnsurePreviewCount(1);
-						previewPool[0].SetActive(true);
-						previewPool[0].transform.position = wallDragStart;
-						previewPool[0].transform.rotation = Quaternion.Euler(0f, currentYRotation, 0f);
+						SetAllPreviewsActive(false);
+						if (GameEconomy.Instance != null)
+						{
+							GameEconomy.Instance.TriggerNotEnoughCoins("Không đủ vàng để mua tường!");
+						}
 					}
 					else
 					{
-						// Khoảng cách dài: KÉO DÀI THÀNH HÀNG TƯỜNG HOLOGRAM
-						float segLen = Mathf.Max(0.5f, items[selectedIndex].segmentLength);
-						int count = Mathf.Max(1, Mathf.RoundToInt(dist / segLen));
-						float step = dist / count;
-						Vector3 dir = delta.normalized;
-						Quaternion wallRot = Quaternion.LookRotation(dir, Vector3.up);
+						// Giới hạn số đoạn kéo theo số vàng (nếu giá > 0)
+						if (wallCost > 0 && count > maxCanAfford)
+						{
+							count = maxCanAfford;
+							if (GameEconomy.Instance != null)
+							{
+								GameEconomy.Instance.TriggerNotEnoughCoins("Đã hết vàng! Không thể kéo dài thêm tường!");
+							}
+						}
 
 						EnsurePreviewCount(count);
 						for (int i = 0; i < count; i++)
 						{
-							Vector3 segPos = wallDragStart + dir * (i * step + step * 0.5f);
+							float x = isHorizontal ? startSnap.x + i * segLen * dirSign : startSnap.x;
+							float z = isHorizontal ? startSnap.z : startSnap.z + i * segLen * dirSign;
+							float y = SampleGroundY(x, z, startSnap.y);
+
 							previewPool[i].SetActive(true);
-							previewPool[i].transform.position = segPos;
+							previewPool[i].transform.position = new Vector3(x, y, z);
 							previewPool[i].transform.rotation = wallRot;
 						}
 					}
 				}
 				else
 				{
-					// Chưa nhấn chuột: 1 đoạn tường hologram di chuyển theo chuột
+					// Chưa nhấn chuột: 1 đoạn tường hologram di chuyển theo chuột, snap nhẹ theo grid
+					Vector3 hoverSnap = SnapToGrid(hit.point, segLen);
+					hoverSnap.y = SampleGroundY(hoverSnap.x, hoverSnap.z, hit.point.y);
+
 					EnsurePreviewCount(1);
 					previewPool[0].SetActive(true);
-					previewPool[0].transform.position = hit.point;
+					previewPool[0].transform.position = hoverSnap;
 					previewPool[0].transform.rotation = Quaternion.Euler(0f, currentYRotation, 0f);
 				}
 
-				// Thả chuột trái: XÂY DỰNG TOÀN BỘ CÁC ĐOẠN TƯỜNG ĐÃ KÉO
+				// Thả chuột trái: XÂY DỰNG TOÀN BỘ CÁC ĐOẠN TƯỜNG CLASH OF CLANS
 				if (Input.GetMouseButtonUp(0) && isDraggingWall)
 				{
 					isDraggingWall = false;
 
-					Vector3 delta = wallDragCurrent - wallDragStart;
-					delta.y = 0f;
-					float dist = delta.magnitude;
-
-					if (dist < 0.6f)
+					if (wallCost > 0 && maxCanAfford <= 0)
 					{
-						// Đặt 1 đoạn tường đơn
-						SpawnRealObject(items[selectedIndex].prefab, wallDragStart, Quaternion.Euler(0f, currentYRotation, 0f));
+						if (GameEconomy.Instance != null)
+						{
+							GameEconomy.Instance.TriggerNotEnoughCoins("Không đủ vàng để mua tường!");
+						}
 					}
 					else
 					{
-						// Xây cả một hàng tường nối tiếp nhau
-						float segLen = Mathf.Max(0.5f, items[selectedIndex].segmentLength);
-						int count = Mathf.Max(1, Mathf.RoundToInt(dist / segLen));
-						float step = dist / count;
-						Vector3 dir = delta.normalized;
-						Quaternion wallRot = Quaternion.LookRotation(dir, Vector3.up);
+						if (wallCost > 0 && count > maxCanAfford) count = maxCanAfford;
+						int totalCost = count * wallCost;
 
-						for (int i = 0; i < count; i++)
+						if (wallCost <= 0 || GameEconomy.Instance == null || GameEconomy.Instance.SpendCoins(totalCost))
 						{
-							Vector3 segPos = wallDragStart + dir * (i * step + step * 0.5f);
-							SpawnRealObject(items[selectedIndex].prefab, segPos, wallRot);
-						}
+							for (int i = 0; i < count; i++)
+							{
+								float x = isHorizontal ? startSnap.x + i * segLen * dirSign : startSnap.x;
+								float z = isHorizontal ? startSnap.z : startSnap.z + i * segLen * dirSign;
+								float y = SampleGroundY(x, z, startSnap.y);
 
-						Debug.Log($"<color=cyan>[Tường]</color> Đã kéo dài và xây dựng thành công hàng tường gồm {count} đoạn!");
+								SpawnRealObject(items[selectedIndex].prefab, new Vector3(x, y, z), wallRot);
+							}
+
+							Debug.Log($"<color=cyan>[Tường Clash of Clans]</color> Đã kéo và xây thành công {count} đoạn tường chuẩn lưới!");
+						}
 					}
 
-					// KHÔNG THOÁT RA: Giữ nguyên chế độ để người chơi tiếp tục kéo bức tường tiếp theo!
+					// Giữ chế độ để người chơi tiếp tục kéo đoạn tiếp theo
 					EnsurePreviewCount(1);
 				}
 			}
@@ -227,10 +254,40 @@ public class BuildingSystem : MonoBehaviour
 		}
 	}
 
-	void SpawnRealObject(GameObject prefab, Vector3 position, Quaternion rotation)
+	private Vector3 SnapToGrid(Vector3 pos, float grid)
+	{
+		return new Vector3(
+			Mathf.Round(pos.x / grid) * grid,
+			pos.y,
+			Mathf.Round(pos.z / grid) * grid
+		);
+	}
+
+	private float SampleGroundY(float x, float z, float defaultY)
+	{
+		if (Physics.Raycast(new Vector3(x, 100f, z), Vector3.down, out RaycastHit hit, 200f, groundLayer))
+		{
+			return hit.point.y;
+		}
+		return defaultY;
+	}
+
+	GameObject SpawnRealObject(GameObject prefab, Vector3 position, Quaternion rotation)
 	{
 		GameObject realObj = Instantiate(prefab, position, rotation);
 		realObj.name = prefab.name;
+
+		if (selectedIndex >= 0 && selectedIndex < items.Length && items[selectedIndex].isWall)
+		{
+			WallSegment ws = realObj.GetComponent<WallSegment>();
+			if (ws == null) ws = realObj.AddComponent<WallSegment>();
+			if (GameEconomy.Instance != null)
+			{
+				ws.ApplyLevel(GameEconomy.Instance.wallLevel);
+			}
+		}
+
+		return realObj;
 	}
 
 	// Gọi từ nút bấm trên UI Shop

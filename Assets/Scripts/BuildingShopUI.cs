@@ -1,37 +1,70 @@
 using UnityEngine;
 using UnityEngine.UI;
+using System.Collections;
 
 public class BuildingShopUI : MonoBehaviour
 {
 	public BuildingSystem buildingSystem;
 
-	[Header("--- Nút Mua Hàng Trong Shop ---")]
-	[Header("--- Nút Mở Cửa Hàng ---")]
-	[Tooltip("Nút có hình Cửa Hàng hiển thị trên màn hình")]
-	public Button shopOpenButton;
+	[Header("--- Nút Icon Giỏ Hàng & Dashboard Ngang ---")]
+	public Button shoppingCartButton; // Icon giỏ hàng 🛒
+	public GameObject dashboardPanel;  // Bảng dashboard nằm ngang
+	public Button closeDashboardButton; // Nút đóng ✕
 
-	[Header("--- Bảng Cửa Hàng Popup (Shop Panel) ---")]
-	[Tooltip("Bảng danh sách công trình (Ụ pháo & Tường), xuất hiện sau khi nhấn nút Cửa Hàng")]
-	public GameObject shopPanel;
-	public Button closeShopButton;
+	// Thuộc tính tương thích ngược
+	public Button shopOpenButton { get => shoppingCartButton; set => shoppingCartButton = value; }
+	public GameObject shopPanel { get => dashboardPanel; set => dashboardPanel = value; }
+	public Button closeShopButton { get => closeDashboardButton; set => closeDashboardButton = value; }
 
-	[Header("--- Nút Chọn Công Trình Trong Bảng ---")]
-	public Button turretButton;
+	[Header("--- Thông Tin Tiền Tệ & Tài Nguyên ---")]
+	public Text coinText;
+	public Text stoneText;
+
+	[Header("--- Mục 1: Robot Đào Mỏ & Cúp Sắt ---")]
+	public Button buyWorkerButton;
+	public Text buyWorkerText;
+	public Button upgradePickaxeButton;
+	public Text upgradePickaxeText;
+
+	[Header("--- Mục 2: Đồ Phòng Thủ (Robot Phòng Thủ) ---")]
+	public Button defenseRobotButton;
+	public Text defenseRobotText;
+
+	[Header("--- Mục 3: Bức Tường (Kéo Trái/Phải & Nâng Cấp) ---")]
 	public Button wallButton;
+	public Text wallButtonText;
+	public Button upgradeWallButton;
+	public Text upgradeWallText;
+
+	[Header("--- Thông Báo Cảnh Báo Không Đủ Vàng ---")]
+	public GameObject notEnoughCoinsBanner;
+	public Text notEnoughCoinsText;
 
 	[Header("--- Bảng Điều Khiển Nổi Khi Đang Đặt (Placement HUD) ---")]
-	[Tooltip("Khung chứa biểu tượng xoay và hủy, chỉ hiện khi đang chọn đặt công trình.")]
 	public GameObject placementHUD;
-
-	[Tooltip("Nút biểu tượng xoay (icon ⟳)")]
 	public Button rotateIconButton;
-
-	[Tooltip("Nút biểu tượng hủy (icon ✕)")]
 	public Button cancelIconButton;
 
-	// Tương thích ngược nếu còn nút cũ
-	public Button rotateButton;
-	public Button cancelButton;
+	private Coroutine warningCoroutine;
+
+	void Awake()
+	{
+		// Đảm bảo Canvas không bị scale = 0
+		Canvas canvas = GetComponentInParent<Canvas>();
+		if (canvas != null)
+		{
+			RectTransform crt = canvas.GetComponent<RectTransform>();
+			if (crt != null && (crt.localScale.x == 0f || crt.localScale.y == 0f))
+			{
+				crt.localScale = Vector3.one;
+			}
+		}
+
+		if (shoppingCartButton != null)
+		{
+			shoppingCartButton.gameObject.SetActive(true);
+		}
+	}
 
 	void Start()
 	{
@@ -44,25 +77,62 @@ public class BuildingShopUI : MonoBehaviour
 		if (closeShopButton != null)
 			closeShopButton.onClick.AddListener(CloseShopPanel);
 
-		if (turretButton != null)
-			turretButton.onClick.AddListener(OnSelectTurret);
+		// 1. Robot Đào & Cúp Sắt
+		if (buyWorkerButton != null)
+			buyWorkerButton.onClick.AddListener(OnBuyWorker);
 
+		if (upgradePickaxeButton != null)
+			upgradePickaxeButton.onClick.AddListener(OnUpgradePickaxe);
+
+		// 2. Phòng Thủ
+		if (defenseRobotButton != null)
+		{
+			defenseRobotButton.interactable = false; // Hiện chưa có, để placeholder
+			if (defenseRobotText != null)
+				defenseRobotText.text = "🛡️ <b>ROBOT PHÒNG THỦ</b>\n<color=#AAAAAA>(🔒 Sắp ra mắt)</color>";
+		}
+
+		// 3. Tường & Nâng Cấp Tường
 		if (wallButton != null)
 			wallButton.onClick.AddListener(OnSelectWall);
 
+		if (upgradeWallButton != null)
+			upgradeWallButton.onClick.AddListener(OnUpgradeWall);
+
+		// Điều khiển xoay / hủy
 		if (rotateIconButton != null)
 			rotateIconButton.onClick.AddListener(OnRotate);
-		else if (rotateButton != null)
-			rotateButton.onClick.AddListener(OnRotate);
 
 		if (cancelIconButton != null)
 			cancelIconButton.onClick.AddListener(OnCancel);
-		else if (cancelButton != null)
-			cancelButton.onClick.AddListener(OnCancel);
 
-		// Mặc định lúc bắt đầu game: Bảng Shop đóng, chỉ hiển thị nút Cửa Hàng
-		if (shopPanel != null)
-			shopPanel.SetActive(false);
+		// Đăng ký event với GameEconomy
+		if (GameEconomy.Instance != null)
+		{
+			GameEconomy.Instance.OnEconomyChanged += UpdateUI;
+			GameEconomy.Instance.OnNotEnoughCoins += ShowNotEnoughCoinsWarning;
+		}
+
+		if (notEnoughCoinsBanner != null)
+			notEnoughCoinsBanner.SetActive(false);
+
+		// Mặc định ban đầu: Ẩn dashboard, chỉ hiện icon giỏ hàng 🛒 khi nhấn vào mới mở
+		if (dashboardPanel != null)
+			dashboardPanel.SetActive(false);
+
+		if (shoppingCartButton != null)
+			shoppingCartButton.gameObject.SetActive(true);
+
+		UpdateUI();
+	}
+
+	void OnDestroy()
+	{
+		if (GameEconomy.Instance != null)
+		{
+			GameEconomy.Instance.OnEconomyChanged -= UpdateUI;
+			GameEconomy.Instance.OnNotEnoughCoins -= ShowNotEnoughCoinsWarning;
+		}
 	}
 
 	void Update()
@@ -76,13 +146,73 @@ public class BuildingShopUI : MonoBehaviour
 				placementHUD.SetActive(isPlacing);
 			}
 
-			if (cancelButton != null && cancelButton.gameObject.activeSelf != isPlacing)
-				cancelButton.gameObject.SetActive(isPlacing);
-
-			// Khi đang ở chế độ xem trước đặt công trình thì ẩn nút mở shop để màn hình thông thoáng
-			if (shopOpenButton != null && shopOpenButton.gameObject.activeSelf == isPlacing)
+			// Khi đang kéo đặt tường: ẩn dashboard và icon giỏ hàng để dễ quan sát mặt đất
+			if (isPlacing)
 			{
-				shopOpenButton.gameObject.SetActive(!isPlacing);
+				if (dashboardPanel != null && dashboardPanel.activeSelf)
+				{
+					dashboardPanel.SetActive(false);
+				}
+				if (shoppingCartButton != null && shoppingCartButton.gameObject.activeSelf)
+				{
+					shoppingCartButton.gameObject.SetActive(false);
+				}
+			}
+			else
+			{
+				if (shoppingCartButton != null && !shoppingCartButton.gameObject.activeSelf)
+				{
+					shoppingCartButton.gameObject.SetActive(true);
+				}
+			}
+		}
+	}
+
+	public void UpdateUI()
+	{
+		if (GameEconomy.Instance == null) return;
+
+		// 1. Tiền tệ
+		if (coinText != null)
+			coinText.text = $"🪙 <b>{GameEconomy.Instance.coins}</b> Vàng";
+
+		if (stoneText != null)
+			stoneText.text = $"🪨 <b>{GameEconomy.Instance.stoneCount}</b> Đá";
+
+		// 2. Robot Đào Mỏ
+		if (buyWorkerText != null)
+		{
+			buyWorkerText.text = $"🤖 <b>MUA ROBOT ĐÀO</b>\n<color=#FFD700>🪙 {GameEconomy.Instance.workerRobotCost} Vàng</color>";
+		}
+
+		// 3. Nâng Cấp Cúp Sắt
+		if (upgradePickaxeText != null)
+		{
+			int pCost = GameEconomy.Instance.GetPickaxeUpgradeCost();
+			upgradePickaxeText.text = $"⛏️ <b>CÚP SẮT (CẤP {GameEconomy.Instance.pickaxeLevel})</b>\n<color=#FFD700>⭐ Nâng Cấp: {pCost}🪙</color>";
+		}
+
+		// 4. Mua Tường
+		if (wallButtonText != null)
+		{
+			wallButtonText.text = $"🧱 <b>MUA TƯỜNG (KÉO TRÁI/PHẢI)</b>\n<color=#FFD700>🪙 {GameEconomy.Instance.wallSegmentCost} Vàng/Đoạn</color>";
+		}
+
+		// 5. Nâng Cấp Tường
+		if (upgradeWallText != null)
+		{
+			int wLevel = GameEconomy.Instance.wallLevel;
+			if (wLevel < 6)
+			{
+				int wCost = GameEconomy.Instance.GetWallUpgradeCost();
+				string nextName = GameEconomy.WallLevelNames[wLevel];
+				upgradeWallText.text = $"⭐ <b>NÂNG CẤP TƯỜNG (LÊN CẤP {wLevel + 1})</b>\n<color=#00FFFF>✦ {nextName}</color> • <color=#FFD700>{wCost}🪙</color>";
+				if (upgradeWallButton != null) upgradeWallButton.interactable = true;
+			}
+			else
+			{
+				upgradeWallText.text = $"👑 <b>TƯỜNG CẤP 6 (MAX)</b>\n<color=#E0B0FF>✦ ĐEN TITAN CỰC PHẨM</color>";
+				if (upgradeWallButton != null) upgradeWallButton.interactable = false;
 			}
 		}
 	}
@@ -92,12 +222,8 @@ public class BuildingShopUI : MonoBehaviour
 		if (shopPanel != null)
 		{
 			shopPanel.SetActive(!shopPanel.activeSelf);
+			UpdateUI();
 		}
-	}
-
-	public void OpenShopPanel()
-	{
-		if (shopPanel != null) shopPanel.SetActive(true);
 	}
 
 	public void CloseShopPanel()
@@ -105,16 +231,43 @@ public class BuildingShopUI : MonoBehaviour
 		if (shopPanel != null) shopPanel.SetActive(false);
 	}
 
-	public void OnSelectTurret()
+	public void OnBuyWorker()
 	{
-		CloseShopPanel();
-		if (buildingSystem != null) buildingSystem.SelectItem(0);
+		if (GameEconomy.Instance != null)
+		{
+			GameEconomy.Instance.BuyWorkerRobot();
+		}
+	}
+
+	public void OnUpgradePickaxe()
+	{
+		if (GameEconomy.Instance != null)
+		{
+			GameEconomy.Instance.UpgradePickaxe();
+		}
 	}
 
 	public void OnSelectWall()
 	{
+		if (GameEconomy.Instance != null && GameEconomy.Instance.wallSegmentCost > 0 && GameEconomy.Instance.coins < GameEconomy.Instance.wallSegmentCost)
+		{
+			ShowNotEnoughCoinsWarning("Không đủ vàng để mua tường!");
+			return;
+		}
+
 		CloseShopPanel();
-		if (buildingSystem != null) buildingSystem.SelectItem(1);
+		if (buildingSystem != null)
+		{
+			buildingSystem.SelectItem(1); // 1 là Tường trong BuildingSystem
+		}
+	}
+
+	public void OnUpgradeWall()
+	{
+		if (GameEconomy.Instance != null)
+		{
+			GameEconomy.Instance.UpgradeGlobalWall();
+		}
 	}
 
 	public void OnRotate()
@@ -126,5 +279,24 @@ public class BuildingShopUI : MonoBehaviour
 	{
 		if (buildingSystem != null) buildingSystem.CancelPlacement();
 	}
-}
 
+	public void ShowNotEnoughCoinsWarning(string message = "⚠️ Không đủ vàng!")
+	{
+		if (notEnoughCoinsBanner == null) return;
+
+		if (notEnoughCoinsText != null)
+			notEnoughCoinsText.text = message;
+
+		if (warningCoroutine != null)
+			StopCoroutine(warningCoroutine);
+
+		warningCoroutine = StartCoroutine(DoShowWarning());
+	}
+
+	private IEnumerator DoShowWarning()
+	{
+		notEnoughCoinsBanner.SetActive(true);
+		yield return new WaitForSeconds(1.8f);
+		notEnoughCoinsBanner.SetActive(false);
+	}
+}

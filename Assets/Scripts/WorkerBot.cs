@@ -14,6 +14,9 @@ public class WorkerBot : MonoBehaviour
     [Tooltip("Thời gian nghỉ giữa các nhát bổ tiếp theo")]
     public float mineInterval = 1.8f;
 
+    [Header("Tài Nguyên Khai Thác")]
+    public int stoneMinedCount = 0;
+
     private float mineTimer = 0f;
     private bool isMining = false;
     private Vector3 velocity; // Trọng lực
@@ -46,11 +49,22 @@ public class WorkerBot : MonoBehaviour
         }
         cc.Move(velocity * Time.deltaTime);
 
-        // Nếu không có mục tiêu -> đứng yên
+        // Nếu không có mục tiêu -> tự động tìm tảng đá rocks (1) hoặc rocks trong scene
         if (targetRock == null)
         {
-            if (animator != null) animator.SetBool("isMoving", false);
-            return;
+            GameObject r1 = GameObject.Find("rocks (1)");
+            if (r1 != null) targetRock = r1.transform;
+            else
+            {
+                GameObject r0 = GameObject.Find("rocks");
+                if (r0 != null) targetRock = r0.transform;
+            }
+
+            if (targetRock == null)
+            {
+                if (animator != null) animator.SetBool("isMoving", false);
+                return;
+            }
         }
 
         // ================= 2. TÍNH KHOẢNG CÁCH TRÊN MẶT ĐẤT =================
@@ -58,8 +72,18 @@ public class WorkerBot : MonoBehaviour
         float sqrDistance = (transform.position - targetPosXZ).sqrMagnitude;
         float sqrStopDistance = stopDistance * stopDistance;
 
+        // Kiểm tra nếu chạm sát collider của đá hoặc khoảng cách đạt tầm đào
+        bool reachedRock = sqrDistance <= sqrStopDistance;
+        if (!reachedRock && sqrDistance <= (stopDistance + 0.6f) * (stopDistance + 0.6f))
+        {
+            if ((cc.collisionFlags & CollisionFlags.Sides) != 0)
+            {
+                reachedRock = true;
+            }
+        }
+
         // ================= 3. NẾU Ở XA -> CHẠY TỚI ĐÁ, TUYỆT ĐỐI KHÔNG ATTACK =================
-        if (sqrDistance > sqrStopDistance)
+        if (!reachedRock)
         {
             isMining = false;
             mineTimer = 0f;
@@ -101,12 +125,14 @@ public class WorkerBot : MonoBehaviour
             {
                 isMining = true;
                 mineTimer = 0f;
+                stoneMinedCount++;
+                if (GameEconomy.Instance != null) GameEconomy.Instance.AddStone(1);
 
                 if (animator != null)
                 {
                     animator.SetTrigger("mine");
                 }
-                Debug.Log("<color=yellow>⛏️ [WorkerBot] Vừa tới sát mép đá là ĐẬP NGAY LẬP TỨC!</color>");
+                Debug.Log($"<color=yellow>⛏️ [WorkerBot] Vừa tới sát mép đá! Bổ cuốc đào đá! Tổng đá: {stoneMinedCount}</color>");
             }
             else
             {
@@ -115,11 +141,14 @@ public class WorkerBot : MonoBehaviour
                 if (mineTimer >= mineInterval)
                 {
                     mineTimer = 0f;
+                    stoneMinedCount++;
+                    if (GameEconomy.Instance != null) GameEconomy.Instance.AddStone(1);
+
                     if (animator != null)
                     {
                         animator.SetTrigger("mine");
                     }
-                    Debug.Log("<color=yellow>⛏️ [WorkerBot] Bổ tiếp 1 nhát đá!</color>");
+                    Debug.Log($"<color=yellow>⛏️ [WorkerBot] Bổ tiếp 1 nhát đá! Tổng đá: {stoneMinedCount}</color>");
                 }
             }
         }
