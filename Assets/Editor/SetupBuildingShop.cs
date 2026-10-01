@@ -123,57 +123,105 @@ namespace IdleFactoryDefense.Editor
 				canvasObj.layer = uiLayer;
 			}
 
-			// 7. TẠO THANH CỬA HÀNG Ở ĐÁY MÀN HÌNH (THUMB ZONE)
+			// 7. DỌN DẸP GIAO DIỆN CŨ
 			Transform oldShopBar = canvasObj.transform.Find("Building_Shop_Bar");
 			if (oldShopBar != null) Object.DestroyImmediate(oldShopBar.gameObject);
 
 			Transform oldHud = canvasObj.transform.Find("Placement_HUD");
 			if (oldHud != null) Object.DestroyImmediate(oldHud.gameObject);
 
-			// --- A. BẢNG CỬA HÀNG CHÍNH ---
-			GameObject shopBar = new GameObject("Building_Shop_Bar", typeof(RectTransform));
-			shopBar.layer = uiLayer;
-			shopBar.transform.SetParent(canvasObj.transform, false);
+			Transform oldOpenBtn = canvasObj.transform.Find("Btn_OpenShop");
+			if (oldOpenBtn != null) Object.DestroyImmediate(oldOpenBtn.gameObject);
 
-			RectTransform barRect = shopBar.GetComponent<RectTransform>();
-			barRect.anchorMin = new Vector2(0.5f, 0f);
-			barRect.anchorMax = new Vector2(0.5f, 0f);
-			barRect.pivot = new Vector2(0.5f, 0f);
-			barRect.anchoredPosition = new Vector2(0f, 60f); // Cách đáy 60px
-			barRect.sizeDelta = new Vector2(980f, 180f);
+			Transform oldShopPanel = canvasObj.transform.Find("Shop_Panel");
+			if (oldShopPanel != null) Object.DestroyImmediate(oldShopPanel.gameObject);
 
-			// Background thanh bar
-			Image barBg = shopBar.AddComponent<Image>();
-			barBg.color = new Color(0.08f, 0.11f, 0.16f, 0.94f); // Bo đen sang trọng
+			// --- A. NÚT HÌNH CỬA HÀNG TRÊN MÀN HÌNH CHÍNH ---
+			GameObject openShopObj = new GameObject("Btn_OpenShop", typeof(RectTransform));
+			openShopObj.layer = uiLayer;
+			openShopObj.transform.SetParent(canvasObj.transform, false);
 
-			// Tiêu đề shop & ví tiền
-			GameObject titleObj = new GameObject("Header_Coins", typeof(RectTransform));
-			titleObj.layer = uiLayer;
-			titleObj.transform.SetParent(shopBar.transform, false);
-			RectTransform titleRect = titleObj.GetComponent<RectTransform>();
-			titleRect.anchorMin = new Vector2(0f, 1f);
-			titleRect.anchorMax = new Vector2(1f, 1f);
-			titleRect.pivot = new Vector2(0.5f, 1f);
-			titleRect.anchoredPosition = new Vector2(0f, -8f);
-			titleRect.sizeDelta = new Vector2(0f, 32f);
+			RectTransform openBtnRect = openShopObj.GetComponent<RectTransform>();
+			openBtnRect.anchorMin = new Vector2(0.5f, 0f);
+			openBtnRect.anchorMax = new Vector2(0.5f, 0f);
+			openBtnRect.pivot = new Vector2(0.5f, 0f);
+			openBtnRect.anchoredPosition = new Vector2(0f, 50f);
+			openBtnRect.sizeDelta = new Vector2(260f, 95f);
 
-			Text titleText = titleObj.AddComponent<Text>();
-			titleText.text = "🏪 CỬA HÀNG XÂY DỰNG  •  🪙 VÍ: 0đ (MUA MIỄN PHÍ)";
-			titleText.font = GetSafeFont();
-			titleText.fontSize = 20;
-			titleText.fontStyle = FontStyle.Bold;
-			titleText.alignment = TextAnchor.MiddleCenter;
-			titleText.color = new Color(1f, 0.85f, 0.25f); // Vàng kim
+			Image openBtnImg = openShopObj.AddComponent<Image>();
+			openBtnImg.color = new Color(0.95f, 0.55f, 0.15f); // Vàng cam nổi bật
 
-			// Khung chứa các Card công trình
+			Button btnOpenShop = openShopObj.AddComponent<Button>();
+			ColorBlock openCb = btnOpenShop.colors;
+			openCb.highlightedColor = new Color(1f, 0.65f, 0.25f);
+			openCb.pressedColor = new Color(0.8f, 0.45f, 0.1f);
+			btnOpenShop.colors = openCb;
+
+			GameObject openTextObj = new GameObject("Text", typeof(RectTransform));
+			openTextObj.layer = uiLayer;
+			openTextObj.transform.SetParent(openShopObj.transform, false);
+			RectTransform openTextRect = openTextObj.GetComponent<RectTransform>();
+			openTextRect.anchorMin = Vector2.zero;
+			openTextRect.anchorMax = Vector2.one;
+			openTextRect.sizeDelta = Vector2.zero;
+
+			Text openTxt = openTextObj.AddComponent<Text>();
+			openTxt.text = "🏪 <b>CỬA HÀNG</b>\n<color=#FFFAAA>🪙 0đ (Mua)</color>";
+			openTxt.font = GetSafeFont();
+			openTxt.fontSize = 22;
+			openTxt.fontStyle = FontStyle.Bold;
+			openTxt.alignment = TextAnchor.MiddleCenter;
+			openTxt.color = Color.white;
+			Outline openOutline = openTextObj.AddComponent<Outline>();
+			openOutline.effectColor = new Color(0f, 0f, 0f, 0.85f);
+			openOutline.effectDistance = new Vector2(1.5f, -1.5f);
+
+			// --- B. BẢNG CỬA HÀNG POPUP (SHOP PANEL) ---
+			GameObject shopPanelObj = new GameObject("Shop_Panel", typeof(RectTransform));
+			shopPanelObj.layer = uiLayer;
+			shopPanelObj.transform.SetParent(canvasObj.transform, false);
+
+			RectTransform panelRect = shopPanelObj.GetComponent<RectTransform>();
+			panelRect.anchorMin = new Vector2(0.5f, 0f);
+			panelRect.anchorMax = new Vector2(0.5f, 0f);
+			panelRect.pivot = new Vector2(0.5f, 0f);
+			panelRect.anchoredPosition = new Vector2(0f, 60f);
+			panelRect.sizeDelta = new Vector2(760f, 260f);
+
+			Image panelBg = shopPanelObj.AddComponent<Image>();
+			panelBg.color = new Color(0.08f, 0.11f, 0.17f, 0.96f); // Xám đen bóng sang trọng
+
+			// Header của Panel
+			GameObject pHeaderObj = new GameObject("Panel_Header", typeof(RectTransform));
+			pHeaderObj.layer = uiLayer;
+			pHeaderObj.transform.SetParent(shopPanelObj.transform, false);
+			RectTransform pHeaderRect = pHeaderObj.GetComponent<RectTransform>();
+			pHeaderRect.anchorMin = new Vector2(0f, 1f);
+			pHeaderRect.anchorMax = new Vector2(1f, 1f);
+			pHeaderRect.pivot = new Vector2(0.5f, 1f);
+			pHeaderRect.anchoredPosition = new Vector2(0f, -8f);
+			pHeaderRect.sizeDelta = new Vector2(0f, 36f);
+
+			Text pHeaderText = pHeaderObj.AddComponent<Text>();
+			pHeaderText.text = "🏪 CỬA HÀNG XÂY DỰNG  •  🪙 VÍ: 0đ";
+			pHeaderText.font = GetSafeFont();
+			pHeaderText.fontSize = 20;
+			pHeaderText.fontStyle = FontStyle.Bold;
+			pHeaderText.alignment = TextAnchor.MiddleCenter;
+			pHeaderText.color = new Color(1f, 0.85f, 0.25f);
+
+			// Nút đóng bảng (✕)
+			Button btnCloseShop = CreateCircleIconButton(shopPanelObj.transform, "Btn_ClosePanel", "✕", new Vector2(340f, -12f), 45f, new Color(0.85f, 0.25f, 0.25f), uiLayer);
+
+			// Container chứa 2 card (Ụ Pháo và Tường)
 			GameObject cardContainer = new GameObject("Card_Container", typeof(RectTransform));
 			cardContainer.layer = uiLayer;
-			cardContainer.transform.SetParent(shopBar.transform, false);
+			cardContainer.transform.SetParent(shopPanelObj.transform, false);
 			RectTransform cardContRect = cardContainer.GetComponent<RectTransform>();
 			cardContRect.anchorMin = new Vector2(0f, 0f);
 			cardContRect.anchorMax = new Vector2(1f, 0.78f);
-			cardContRect.offsetMin = new Vector2(16f, 12f);
-			cardContRect.offsetMax = new Vector2(-16f, 0f);
+			cardContRect.offsetMin = new Vector2(20f, 15f);
+			cardContRect.offsetMax = new Vector2(-20f, 0f);
 
 			HorizontalLayoutGroup cardLayout = cardContainer.AddComponent<HorizontalLayoutGroup>();
 			cardLayout.spacing = 30f;
@@ -183,11 +231,13 @@ namespace IdleFactoryDefense.Editor
 			cardLayout.childForceExpandWidth = false;
 			cardLayout.childForceExpandHeight = false;
 
-			// TẠO 2 THẺ CÔNG TRÌNH (GIÁ 0đ)
 			Button btnTurret = CreateShopCard(cardContainer.transform, "Btn_Turret", "🔫", "Ụ PHÁO THỦ", "0🪙 (0đ)", new Color(0.85f, 0.32f, 0.22f), uiLayer);
-			Button btnWall = CreateShopCard(cardContainer.transform, "Btn_Wall", "🧱", "BỨC TƯỜNG", "0🪙 (0đ)", new Color(0.2f, 0.65f, 0.95f), uiLayer);
+			Button btnWall = CreateShopCard(cardContainer.transform, "Btn_Wall", "🧱", "BỨC TƯỜNG (KÉO)", "0🪙 (0đ)", new Color(0.2f, 0.65f, 0.95f), uiLayer);
 
-			// --- B. BẢNG ĐIỀU KHIỂN NỔI KHI ĐANG ĐẶT (PLACEMENT HUD) ---
+			// Mặc định ban đầu bảng Shop ẩn, chỉ hiện nút Cửa Hàng
+			shopPanelObj.SetActive(false);
+
+			// --- C. BẢNG ĐIỀU KHIỂN NỔI KHI ĐANG ĐẶT (PLACEMENT HUD) ---
 			GameObject hudObj = new GameObject("Placement_HUD", typeof(RectTransform));
 			hudObj.layer = uiLayer;
 			hudObj.transform.SetParent(canvasObj.transform, false);
@@ -196,10 +246,9 @@ namespace IdleFactoryDefense.Editor
 			hudRect.anchorMin = new Vector2(0.5f, 0f);
 			hudRect.anchorMax = new Vector2(0.5f, 0f);
 			hudRect.pivot = new Vector2(0.5f, 0f);
-			hudRect.anchoredPosition = new Vector2(0f, 260f); // Nằm nổi ngay trên thanh shop
+			hudRect.anchoredPosition = new Vector2(0f, 200f);
 			hudRect.sizeDelta = new Vector2(500f, 110f);
 
-			// Dòng hướng dẫn nhỏ
 			GameObject tipObj = new GameObject("TipText", typeof(RectTransform));
 			tipObj.layer = uiLayer;
 			tipObj.transform.SetParent(hudObj.transform, false);
@@ -219,13 +268,9 @@ namespace IdleFactoryDefense.Editor
 			Outline tipOutline = tipObj.AddComponent<Outline>();
 			tipOutline.effectColor = Color.black;
 
-			// Nút tròn: BIỂU TƯỢNG XOAY (KHÔNG CÓ CHỮ XOAY Ở DƯỚI)
 			Button btnRotateIcon = CreateCircleIconButton(hudObj.transform, "Btn_RotateIcon", "⟳", new Vector2(-60f, -65f), 85f, new Color(0f, 0.78f, 0.65f), uiLayer);
-
-			// Nút tròn: HỦY ĐẶT
 			Button btnCancelIcon = CreateCircleIconButton(hudObj.transform, "Btn_CancelIcon", "✕", new Vector2(60f, -65f), 85f, new Color(0.9f, 0.22f, 0.22f), uiLayer);
 
-			// Mặc định ẩn HUD đặt, chỉ hiện khi người chơi chọn công trình
 			hudObj.SetActive(false);
 
 			// 8. TẠO HOẶC LẤY BUILDING SYSTEM TRONG SCENE
@@ -260,27 +305,31 @@ namespace IdleFactoryDefense.Editor
 			};
 
 			// GẮN SCRIPT UI VÀ KẾT NỐI
-			BuildingShopUI shopUI = shopBar.AddComponent<BuildingShopUI>();
+			BuildingShopUI shopUI = canvasObj.GetComponent<BuildingShopUI>();
+			if (shopUI == null) shopUI = canvasObj.AddComponent<BuildingShopUI>();
+
 			shopUI.buildingSystem = bSystem;
+			shopUI.shopOpenButton = btnOpenShop;
+			shopUI.shopPanel = shopPanelObj;
+			shopUI.closeShopButton = btnCloseShop;
 			shopUI.turretButton = btnTurret;
 			shopUI.wallButton = btnWall;
 			shopUI.placementHUD = hudObj;
 			shopUI.rotateIconButton = btnRotateIcon;
 			shopUI.cancelIconButton = btnCancelIcon;
 
-			Selection.activeGameObject = shopBar;
+			Selection.activeGameObject = openShopObj;
 			UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene());
 
-			Debug.Log("<color=green><b>[SetupBuildingShop]</b> ĐÃ THIẾT LẬP CỬA HÀNG GIÁ 0đ VÀ BIỂU TƯỢNG XOAY THÀNH CÔNG!</color>");
+			Debug.Log("<color=green><b>[SetupBuildingShop]</b> ĐÃ THIẾT LẬP NÚT CỬA HÀNG VÀ BẢNG POPUP THÀNH CÔNG!</color>");
 			EditorUtility.DisplayDialog("Thành Công", 
 				"Đã nâng cấp Cửa Hàng Xây Dựng thành công!\n\n" +
-				"✨ CÁC TÍNH NĂNG MỚI:\n" +
-				"1. Giá công trình: Đã thiết lập 0đ (Miễn phí mua sắm).\n" +
-				"2. Kéo dài tường: Nhấn giữ chuột và kéo trên đất để kéo dài hàng tường. Thả chuột là xây toàn bộ cùng lúc!\n" +
-				"3. Đặt liên tục: Xây xong tường vẫn ở chế độ đặt, không bị thoát ra!\n" +
-				"4. Biểu tượng xoay (⟳): Nút tròn có icon xoay nổi bật, không có chữ xoay ở dưới.\n" +
-				"5. Phím tắt tiện lợi: Phím 1 (Pháo), Phím 2 (Tường), Phím R (Xoay), Phím Esc (Hủy).", 
-				"Tuyệt vời!");
+				"✨ CƠ CHẾ HOẠT ĐỘNG MỚI:\n" +
+				"1. Màn hình ban đầu: Chỉ hiện 1 nút [🏪 CỬA HÀNG] gọn gàng ở góc dưới.\n" +
+				"2. Nhấn vào nút Cửa Hàng: Bảng popup sẽ mở ra hiển thị Ụ PHÁO và BỨC TƯỜNG (Giá: 0đ).\n" +
+				"3. Nhấn vào Ụ Pháo hoặc Tường: Bảng tự đóng lại, bóng xanh Hologram xuất hiện để bạn kéo/đặt!\n" +
+				"4. Khi đang đặt: Nổi lên nút tròn Biểu tượng xoay (⟳) và nút Hủy (✕).\n" +
+				"5. Kéo dài tường: Giữ chuột và kéo để xây cả hàng tường cùng lúc!", 
 		}
 
 		// Tạo thẻ món hàng trong shop (Card giao diện đẹp, giá 0đ)
