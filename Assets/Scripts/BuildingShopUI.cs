@@ -5,9 +5,21 @@ public class BuildingShopUI : MonoBehaviour
 {
 	public BuildingSystem buildingSystem;
 
-	[Header("--- Các Nút Bấm Trên Giao Diện ---")]
+	[Header("--- Nút Mua Hàng Trong Shop ---")]
 	public Button turretButton;
 	public Button wallButton;
+
+	[Header("--- Bảng Điều Khiển Nổi Khi Đang Đặt (Placement HUD) ---")]
+	[Tooltip("Khung chứa biểu tượng xoay và hủy, chỉ hiện khi đang chọn đặt công trình.")]
+	public GameObject placementHUD;
+
+	[Tooltip("Nút biểu tượng xoay (icon ↻)")]
+	public Button rotateIconButton;
+
+	[Tooltip("Nút biểu tượng hủy (icon ✕)")]
+	public Button cancelIconButton;
+
+	// Tương thích ngược nếu còn nút cũ
 	public Button rotateButton;
 	public Button cancelButton;
 
@@ -22,10 +34,14 @@ public class BuildingShopUI : MonoBehaviour
 		if (wallButton != null)
 			wallButton.onClick.AddListener(OnSelectWall);
 
-		if (rotateButton != null)
+		if (rotateIconButton != null)
+			rotateIconButton.onClick.AddListener(OnRotate);
+		else if (rotateButton != null)
 			rotateButton.onClick.AddListener(OnRotate);
 
-		if (cancelButton != null)
+		if (cancelIconButton != null)
+			cancelIconButton.onClick.AddListener(OnCancel);
+		else if (cancelButton != null)
 			cancelButton.onClick.AddListener(OnCancel);
 	}
 
@@ -33,8 +49,13 @@ public class BuildingShopUI : MonoBehaviour
 	{
 		if (buildingSystem != null)
 		{
-			// Nút Xoay và nút Hủy chỉ hiện lên khi đang có bóng xem trước (Hologram)
 			bool isPlacing = buildingSystem.IsPlacing;
+
+			if (placementHUD != null && placementHUD.activeSelf != isPlacing)
+			{
+				placementHUD.SetActive(isPlacing);
+			}
+
 			if (rotateButton != null && rotateButton.gameObject.activeSelf != isPlacing)
 				rotateButton.gameObject.SetActive(isPlacing);
 
@@ -63,3 +84,4 @@ public class BuildingShopUI : MonoBehaviour
 		if (buildingSystem != null) buildingSystem.CancelPlacement();
 	}
 }
+
