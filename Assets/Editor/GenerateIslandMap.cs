@@ -1,12 +1,28 @@
 #if UNITY_EDITOR
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using System.IO;
 
 namespace RobotDefense.Editor
 {
+    [InitializeOnLoad]
     public static class GenerateIslandMap
     {
+        private const string REGEN_FLAG_KEY = "IslandMap_Expanded_V1";
+
+        static GenerateIslandMap()
+        {
+            EditorApplication.delayCall += () =>
+            {
+                if (!SessionState.GetBool(REGEN_FLAG_KEY, false) && !EditorApplication.isPlayingOrWillChangePlaymode)
+                {
+                    SessionState.SetBool(REGEN_FLAG_KEY, true);
+                    Generate();
+                }
+            };
+        }
+
         [MenuItem("Tools/🏝️ Tự Động Tạo Đảo Bán Nguyệt Giữa Biển (Island Map)")]
         public static void Generate()
         {
@@ -22,13 +38,13 @@ namespace RobotDefense.Editor
             TerrainData tData = terrain.terrainData;
             Undo.RegisterCompleteObjectUndo(tData, "Generate Island Map");
 
-            // Kích thước chuẩn cho màn hình dọc (Rộng 70m, Dài 130m, Cao 20m)
-            float mapWidth = 70f;
-            float mapLength = 130f;
+            // Kích thước mở rộng: Rộng 95m (tăng ~35%), Dài 165m (tăng ~27%), Cao 20m
+            float mapWidth = 95f;
+            float mapLength = 165f;
             float maxHeight = 20f;
             tData.size = new Vector3(mapWidth, maxHeight, mapLength);
 
-            // Căn chỉnh vị trí Terrain để tâm đảo nằm quanh gốc tọa độ
+            // Căn chỉnh vị trí Terrain để tâm đảo nằm quanh gốc tọa độ (0, 0, 0)
             terrain.transform.position = new Vector3(-mapWidth / 2f, 0f, -mapLength / 2f);
 
             int hRes = tData.heightmapResolution;
@@ -44,18 +60,18 @@ namespace RobotDefense.Editor
                 {
                     float u = (float)x / (hRes - 1); // Trục ngang (X)
 
-                    // Bán kính chiều ngang của đảo theo trục dọc (nở rộng ở căn cứ, hơi thon ở đầu)
+                    // Bán kính chiều ngang của đảo mở rộng rộng rãi hơn (0.25 thay vì 0.22)
                     float uDist = Mathf.Abs(u - 0.5f);
-                    float islandHalfWidth = 0.22f + 0.04f * Mathf.Sin(v * Mathf.PI);
+                    float islandHalfWidth = 0.25f + 0.04f * Mathf.Sin(v * Mathf.PI);
 
-                    // Thêm nhiễu Perlin Noise để vách đá nhấp nhô tự nhiên, không bị vuông chằn chặn
+                    // Nhiễu Perlin Noise để viền đá nhấp nhô tự nhiên
                     float edgeNoise = (Mathf.PerlinNoise(u * 14f, v * 14f) - 0.5f) * 0.07f;
                     float effectiveBoundary = islandHalfWidth + edgeNoise;
 
-                    // Giới hạn theo chiều dọc (đầu trên và đầu dưới đảo)
+                    // Giới hạn theo chiều dọc trải dài hơn (0.07 đến 0.93)
                     float distFromSide = effectiveBoundary - uDist;
-                    float distFromTop = 0.90f - v;
-                    float distFromBottom = v - 0.10f;
+                    float distFromTop = 0.93f - v;
+                    float distFromBottom = v - 0.07f;
                     float edgeDist = Mathf.Min(distFromSide, Mathf.Min(distFromTop, distFromBottom));
 
                     // Tạo vách dốc đứng (Cliff)
@@ -66,7 +82,7 @@ namespace RobotDefense.Editor
 
                     float h = Mathf.Lerp(seaBedHeightNorm, plateauHeightNorm, factor);
 
-                    // Thêm gợn địa hình nhẹ trên mặt bằng phẳng
+                    // Gợn địa hình nhẹ trên mặt bằng phẳng
                     if (factor > 0.9f)
                     {
                         h += (Mathf.PerlinNoise(u * 25f, v * 25f) - 0.5f) * 0.008f;
@@ -81,18 +97,29 @@ namespace RobotDefense.Editor
             // 2. Thiết lập Texture: Sơn Cỏ mặt trên, Đá ở vách dốc
             SetupTerrainLayers(tData);
 
-            // 3. Tạo Mặt Nước Biển (Ocean Plane)
+            // 3. Tạo Mặt Nước Biển (Ocean Plane) mở rộng tương ứng
             SetupOcean(terrain.transform.position, mapWidth, mapLength);
 
-            // 4. Tạo Tường vô hình chặn Player không rơi xuống biển
+            // 4. Tạo Tường vô hình chặn Player không rơi xuống biển theo kích thước mới
             SetupInvisibleBoundaries(terrain.transform, mapWidth, mapLength, maxHeight * plateauHeightNorm);
 
-            // 5. Căn chỉnh góc nhìn Main Camera Isometric đẹp mắt
+            // 5. Căn chỉnh góc nhìn Main Camera
             SetupIsometricCamera(terrain.transform.position, mapWidth, mapLength, maxHeight * plateauHeightNorm);
+
+            // 6. Tối ưu làm đẹp texture PBR
+            BeautifyTerrainTextures.ApplyBeautification();
 
             EditorUtility.SetDirty(tData);
             EditorUtility.SetDirty(terrain);
-            Debug.Log("<color=#00FFAA><b>[IslandGenerator]</b> ĐÃ TỰ ĐỘNG TẠO XONG HÒN ĐẢO GIỮA BIỂN CHUẨN MÀN HÌNH DỌC!</color>");
+            AssetDatabase.SaveAssets();
+
+            if (!Application.isPlaying)
+            {
+                EditorSceneManager.MarkSceneDirty(terrain.gameObject.scene);
+                EditorSceneManager.SaveScene(terrain.gameObject.scene);
+            }
+
+            Debug.Log($"<color=#00FFAA><b>[IslandGenerator]</b> ĐÃ MỞ RỘNG BẢN ĐỒ THÀNH CÔNG! Kích thước mới: Rộng={mapWidth}m, Dài={mapLength}m.</color>");
         }
 
         private static void SetupTerrainLayers(TerrainData tData)
@@ -107,7 +134,6 @@ namespace RobotDefense.Editor
 
             if (grassTex == null || rockTex == null) return;
 
-            // Tạo TerrainLayer nếu chưa có
             string layerFolder = "Assets/TerrainSampleAssets/Layers";
             if (!Directory.Exists(layerFolder)) Directory.CreateDirectory(layerFolder);
 
@@ -119,7 +145,7 @@ namespace RobotDefense.Editor
             {
                 grassLayer = new TerrainLayer();
                 grassLayer.diffuseTexture = grassTex;
-                grassLayer.tileSize = new Vector2(6, 6);
+                grassLayer.tileSize = new Vector2(4f, 4f);
                 AssetDatabase.CreateAsset(grassLayer, grassLayerPath);
             }
 
@@ -128,13 +154,12 @@ namespace RobotDefense.Editor
             {
                 rockLayer = new TerrainLayer();
                 rockLayer.diffuseTexture = rockTex;
-                rockLayer.tileSize = new Vector2(8, 8);
+                rockLayer.tileSize = new Vector2(4.5f, 4.5f);
                 AssetDatabase.CreateAsset(rockLayer, rockLayerPath);
             }
 
             tData.terrainLayers = new TerrainLayer[] { grassLayer, rockLayer };
 
-            // Sơn màu tự động theo độ dốc (Slope Splatmap)
             int aRes = tData.alphamapResolution;
             float[,,] alphaMaps = new float[aRes, aRes, 2];
 
@@ -147,21 +172,20 @@ namespace RobotDefense.Editor
                     float steepness = tData.GetSteepness(u, v);
                     float height = tData.GetInterpolatedHeight(u, v);
 
-                    // Nếu dốc đứng (> 20 độ) hoặc ở sát mép vực -> 100% Đá vách
                     if (steepness > 22f || height < 4f)
                     {
                         alphaMaps[y, x, 0] = 0f;
-                        alphaMaps[y, x, 1] = 1f; // Đá
+                        alphaMaps[y, x, 1] = 1f;
                     }
                     else if (steepness > 12f)
                     {
                         float blend = Mathf.InverseLerp(12f, 22f, steepness);
-                        alphaMaps[y, x, 0] = 1f - blend; // Cỏ
-                        alphaMaps[y, x, 1] = blend;      // Đá
+                        alphaMaps[y, x, 0] = 1f - blend;
+                        alphaMaps[y, x, 1] = blend;
                     }
                     else
                     {
-                        alphaMaps[y, x, 0] = 1f; // Cỏ xanh/đất
+                        alphaMaps[y, x, 0] = 1f;
                         alphaMaps[y, x, 1] = 0f;
                     }
                 }
@@ -179,11 +203,9 @@ namespace RobotDefense.Editor
                 ocean.name = "Ocean";
             }
 
-            // Nước biển đặt ở độ cao Y = 2.0 (thấp hơn đỉnh đảo Y = 9.0)
             ocean.transform.position = new Vector3(0f, 2.0f, 0f);
-            ocean.transform.localScale = new Vector3(mapWidth * 0.35f, 1f, mapLength * 0.35f);
+            ocean.transform.localScale = new Vector3(mapWidth * 0.45f, 1f, mapLength * 0.45f);
 
-            // Tạo Material nước biển xanh thẳm URP
             string matFolder = "Assets/Map/Models/Materials";
             if (!Directory.Exists(matFolder)) Directory.CreateDirectory(matFolder);
             string oceanMatPath = Path.Combine(matFolder, "Ocean_Mat.mat");
@@ -196,12 +218,12 @@ namespace RobotDefense.Editor
                 if (shader == null) shader = Shader.Find("Standard");
 
                 oceanMat = new Material(shader);
-                oceanMat.color = new Color(0.05f, 0.22f, 0.38f, 1f); // Deep Ocean Blue
+                oceanMat.color = new Color(0.05f, 0.22f, 0.38f, 1f);
                 if (oceanMat.HasProperty("_BaseColor"))
                 {
                     oceanMat.SetColor("_BaseColor", new Color(0.05f, 0.22f, 0.38f, 1f));
                 }
-                oceanMat.SetFloat("_Smoothness", 0.92f); // Mặt biển sáng bóng phản chiếu ánh nắng
+                oceanMat.SetFloat("_Smoothness", 0.92f);
                 oceanMat.SetFloat("_Metallic", 0.15f);
                 AssetDatabase.CreateAsset(oceanMat, oceanMatPath);
             }
@@ -217,9 +239,8 @@ namespace RobotDefense.Editor
             GameObject boundObj = new GameObject("_Boundaries");
             boundObj.transform.SetParent(parent, false);
 
-            // 4 bức tường vô hình quanh mép mặt bằng đảo
-            float playWidth = width * 0.44f;
-            float playLength = length * 0.78f;
+            float playWidth = width * 0.48f;
+            float playLength = length * 0.84f;
 
             CreateWall(boundObj.transform, new Vector3(width/2f - playWidth/2f, islandY + 2f, length/2f), new Vector3(0.5f, 5f, playLength));
             CreateWall(boundObj.transform, new Vector3(width/2f + playWidth/2f, islandY + 2f, length/2f), new Vector3(0.5f, 5f, playLength));
@@ -242,15 +263,13 @@ namespace RobotDefense.Editor
             if (cam == null) cam = Object.FindFirstObjectByType<Camera>();
             if (cam == null) return;
 
-            // Camera Isometric góc nghiêng 48 độ, bao trọn toàn bộ hòn đảo theo chiều dọc
-            cam.transform.position = new Vector3(0f, islandY + 45f, -length * 0.48f);
-            cam.transform.rotation = Quaternion.Euler(50f, 0f, 0f);
-            if (cam.orthographic)
+            // Nếu không có Cinemachine điều khiển riêng thì căn chỉnh camera Isometric
+            if (cam.GetComponent("CinemachineBrain") == null)
             {
-                cam.orthographicSize = 36f;
+                cam.transform.position = new Vector3(0f, islandY + 45f, -length * 0.46f);
+                cam.transform.rotation = Quaternion.Euler(50f, 0f, 0f);
             }
         }
     }
 }
 #endif
-

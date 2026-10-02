@@ -14,6 +14,18 @@ public class WallSegment : MonoBehaviour
     private Renderer[] cachedRenderers;
     private MaterialPropertyBlock propBlock;
     private Vector3 baseScale = Vector3.zero;
+    private Vector3 baseLocalPosition = Vector3.zero;
+
+    // --- Hiệu ứng Phản Ứng Khi Chọn Tường (Clash of Clans Style) ---
+    private bool isSelected = false;
+    private Coroutine hopCoroutine;
+
+    // --- Hiệu ứng Lấp Lánh Điểm Xuyết (Subtle Sparkle VFX từ Cấp 4 trở lên) ---
+    private ParticleSystem sparkleParticles;
+
+    // Texture và Material dùng chung cho hiệu ứng hạt lấp lánh
+    private static Texture2D sharedSparkleTexture;
+    private static Material sharedSparkleMaterial;
 
     public void SetBaseScale(Vector3 scale)
     {
@@ -35,11 +47,16 @@ public class WallSegment : MonoBehaviour
         cachedRenderers = GetComponentsInChildren<Renderer>(true);
         propBlock = new MaterialPropertyBlock();
         baseScale = transform.localScale;
+        baseLocalPosition = transform.localPosition;
     }
 
     void Start()
     {
         if (baseScale == Vector3.zero) baseScale = transform.localScale;
+        if (baseLocalPosition == Vector3.zero) baseLocalPosition = transform.localPosition;
+
+        EnsureSparkleParticles();
+
         if (GameEconomy.Instance != null && currentLevel <= 1)
         {
             ApplyLevel(GameEconomy.Instance.wallLevel);
@@ -49,6 +66,267 @@ public class WallSegment : MonoBehaviour
             ApplyLevel(currentLevel);
         }
     }
+
+    void Update()
+    {
+        // Hiệu ứng phát sáng viền nhấp nháy rõ ràng khi được chọn (Clash of Clans Selection Highlight)
+        if (isSelected && cachedRenderers != null)
+        {
+            float pulse = 0.55f + 0.45f * Mathf.Sin(Time.time * 8f);
+            Color selectHighlight = new Color(1.3f, 1.1f, 0.2f, 1f) * pulse; // Ánh vàng hoàng kim phát sáng nổi bật
+
+            for (int i = 0; i < cachedRenderers.Length; i++)
+            {
+                var rend = cachedRenderers[i];
+                if (rend == null) continue;
+                rend.GetPropertyBlock(propBlock);
+                propBlock.SetColor("_EmissionColor", selectHighlight);
+                rend.SetPropertyBlock(propBlock);
+            }
+        }
+    }
+
+    // ================= PHẢN ỨNG KHI CHỌN TƯỜNG (CLASH OF CLANS STYLE) =================
+
+    private Coroutine selectScaleCoroutine;
+
+    public Vector3 GetBaseScale()
+    {
+        if (baseScale == Vector3.zero) baseScale = transform.localScale;
+        if (baseScale.x <= 1.05f && transform.localScale.x > 1.5f) baseScale = transform.localScale;
+        if (baseScale == Vector3.one || baseScale.x <= 1.05f) baseScale = Vector3.one * 3f;
+        return baseScale;
+    }
+
+    public void SetSelected(bool selected)
+    {
+        isSelected = selected;
+
+        if (gameObject.activeInHierarchy)
+        {
+            if (selectScaleCoroutine != null) StopCoroutine(selectScaleCoroutine);
+            selectScaleCoroutine = StartCoroutine(AnimateSelectScale(selected));
+        }
+        else
+        {
+            transform.localScale = selected ? GetBaseScale() * 1.5f : GetBaseScale();
+        }
+
+        if (!selected)
+        {
+            // Trả lại màu và emission bình thường của cấp tường
+            ApplyLevel(currentLevel);
+        }
+    }
+
+    private IEnumerator AnimateSelectScale(bool selected)
+    {
+        Vector3 startScale = transform.localScale;
+        Vector3 targetScale = selected ? GetBaseScale() * 1.5f : GetBaseScale();
+
+        float duration = 0.18f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            float smoothT = Mathf.SmoothStep(0f, 1f, t);
+            transform.localScale = Vector3.Lerp(startScale, targetScale, smoothT);
+            yield return null;
+        }
+
+        transform.localScale = targetScale;
+        selectScaleCoroutine = null;
+    }
+
+    public void TriggerSelectHop(float delay = 0f, float hopHeight = 0.45f)
+    {
+        if (gameObject.activeInHierarchy)
+        {
+            if (hopCoroutine != null) StopCoroutine(hopCoroutine);
+            hopCoroutine = StartCoroutine(SelectHopCoroutine(delay, hopHeight));
+        }
+    }
+
+    private IEnumerator SelectHopCoroutine(float delay, float hopHeight)
+    {
+        if (delay > 0f) yield return new WaitForSeconds(delay);
+
+        if (baseLocalPosition == Vector3.zero) baseLocalPosition = transform.localPosition;
+        if (baseScale == Vector3.zero) baseScale = transform.localScale;
+
+        Vector3 origPos = baseLocalPosition;
+        Vector3 origScale = baseScale;
+        if (origScale == Vector3.one) origScale = Vector3.one * 3f;
+
+        float duration = 0.26f;
+        float elapsed = 0f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+
+            // Parabol nảy lên rồi hạ xuống
+            // Parabol nảy lên rồi hạ xuống vị trí gốc
+            float hopCurve = 4f * t * (1f - t);
+            transform.localPosition = origPos + Vector3.up * (hopHeight * hopCurve);
+
+            // Co giãn đàn hồi Squash & Stretch
+            float stretchY = 1f + hopCurve * 0.16f;
+            float squashXZ = 1f - hopCurve * 0.08f;
+            transform.localScale = new Vector3(origScale.x * squashXZ, origScale.y * stretchY, origScale.z * squashXZ);
+
+            yield return null;
+        }
+
+        transform.localPosition = origPos;
+        transform.localScale = origScale;
+        hopCoroutine = null;
+    }
+
+    // ================= TẠO VẬT LIỆU & HỆ THỐNG HẠT LẤP LÁNH =================
+
+    private static Material GetSharedSparkleMaterial()
+    {
+        if (sharedSparkleMaterial != null) return sharedSparkleMaterial;
+
+        // Tạo Texture hình ngôi sao 4 cánh lấp lánh (sắc nét hơn 20%)
+        if (sharedSparkleTexture == null)
+        {
+            int size = 64;
+            sharedSparkleTexture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            sharedSparkleTexture.name = "Sparkle_Star_Texture";
+            sharedSparkleTexture.filterMode = FilterMode.Bilinear;
+            sharedSparkleTexture.wrapMode = TextureWrapMode.Clamp;
+
+            float center = (size - 1) * 0.5f;
+            Color[] pixels = new Color[size * size];
+
+            for (int y = 0; y < size; y++)
+            {
+                for (int x = 0; x < size; x++)
+                {
+                    float dx = Mathf.Abs((x - center) / center);
+                    float dy = Mathf.Abs((y - center) / center);
+                    float dist = Mathf.Sqrt(dx * dx + dy * dy);
+
+                    // Quầng sáng tâm tròn rõ nét hơn 20%
+                    float glow = Mathf.Max(0f, 1f - dist * 2.5f);
+                    glow = glow * glow;
+
+                    // 4 cánh sao nhọn mảnh rõ ràng
+                    float armX = Mathf.Max(0f, 1f - dx * 1.15f) * Mathf.Max(0f, 1f - dy * 7f);
+                    float armY = Mathf.Max(0f, 1f - dy * 1.15f) * Mathf.Max(0f, 1f - dx * 7f);
+                    float star = Mathf.Max(armX, armY);
+
+                    float alpha = Mathf.Clamp01(glow * 0.85f + star * 1.0f);
+                    pixels[y * size + x] = new Color(1f, 1f, 1f, alpha);
+                }
+            }
+
+            sharedSparkleTexture.SetPixels(pixels);
+            sharedSparkleTexture.Apply();
+        }
+
+        Shader s = Shader.Find("Universal Render Pipeline/Particles/Unlit");
+        if (s == null) s = Shader.Find("Particles/Standard Unlit");
+        if (s == null) s = Shader.Find("Mobile/Particles/Additive");
+        if (s == null) s = Shader.Find("Sprites/Default");
+        if (s == null) s = Shader.Find("Unlit/Transparent");
+
+        sharedSparkleMaterial = new Material(s);
+        sharedSparkleMaterial.name = "Sparkle_VFX_Material";
+        if (sharedSparkleMaterial.HasProperty("_BaseMap")) sharedSparkleMaterial.SetTexture("_BaseMap", sharedSparkleTexture);
+        if (sharedSparkleMaterial.HasProperty("_MainTex")) sharedSparkleMaterial.SetTexture("_MainTex", sharedSparkleTexture);
+        if (sharedSparkleMaterial.HasProperty("_Color")) sharedSparkleMaterial.SetColor("_Color", Color.white);
+        if (sharedSparkleMaterial.HasProperty("_BaseColor")) sharedSparkleMaterial.SetColor("_BaseColor", Color.white);
+
+        if (sharedSparkleMaterial.HasProperty("_Surface")) sharedSparkleMaterial.SetFloat("_Surface", 1);
+        if (sharedSparkleMaterial.HasProperty("_Blend")) sharedSparkleMaterial.SetFloat("_Blend", 1);
+
+        return sharedSparkleMaterial;
+    }
+
+    private void EnsureSparkleParticles()
+    {
+        if (sparkleParticles != null) return;
+
+        Transform child = transform.Find("Sparkle_VFX");
+        if (child != null)
+        {
+            sparkleParticles = child.GetComponent<ParticleSystem>();
+        }
+        else
+        {
+            GameObject pObj = new GameObject("Sparkle_VFX");
+            pObj.transform.SetParent(transform, false);
+            pObj.transform.localPosition = new Vector3(0f, 0.55f, 0f);
+            sparkleParticles = pObj.AddComponent<ParticleSystem>();
+        }
+
+        var renderer = sparkleParticles.GetComponent<ParticleSystemRenderer>();
+        renderer.material = GetSharedSparkleMaterial();
+        renderer.renderMode = ParticleSystemRenderMode.Billboard;
+        renderer.alignment = ParticleSystemRenderSpace.View;
+
+        var main = sparkleParticles.main;
+        main.loop = true;
+        main.playOnAwake = true;
+        main.duration = 2.0f;
+        main.startLifetime = new ParticleSystem.MinMaxCurve(0.7f, 1.25f);
+        main.startSpeed = new ParticleSystem.MinMaxCurve(0.06f, 0.22f);
+        // Kích thước hạt rõ hơn 20% (0.12 - 0.20 thay vì 0.09 - 0.16)
+        main.startSize = new ParticleSystem.MinMaxCurve(0.12f, 0.20f);
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+        main.scalingMode = ParticleSystemScalingMode.Hierarchy;
+        main.startRotation = new ParticleSystem.MinMaxCurve(0f, 360f * Mathf.Deg2Rad);
+
+        var shape = sparkleParticles.shape;
+        shape.enabled = true;
+        shape.shapeType = ParticleSystemShapeType.Box;
+        shape.scale = new Vector3(0.9f, 0.7f, 0.25f);
+
+        var velocityOverLifetime = sparkleParticles.velocityOverLifetime;
+        velocityOverLifetime.enabled = true;
+        velocityOverLifetime.y = new ParticleSystem.MinMaxCurve(0.14f, 0.32f);
+
+        // Nở ra rồi thu nhỏ nhẹ
+        var sizeOverLifetime = sparkleParticles.sizeOverLifetime;
+        sizeOverLifetime.enabled = true;
+        AnimationCurve sizeCurve = new AnimationCurve();
+        sizeCurve.AddKey(0f, 0f);
+        sizeCurve.AddKey(0.4f, 1f);
+        sizeCurve.AddKey(0.8f, 0.65f);
+        sizeCurve.AddKey(1f, 0f);
+        sizeOverLifetime.size = new ParticleSystem.MinMaxCurve(1f, sizeCurve);
+
+        // Alpha rõ nét hơn 20%
+        var colorOverLifetime = sparkleParticles.colorOverLifetime;
+        colorOverLifetime.enabled = true;
+        Gradient grad = new Gradient();
+        grad.SetKeys(
+            new GradientColorKey[] { new GradientColorKey(Color.white, 0f), new GradientColorKey(Color.white, 1f) },
+            new GradientAlphaKey[] { new GradientAlphaKey(0f, 0f), new GradientAlphaKey(1.0f, 0.25f), new GradientAlphaKey(0.85f, 0.7f), new GradientAlphaKey(0f, 1f) }
+        );
+        colorOverLifetime.color = new ParticleSystem.MinMaxGradient(grad);
+
+        var emission = sparkleParticles.emission;
+        emission.enabled = true;
+        emission.rateOverTime = 0f;
+    }
+
+    public void EmitSparkleBurst(int count = 10)
+    {
+        EnsureSparkleParticles();
+        if (sparkleParticles != null && gameObject.activeInHierarchy)
+        {
+            sparkleParticles.Emit(count);
+        }
+    }
+
+    // ================= CẬP NHẬT CẤP ĐỘ & MÀU SẮC =================
 
     public void ApplyLevel(int level)
     {
@@ -60,81 +338,89 @@ public class WallSegment : MonoBehaviour
         }
         if (propBlock == null) propBlock = new MaterialPropertyBlock();
 
-        // Định nghĩa 6 màu sắc theo yêu cầu:
-        // Cấp 1: Mặc định (Vật liệu gốc ban đầu)
-        // Cấp 2: Bạc hơn (Silver)
-        // Cấp 3: Màu Vàng (Gold)
-        // Cấp 4: Màu Bạch Kim (Platinum)
-        // Cấp 5: Màu như Kim Cương (Diamond Cyan Crystal)
-        // Cấp 6: Đen Titan (Titanium Black)
+        EnsureSparkleParticles();
+
         Color wallColor;
         float metallic = 0.5f;
         float smoothness = 0.5f;
-        Color emissionColor = Color.black;
+        Color sparkleColor = Color.white;
+        float sparkleRate = 0f; // CHỈ TỪ CẤP 4 TRỞ ĐI MỚI CÓ LẤP LÁNH
 
         switch (currentLevel)
         {
             case 1:
-                wallColor = Color.white; // Nguyên bản
+                // Cấp 1: Nguyên bản (gạch đá thường, KHÔNG lấp lánh)
+                wallColor = Color.white;
                 metallic = 0.1f;
                 smoothness = 0.3f;
+                sparkleRate = 0f;
                 break;
 
             case 2:
-                // Cấp 2: Bạc hơn
-                wallColor = new Color(0.82f, 0.86f, 0.94f, 1f);
-                metallic = 0.85f;
-                smoothness = 0.75f;
+                // Cấp 2: Bạc (Silver) - kim loại bạc sáng bóng, KHÔNG lấp lánh
+                wallColor = new Color(0.84f, 0.88f, 0.94f, 1f);
+                metallic = 0.88f;
+                smoothness = 0.8f;
+                sparkleRate = 0f;
                 break;
 
             case 3:
-                // Cấp 3: Màu Vàng (Gold)
-                wallColor = new Color(1.0f, 0.78f, 0.12f, 1f);
+                // Cấp 3: Vàng (Gold) - kim loại vàng hoàng kim bóng bẩy, KHÔNG lấp lánh
+                wallColor = new Color(1.0f, 0.80f, 0.16f, 1f);
                 metallic = 0.95f;
-                smoothness = 0.8f;
+                smoothness = 0.88f;
+                sparkleRate = 0f;
                 break;
 
             case 4:
-                // Cấp 4: Màu Bạch Kim (Platinum)
-                wallColor = new Color(0.94f, 0.97f, 1.0f, 1f);
+                // Cấp 4: Bạch Kim (Platinum) - BẮT ĐẦU CÓ LẤP LÁNH RÕ HƠN 20%
+                wallColor = new Color(0.93f, 0.96f, 1.0f, 1f);
                 metallic = 0.92f;
-                smoothness = 0.9f;
+                smoothness = 0.92f;
+                sparkleColor = new Color(0.96f, 0.98f, 1.0f, 0.95f);
+                sparkleRate = 2.6f;
                 break;
 
             case 5:
-                // Cấp 5: Màu như Kim Cương (Diamond Gemstone)
-                wallColor = new Color(0.15f, 0.92f, 1.0f, 1f);
-                metallic = 0.25f;
+                // Cấp 5: Kim Cương (Diamond) - ngọc bích trong sáng, lấp lánh rõ nét 20%
+                wallColor = new Color(0.18f, 0.92f, 1.0f, 1f);
+                metallic = 0.3f;
                 smoothness = 0.98f;
-                emissionColor = new Color(0.05f, 0.35f, 0.45f, 1f);
+                sparkleColor = new Color(0.35f, 0.96f, 1.0f, 1.0f);
+                sparkleRate = 3.6f;
                 break;
 
             case 6:
-                // Cấp 6: Đen Titan (Titanium Black)
-                wallColor = new Color(0.10f, 0.11f, 0.14f, 1f);
-                metallic = 0.98f;
-                smoothness = 0.85f;
+                // Cấp 6: Đen Titan - MAX (TỐI ĐA)
+                // Giảm bớt độ đen của tường: màu xám than chì titan ánh kim rõ chi tiết khối gờ
+                wallColor = new Color(0.28f, 0.30f, 0.36f, 1f);
+                metallic = 0.95f;
+                smoothness = 0.90f;
+                sparkleColor = new Color(0.85f, 0.60f, 1.0f, 0.95f);
+                sparkleRate = 3.0f;
                 break;
 
             default:
                 wallColor = Color.white;
+                sparkleRate = 0f;
                 break;
         }
 
+        // Bề mặt tường: KHÔNG phát sáng rực cả khối (tránh lóa chói mắt), chỉ bóng bẩy kim loại cao cấp
         foreach (var rend in cachedRenderers)
         {
             if (rend == null) continue;
             rend.GetPropertyBlock(propBlock);
 
-            // Gán màu cho Shader URP hoặc Standard
             propBlock.SetColor("_BaseColor", wallColor);
             propBlock.SetColor("_Color", wallColor);
             propBlock.SetFloat("_Metallic", metallic);
             propBlock.SetFloat("_Smoothness", smoothness);
 
+            // Emission tắt hoặc chỉ 1 chút xíu ở cấp Kim Cương để giữ màu ngọc tự nhiên
             if (currentLevel == 5)
             {
-                propBlock.SetColor("_EmissionColor", emissionColor);
+                propBlock.SetColor("_EmissionColor", new Color(0.02f, 0.08f, 0.1f, 1f));
             }
             else
             {
@@ -142,6 +428,26 @@ public class WallSegment : MonoBehaviour
             }
 
             rend.SetPropertyBlock(propBlock);
+        }
+
+        // Cập nhật hệ thống hạt lấp lánh (CHỈ C4 TRỞ ĐI MỚI CÓ, RÕ HƠN 20%)
+        if (sparkleParticles != null)
+        {
+            var emission = sparkleParticles.emission;
+            emission.rateOverTime = sparkleRate;
+
+            var main = sparkleParticles.main;
+            main.startColor = sparkleColor;
+
+            if (sparkleRate > 0 && !sparkleParticles.isPlaying)
+            {
+                sparkleParticles.Play();
+            }
+            else if (sparkleRate <= 0 && sparkleParticles.isPlaying)
+            {
+                sparkleParticles.Stop();
+                sparkleParticles.Clear();
+            }
         }
     }
 
@@ -177,6 +483,11 @@ public class WallSegment : MonoBehaviour
         {
             ApplyLevel(currentLevel + 1);
             TriggerUpgradePunch();
+            // Chỉ từ cấp 4 trở lên mới bắn hạt sao lấp lánh
+            if (currentLevel >= 4)
+            {
+                EmitSparkleBurst(10);
+            }
             return true;
         }
         else if (GameEconomy.Instance != null)
@@ -204,14 +515,13 @@ public class WallSegment : MonoBehaviour
         if (orig == Vector3.one) orig = Vector3.one * 3f;
 
         float elapsed = 0f;
-        float duration = 0.26f;
+        float duration = 0.24f;
 
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
-            // Nảy nhẹ đàn hồi: nảy lên 1.25x rồi về 1.0x
-            float bounce = 1f + Mathf.Sin(t * Mathf.PI) * 0.25f;
+            float bounce = 1f + Mathf.Sin(t * Mathf.PI) * 0.22f;
             transform.localScale = orig * bounce;
             yield return null;
         }
@@ -219,7 +529,6 @@ public class WallSegment : MonoBehaviour
         transform.localScale = orig;
     }
 
-    // Tìm tất cả các đoạn tường kết nối trong hàng theo phong cách Clash of Clans
     public List<WallSegment> GetConnectedRow(float maxDistance = 3.8f)
     {
         List<WallSegment> connected = new List<WallSegment>();
@@ -286,7 +595,11 @@ public class WallSegment : MonoBehaviour
             {
                 WallSegment wall = upgradeable[i];
                 wall.ApplyLevel(wall.currentLevel + 1);
-                wall.TriggerUpgradePunch(i * 0.04f); // Hiệu ứng sóng lan tỏa
+                wall.TriggerUpgradePunch(i * 0.04f);
+                if (wall.currentLevel >= 4)
+                {
+                    wall.EmitSparkleBurst(8);
+                }
             }
             return true;
         }
@@ -297,4 +610,3 @@ public class WallSegment : MonoBehaviour
         return false;
     }
 }
-

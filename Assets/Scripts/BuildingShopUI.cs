@@ -19,6 +19,7 @@ public class BuildingShopUI : MonoBehaviour
 	[Header("--- Thông Tin Tiền Tệ & Tài Nguyên ---")]
 	public Text coinText;
 	public Text stoneText;
+	public Text woodText;
 
 	[Header("--- Mục 1: Robot Đào Mỏ & Cúp Sắt ---")]
 	public Button buyWorkerButton;
@@ -179,6 +180,9 @@ public class BuildingShopUI : MonoBehaviour
 		if (stoneText != null)
 			stoneText.text = $"🪨 <b>{GameEconomy.Instance.stoneCount}</b> Đá";
 
+		if (woodText != null)
+			woodText.text = $"🪵 <b>{GameEconomy.Instance.woodCount}</b> Gỗ";
+
 		// 2. Robot Đào Mỏ
 		if (buyWorkerText != null)
 		{
@@ -211,7 +215,7 @@ public class BuildingShopUI : MonoBehaviour
 			}
 			else
 			{
-				upgradeWallText.text = $"👑 <b>TƯỜNG CẤP 6 (MAX)</b>\n<color=#E0B0FF>✦ ĐEN TITAN CỰC PHẨM</color>";
+				upgradeWallText.text = $"👑 <b>TƯỜNG CẤP 6 - MAX (TỐI ĐA)</b>\n<color=#E0B0FF>✦ ĐEN TITAN (ĐÃ ĐẠT TỐI ĐA)</color>";
 				if (upgradeWallButton != null) upgradeWallButton.interactable = false;
 			}
 		}

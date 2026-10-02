@@ -9,6 +9,7 @@ public class GameEconomy : MonoBehaviour
     [Tooltip("Số vàng hiện có của người chơi")]
     public int coins = 0; // Để 0 theo yêu cầu, có thể chỉnh trong Inspector
     public int stoneCount = 0;
+    public int woodCount = 0;
 
     [Header("--- Chi Phí Mua Sắm (Mặc Định 0🪙 - Tự Do Chỉnh Trong Inspector) ---")]
     [Tooltip("Giá mua Robot đào mỏ (Mặc định 0, bạn có thể chỉnh lại bất kỳ lúc nào)")]
@@ -88,6 +89,24 @@ public class GameEconomy : MonoBehaviour
     {
         stoneCount += amount;
         OnEconomyChanged?.Invoke();
+    }
+
+    public void AddWood(int amount)
+    {
+        woodCount += amount;
+        OnEconomyChanged?.Invoke();
+    }
+
+    public bool SpendWood(int amount)
+    {
+        if (amount <= 0) return true;
+        if (woodCount >= amount)
+        {
+            woodCount -= amount;
+            OnEconomyChanged?.Invoke();
+            return true;
+        }
+        return false;
     }
 
     public void TriggerNotEnoughCoins(string message = "Không đủ vàng!")
@@ -170,8 +189,8 @@ public class GameEconomy : MonoBehaviour
             GameObject newBot = Instantiate(workerRobotPrefab, spawnPos, Quaternion.identity);
             newBot.name = $"BipedRobot_Worker_{FindObjectsByType<WorkerBot>(FindObjectsInactive.Include).Length}";
             
-            // Kích thước robot tăng gấp đôi đồng nhất (tuyệt đối không bóp méo tỉ lệ)
-            newBot.transform.localScale = Vector3.one * 2f;
+            // Kích thước robot tăng 1.5 lần đồng nhất (từ 2x lên 3x, tuyệt đối không bóp méo tỉ lệ)
+            newBot.transform.localScale = Vector3.one * 3f;
 
             WorkerBot wb = newBot.GetComponent<WorkerBot>();
             if (wb != null)
@@ -201,7 +220,7 @@ public class GameEconomy : MonoBehaviour
         "Vàng (Gold)",
         "Bạch Kim (Platinum)",
         "Kim Cương (Diamond)",
-        "Đen Titan (Titanium Black)"
+        "Đen Titan - MAX (Tối Đa)"
     };
 
     public int GetWallUpgradeCost()

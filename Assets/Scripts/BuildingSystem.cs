@@ -100,8 +100,7 @@ public class BuildingSystem : MonoBehaviour
 		{
 			if (hasGroundHit)
 			{
-				float wallScaleMultiplier = 3f; // Phóng tường chuẩn (1m x 3 = 3m)
-				float segLen = Mathf.Max(0.5f, items[selectedIndex].segmentLength) * wallScaleMultiplier;
+				float segLen = 2.85f; // Bước tường chuẩn khít rịt hoàn toàn, không có kẽ hở!
 
 				// Bắt đầu kéo khi nhấn chuột trái xuống
 				if (Input.GetMouseButtonDown(0))
@@ -109,12 +108,18 @@ public class BuildingSystem : MonoBehaviour
 					if (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject())
 					{
 						isDraggingWall = true;
-						wallDragStart = hit.point;
+						Quaternion startRot = Quaternion.Euler(0f, currentYRotation, 0f);
+						wallDragStart = GetWallPlacementSnap(hit.point, segLen, ref startRot);
+						currentYRotation = startRot.eulerAngles.y;
 					}
 				}
 
-				Vector3 startSnap = SnapToGrid(wallDragStart, segLen);
-				startSnap.y = SampleGroundY(startSnap.x, startSnap.z, wallDragStart.y);
+				Quaternion tempRot = Quaternion.Euler(0f, currentYRotation, 0f);
+				Vector3 startSnap = isDraggingWall ? wallDragStart : GetWallPlacementSnap(hit.point, segLen, ref tempRot);
+				if (!isDraggingWall)
+				{
+					currentYRotation = tempRot.eulerAngles.y;
+				}
 
 				Vector3 curSnap = SnapToGrid(hit.point, segLen);
 
@@ -125,8 +130,8 @@ public class BuildingSystem : MonoBehaviour
 				bool isDragMove = (Mathf.Abs(dx) >= segLen * 0.5f) || (Mathf.Abs(dz) >= segLen * 0.5f);
 
 				int count = 1;
-				// Khi không kéo dài: góc xoay tuân thủ 100% hướng xoay người chơi vừa bấm nút XOAY
-				bool isHorizontal = (Mathf.Abs(currentYRotation - 0f) < 1f || Mathf.Abs(currentYRotation - 180f) < 1f);
+				// Khi không kéo dài: góc xoay tuân thủ 100% hướng xoay người chơi vừa bấm nút XOAY hoặc góc snap
+				bool isHorizontal = (Mathf.Abs(currentYRotation - 0f) < 25f || Mathf.Abs(currentYRotation - 180f) < 25f);
 				float dirSign = 1f;
 				Quaternion wallRot = Quaternion.Euler(0f, currentYRotation, 0f);
 
@@ -185,14 +190,14 @@ public class BuildingSystem : MonoBehaviour
 				}
 				else
 				{
-					// Chưa nhấn chuột: 1 đoạn tường hologram di chuyển theo chuột, snap nhẹ theo grid
-					Vector3 hoverSnap = SnapToGrid(hit.point, segLen);
-					hoverSnap.y = SampleGroundY(hoverSnap.x, hoverSnap.z, hit.point.y);
+					// Chưa nhấn chuột: 1 đoạn tường hologram di chuyển theo chuột, tự động hút khít vào tường gần nhất nếu có
+					Quaternion hoverRot = Quaternion.Euler(0f, currentYRotation, 0f);
+					Vector3 hoverSnap = GetWallPlacementSnap(hit.point, segLen, ref hoverRot);
 
 					EnsurePreviewCount(1);
 					previewPool[0].SetActive(true);
 					previewPool[0].transform.position = hoverSnap;
-					previewPool[0].transform.rotation = Quaternion.Euler(0f, currentYRotation, 0f);
+					previewPool[0].transform.rotation = hoverRot;
 				}
 
 				// Thả chuột trái: XÂY DỰNG TOÀN BỘ CÁC ĐOẠN TƯỜNG
@@ -230,7 +235,7 @@ public class BuildingSystem : MonoBehaviour
 								currentYRotation = isHorizontal ? 0f : 90f;
 							}
 
-							Debug.Log($"<color=cyan>[Bức Tường]</color> Đã kéo và xây thành công {count} đoạn tường chuẩn lưới thẳng hàng!");
+							Debug.Log($"<color=cyan>[Bức Tường]</color> Đã kéo và xây thành công {count} đoạn tường chuẩn lưới thẳng hàng khít rịt!");
 						}
 					}
 
@@ -280,6 +285,67 @@ public class BuildingSystem : MonoBehaviour
 			pos.y,
 			Mathf.Round(pos.z / grid) * grid
 		);
+	}
+
+	/// <summary>
+	/// Tự động hút dính khít (Smart Magnetic Snap) vào mép tường có sẵn hoặc snap vào ô lưới
+	/// </summary>
+	private Vector3 GetWallPlacementSnap(Vector3 rawPoint, float segLen, ref Quaternion wallRot)
+	{
+		// 1. Tìm đoạn tường đã có trong bán kính 2.5m để hút dính khít
+		WallSegment nearest = null;
+		float minDistSqr = 2.5f * 2.5f;
+
+		for (int i = 0; i < WallSegment.AllWalls.Count; i++)
+		{
+			WallSegment w = WallSegment.AllWalls[i];
+			if (w == null || !w.gameObject.activeInHierarchy) continue;
+
+			float dSqr = (w.transform.position.x - rawPoint.x) * (w.transform.position.x - rawPoint.x) + 
+			             (w.transform.position.z - rawPoint.z) * (w.transform.position.z - rawPoint.z);
+			if (dSqr < minDistSqr)
+			{
+				minDistSqr = dSqr;
+				nearest = w;
+			}
+		}
+
+		if (nearest != null)
+		{
+			Vector3 nearPos = nearest.transform.position;
+			Vector3 delta = rawPoint - nearPos;
+			delta.y = 0f;
+
+			// Lấy góc xoay của tường gần nhất
+			float nearRotY = nearest.transform.eulerAngles.y;
+			bool nearIsHorizontal = (Mathf.Abs(nearRotY - 0f) < 25f || Mathf.Abs(nearRotY - 180f) < 25f);
+
+			Vector3 forwardDir = nearIsHorizontal ? Vector3.right : Vector3.forward;
+			Vector3 sideDir = nearIsHorizontal ? Vector3.forward : Vector3.right;
+
+			float forwardProj = Vector3.Dot(delta, forwardDir);
+			float sideProj = Vector3.Dot(delta, sideDir);
+
+			if (Mathf.Abs(forwardProj) >= Mathf.Abs(sideProj))
+			{
+				// Nối tiếp cùng hàng (đầu hoặc đuôi): Dính khít 100%
+				float sign = Mathf.Sign(forwardProj);
+				wallRot = nearIsHorizontal ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
+				return new Vector3(nearPos.x + forwardDir.x * segLen * sign, nearPos.y, nearPos.z + forwardDir.z * segLen * sign);
+			}
+			else
+			{
+				// Nối góc vuông 90 độ: Dính khít vào cạnh bên và tự động xoay vuông góc
+				float sign = Mathf.Sign(sideProj);
+				wallRot = nearIsHorizontal ? Quaternion.Euler(0f, 90f, 0f) : Quaternion.identity;
+				return new Vector3(nearPos.x + sideDir.x * segLen * sign, nearPos.y, nearPos.z + sideDir.z * segLen * sign);
+			}
+		}
+
+		// 2. Nếu ở khoảng đất trống chưa có tường -> Snap theo lưới chuẩn
+		Vector3 gridSnap = SnapToGrid(rawPoint, segLen);
+		gridSnap.y = SampleGroundY(gridSnap.x, gridSnap.z, rawPoint.y);
+		return gridSnap;
 	}
 
 	private float SampleGroundY(float x, float z, float defaultY)

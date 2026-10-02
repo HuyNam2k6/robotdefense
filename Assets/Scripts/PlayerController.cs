@@ -113,7 +113,7 @@ public class PlayerController : MonoBehaviour
 		if (Input.GetKeyDown(KeyCode.Space))
 			OnJumpButtonPressed();
 
-		if (Input.GetMouseButtonDown(0))
+		if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.E))
 			OnPunchButtonPressed();
 
 		if (Input.GetKeyDown(KeyCode.H))
@@ -170,11 +170,41 @@ public class PlayerController : MonoBehaviour
 		}
 	}
 
-	// Đấm / Đào đá
+	// Đấm / Đào đá / Chặt cây
 	public void OnPunchButtonPressed()
 	{
 		if (animator != null)
 			animator.SetTrigger("mine");
+
+		TryChopNearbyTree();
+	}
+
+	private void TryChopNearbyTree()
+	{
+		// Kiểm tra cây trong bán kính 2.5m phía trước người chơi
+		Vector3 center = transform.position + transform.forward * 1.0f + Vector3.up * 0.5f;
+		Collider[] colliders = Physics.OverlapSphere(center, 2.0f);
+		ChoppableTree nearestTree = null;
+		float minDist = float.MaxValue;
+
+		foreach (var col in colliders)
+		{
+			ChoppableTree tree = col.GetComponentInParent<ChoppableTree>();
+			if (tree != null && tree.CanBeChopped)
+			{
+				float dist = Vector3.Distance(transform.position, tree.transform.position);
+				if (dist < minDist)
+				{
+					minDist = dist;
+					nearestTree = tree;
+				}
+			}
+		}
+
+		if (nearestTree != null)
+		{
+			nearestTree.Chop(1, transform);
+		}
 	}
 
 	// Vẫy tay chào

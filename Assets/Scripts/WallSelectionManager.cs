@@ -133,7 +133,30 @@ public class WallSelectionManager : MonoBehaviour
     {
         if (wall == null) return;
 
+        // Tắt highlight của đoạn tường trước đó (nếu có)
+        if (selectedWall != null && selectedWall != wall)
+        {
+            selectedWall.SetSelected(false);
+        }
+
         selectedWall = wall;
+
+        // Phản ứng chọn tường chuẩn Clash of Clans:
+        // 1. Đoạn tường được chọn nảy tưng lên cao + bật phát sáng highlight viền vàng kim
+        selectedWall.SetSelected(true);
+        selectedWall.TriggerSelectHop(0f, 0.45f);
+
+        // 2. Hiệu ứng sóng lan tỏa: Các đoạn tường kết nối trong hàng nảy sóng nhẹ nhấp nhô
+        List<WallSegment> connectedRow = selectedWall.GetConnectedRow();
+        for (int i = 0; i < connectedRow.Count; i++)
+        {
+            WallSegment otherWall = connectedRow[i];
+            if (otherWall != null && otherWall != selectedWall)
+            {
+                float dist = Vector3.Distance(selectedWall.transform.position, otherWall.transform.position);
+                otherWall.TriggerSelectHop(dist * 0.035f, 0.22f);
+            }
+        }
 
         // Đóng menu Cửa hàng nếu đang mở để người chơi tập trung nâng cấp tường
         if (shopUI != null && shopUI.shopPanel != null && shopUI.shopPanel.activeSelf)
@@ -160,6 +183,11 @@ public class WallSelectionManager : MonoBehaviour
     /// </summary>
     public void DeselectWall()
     {
+        if (selectedWall != null)
+        {
+            selectedWall.SetSelected(false);
+        }
+
         selectedWall = null;
 
         if (wallCardPanel != null)
@@ -193,7 +221,14 @@ public class WallSelectionManager : MonoBehaviour
         // Tiêu đề
         if (titleText != null)
         {
-            titleText.text = $"🧱 <b>BỨC TƯỜNG (CẤP {lvl} / 6)</b>";
+            if (lvl >= 6)
+            {
+                titleText.text = $"🧱 <b>BỨC TƯỜNG (CẤP 6 - MAX (TỐI ĐA))</b>";
+            }
+            else
+            {
+                titleText.text = $"🧱 <b>BỨC TƯỜNG (CẤP {lvl} / 6)</b>";
+            }
         }
 
         // Nâng cấp 1 đoạn đơn
@@ -223,12 +258,12 @@ public class WallSelectionManager : MonoBehaviour
         {
             if (subtitleText != null)
             {
-                subtitleText.text = $"👑 <color=#E0B0FF>ĐÃ ĐẠT CẤP ĐEN TITAN CỰC PHẨM (MAX)</color>";
+                subtitleText.text = $"👑 <color=#E0B0FF>ĐÃ ĐẠT CẤP 6 - MAX (TỐI ĐA)</color>";
             }
 
             if (upgradeSingleText != null)
             {
-                upgradeSingleText.text = $"👑 <b>CẤP TỐI ĐA</b>\n<color=#AAAAAA>(MAX)</color>";
+                upgradeSingleText.text = $"👑 <b>CẤP 6 - MAX (TỐI ĐA)</b>\n<color=#AAAAAA>(ĐÃ ĐẠT TỐI ĐA)</color>";
             }
 
             if (upgradeSingleButton != null)
@@ -260,7 +295,7 @@ public class WallSelectionManager : MonoBehaviour
             }
             else
             {
-                upgradeRowText.text = $"⚡ <b>CẢ HÀNG ({connectedRow.Count})</b>\n<color=#AAAAAA>(ĐÃ MAX)</color>";
+                upgradeRowText.text = $"⚡ <b>CẢ HÀNG ({connectedRow.Count})</b>\n<color=#AAAAAA>MAX (TỐI ĐA)</color>";
                 if (upgradeRowButton != null) upgradeRowButton.interactable = false;
             }
         }
