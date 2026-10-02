@@ -68,10 +68,10 @@ public class BuildingSystem : MonoBehaviour
 
 		if (selectedIndex < 0) return;
 
-		// Phím R: Xoay công trình 45 độ trên PC
+		// Phím R: Xoay công trình 90 độ chuẩn lưới
 		if (Input.GetKeyDown(KeyCode.R))
 		{
-			RotatePreview(45f);
+			RotatePreview(90f);
 		}
 
 		// Click chuột phải hoặc phím Escape: HỦY ĐẶT
@@ -95,12 +95,13 @@ public class BuildingSystem : MonoBehaviour
 
 		bool isCurrentWall = items[selectedIndex].isWall;
 
-		// 1. XỬ LÝ CHO BỨC TƯỜNG (KÉO DÀI THÀNH HÀNG TƯỜNG THEO PHONG CÁCH CLASH OF CLANS)
+		// 1. XỬ LÝ CHO BỨC TƯỜNG (KÉO DÀI THÀNH HÀNG TƯỜNG HOẶC ĐẶT TỪNG ĐOẠN)
 		if (isCurrentWall)
 		{
 			if (hasGroundHit)
 			{
-				wallDragCurrent = hit.point;
+				float wallScaleMultiplier = 3f; // Phóng tường chuẩn (1m x 3 = 3m)
+				float segLen = Mathf.Max(0.5f, items[selectedIndex].segmentLength) * wallScaleMultiplier;
 
 				// Bắt đầu kéo khi nhấn chuột trái xuống
 				if (Input.GetMouseButtonDown(0))
@@ -112,23 +113,34 @@ public class BuildingSystem : MonoBehaviour
 					}
 				}
 
-				float segLen = Mathf.Max(0.5f, items[selectedIndex].segmentLength);
 				Vector3 startSnap = SnapToGrid(wallDragStart, segLen);
-				Vector3 curSnap = SnapToGrid(wallDragCurrent, segLen);
+				startSnap.y = SampleGroundY(startSnap.x, startSnap.z, wallDragStart.y);
+
+				Vector3 curSnap = SnapToGrid(hit.point, segLen);
 
 				float dx = curSnap.x - startSnap.x;
 				float dz = curSnap.z - startSnap.z;
-				bool isHorizontal = Mathf.Abs(dx) >= Mathf.Abs(dz);
 
-				int count = isHorizontal 
-					? Mathf.RoundToInt(Mathf.Abs(dx) / segLen) + 1 
-					: Mathf.RoundToInt(Mathf.Abs(dz) / segLen) + 1;
+				// Phân biệt: kéo thành hàng dài hay chỉ là click chuột đặt 1 đoạn đơn
+				bool isDragMove = (Mathf.Abs(dx) >= segLen * 0.5f) || (Mathf.Abs(dz) >= segLen * 0.5f);
 
-				float dirSign = isHorizontal ? (dx >= 0 ? 1f : -1f) : (dz >= 0 ? 1f : -1f);
-				// Tường prefab dài 1m theo trục X cục bộ:
-				// Nếu kéo ngang (X): rotation = identity (chiều dài nối tiếp nhau theo trục X)
-				// Nếu kéo dọc (Z): rotation = Euler(0, 90, 0) (xoay 90 độ để chiều dài nối tiếp nhau theo trục Z)
-				Quaternion wallRot = isHorizontal ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
+				int count = 1;
+				// Khi không kéo dài: góc xoay tuân thủ 100% hướng xoay người chơi vừa bấm nút XOAY
+				bool isHorizontal = (Mathf.Abs(currentYRotation - 0f) < 1f || Mathf.Abs(currentYRotation - 180f) < 1f);
+				float dirSign = 1f;
+				Quaternion wallRot = Quaternion.Euler(0f, currentYRotation, 0f);
+
+				if (isDraggingWall && isDragMove)
+				{
+					// Khi kéo chuột: tự động xác định hàng ngang hay dọc theo hướng kéo
+					isHorizontal = Mathf.Abs(dx) >= Mathf.Abs(dz);
+					count = isHorizontal 
+						? Mathf.RoundToInt(Mathf.Abs(dx) / segLen) + 1 
+						: Mathf.RoundToInt(Mathf.Abs(dz) / segLen) + 1;
+
+					dirSign = isHorizontal ? (dx >= 0 ? 1f : -1f) : (dz >= 0 ? 1f : -1f);
+					wallRot = isHorizontal ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
+				}
 
 				int wallCost = (GameEconomy.Instance != null) ? GameEconomy.Instance.wallSegmentCost : 0;
 				int currentCoins = (GameEconomy.Instance != null) ? GameEconomy.Instance.coins : 0;
@@ -147,7 +159,7 @@ public class BuildingSystem : MonoBehaviour
 					}
 					else
 					{
-						// Giới hạn số đoạn kéo theo số vàng (nếu giá > 0)
+						// Giới hạn số đoạn kéo theo số vàng
 						if (wallCost > 0 && count > maxCanAfford)
 						{
 							count = maxCanAfford;
@@ -158,14 +170,15 @@ public class BuildingSystem : MonoBehaviour
 						}
 
 						EnsurePreviewCount(count);
+						float fixedY = startSnap.y; // KHÓA ĐỘ CAO CHUẨN: Cả hàng nằm phẳng lì trên 1 mặt bằng, không bị giật cấp bậc thang!
+
 						for (int i = 0; i < count; i++)
 						{
 							float x = isHorizontal ? startSnap.x + i * segLen * dirSign : startSnap.x;
 							float z = isHorizontal ? startSnap.z : startSnap.z + i * segLen * dirSign;
-							float y = SampleGroundY(x, z, startSnap.y);
 
 							previewPool[i].SetActive(true);
-							previewPool[i].transform.position = new Vector3(x, y, z);
+							previewPool[i].transform.position = new Vector3(x, fixedY, z);
 							previewPool[i].transform.rotation = wallRot;
 						}
 					}
@@ -182,7 +195,7 @@ public class BuildingSystem : MonoBehaviour
 					previewPool[0].transform.rotation = Quaternion.Euler(0f, currentYRotation, 0f);
 				}
 
-				// Thả chuột trái: XÂY DỰNG TOÀN BỘ CÁC ĐOẠN TƯỜNG CLASH OF CLANS
+				// Thả chuột trái: XÂY DỰNG TOÀN BỘ CÁC ĐOẠN TƯỜNG
 				if (Input.GetMouseButtonUp(0) && isDraggingWall)
 				{
 					isDraggingWall = false;
@@ -201,20 +214,26 @@ public class BuildingSystem : MonoBehaviour
 
 						if (wallCost <= 0 || GameEconomy.Instance == null || GameEconomy.Instance.SpendCoins(totalCost))
 						{
+							float fixedY = startSnap.y; // KHÓA ĐỘ CAO CHUẨN
+
 							for (int i = 0; i < count; i++)
 							{
 								float x = isHorizontal ? startSnap.x + i * segLen * dirSign : startSnap.x;
 								float z = isHorizontal ? startSnap.z : startSnap.z + i * segLen * dirSign;
-								float y = SampleGroundY(x, z, startSnap.y);
 
-								SpawnRealObject(items[selectedIndex].prefab, new Vector3(x, y, z), wallRot);
+								SpawnRealObject(items[selectedIndex].prefab, new Vector3(x, fixedY, z), wallRot);
 							}
 
-							Debug.Log($"<color=cyan>[Tường Clash of Clans]</color> Đã kéo và xây thành công {count} đoạn tường chuẩn lưới!");
+							// Nếu vừa kéo hàng dài: cập nhật currentYRotation theo hướng vừa kéo để preview tiếp theo cùng hướng
+							if (isDragMove)
+							{
+								currentYRotation = isHorizontal ? 0f : 90f;
+							}
+
+							Debug.Log($"<color=cyan>[Bức Tường]</color> Đã kéo và xây thành công {count} đoạn tường chuẩn lưới thẳng hàng!");
 						}
 					}
 
-					// Giữ chế độ để người chơi tiếp tục kéo đoạn tiếp theo
 					EnsurePreviewCount(1);
 				}
 			}
@@ -265,9 +284,19 @@ public class BuildingSystem : MonoBehaviour
 
 	private float SampleGroundY(float x, float z, float defaultY)
 	{
-		if (Physics.Raycast(new Vector3(x, 100f, z), Vector3.down, out RaycastHit hit, 200f, groundLayer))
+		RaycastHit[] hits = Physics.RaycastAll(new Vector3(x, 100f, z), Vector3.down, 200f, groundLayer);
+		if (hits != null && hits.Length > 0)
 		{
-			return hit.point.y;
+			System.Array.Sort(hits, (a, b) => b.point.y.CompareTo(a.point.y));
+			foreach (var h in hits)
+			{
+				if (h.collider == null || h.collider.isTrigger) continue;
+				if (h.collider.GetComponentInParent<WallSegment>() != null) continue;
+				if (h.collider.GetComponentInParent<WorkerBot>() != null) continue;
+				if (h.collider.GetComponentInParent<TurretController>() != null) continue;
+
+				return h.point.y;
+			}
 		}
 		return defaultY;
 	}
@@ -279,8 +308,11 @@ public class BuildingSystem : MonoBehaviour
 
 		if (selectedIndex >= 0 && selectedIndex < items.Length && items[selectedIndex].isWall)
 		{
+			realObj.transform.localScale = Vector3.one * 3f;
+
 			WallSegment ws = realObj.GetComponent<WallSegment>();
 			if (ws == null) ws = realObj.AddComponent<WallSegment>();
+			ws.SetBaseScale(Vector3.one * 3f);
 			if (GameEconomy.Instance != null)
 			{
 				ws.ApplyLevel(GameEconomy.Instance.wallLevel);
@@ -318,6 +350,10 @@ public class BuildingSystem : MonoBehaviour
 		{
 			GameObject p = Instantiate(prefab);
 			p.name = $"[Hologram_Preview_{previewPool.Count}]";
+			if (items[selectedIndex].isWall)
+			{
+				p.transform.localScale = Vector3.one * 3f;
+			}
 
 			foreach (Collider col in p.GetComponentsInChildren<Collider>()) col.enabled = false;
 			foreach (MonoBehaviour mb in p.GetComponentsInChildren<MonoBehaviour>()) mb.enabled = false;
@@ -350,12 +386,19 @@ public class BuildingSystem : MonoBehaviour
 		}
 	}
 
-	public void RotatePreview(float angle = 45f)
+	public void RotatePreview(float angle = 90f)
 	{
 		currentYRotation = (currentYRotation + angle) % 360f;
-		if (previewPool.Count > 0 && previewPool[0] != null && !isDraggingWall)
+		if (currentYRotation < 0f) currentYRotation += 360f;
+		// Snap tròn vào các góc vuông 0°, 90°, 180°, 270° chuẩn lưới
+		currentYRotation = Mathf.Round(currentYRotation / 90f) * 90f % 360f;
+
+		for (int i = 0; i < previewPool.Count; i++)
 		{
-			previewPool[0].transform.rotation = Quaternion.Euler(0f, currentYRotation, 0f);
+			if (previewPool[i] != null)
+			{
+				previewPool[i].transform.rotation = Quaternion.Euler(0f, currentYRotation, 0f);
+			}
 		}
 	}
 

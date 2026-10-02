@@ -71,8 +71,8 @@ public class BuildingShopUI : MonoBehaviour
 		if (buildingSystem == null)
 			buildingSystem = FindAnyObjectByType<BuildingSystem>();
 
-		if (shopOpenButton != null)
-			shopOpenButton.onClick.AddListener(ToggleShopPanel);
+		if (shoppingCartButton != null)
+			shoppingCartButton.onClick.AddListener(ToggleShopPanel);
 
 		if (closeShopButton != null)
 			closeShopButton.onClick.AddListener(CloseShopPanel);
@@ -222,6 +222,10 @@ public class BuildingShopUI : MonoBehaviour
 		if (shopPanel != null)
 		{
 			shopPanel.SetActive(!shopPanel.activeSelf);
+			if (shopPanel.activeSelf && WallSelectionManager.Instance != null)
+			{
+				WallSelectionManager.Instance.DeselectWall();
+			}
 			UpdateUI();
 		}
 	}
@@ -231,11 +235,34 @@ public class BuildingShopUI : MonoBehaviour
 		if (shopPanel != null) shopPanel.SetActive(false);
 	}
 
+	public void OnMiningRobotClicked()
+	{
+		if (shoppingCartButton != null)
+		{
+			StartCoroutine(AnimateButtonBounce(shoppingCartButton.transform));
+		}
+		OnBuyWorker();
+	}
+
+	private IEnumerator AnimateButtonBounce(Transform btnTransform)
+	{
+		if (btnTransform == null) yield break;
+		Vector3 originalScale = Vector3.one;
+		btnTransform.localScale = originalScale * 0.85f;
+		yield return new WaitForSeconds(0.08f);
+		btnTransform.localScale = originalScale * 1.12f;
+		yield return new WaitForSeconds(0.08f);
+		btnTransform.localScale = originalScale;
+	}
+
 	public void OnBuyWorker()
 	{
 		if (GameEconomy.Instance != null)
 		{
-			GameEconomy.Instance.BuyWorkerRobot();
+			if (GameEconomy.Instance.BuyWorkerRobot())
+			{
+				CloseShopPanel();
+			}
 		}
 	}
 
@@ -243,7 +270,10 @@ public class BuildingShopUI : MonoBehaviour
 	{
 		if (GameEconomy.Instance != null)
 		{
-			GameEconomy.Instance.UpgradePickaxe();
+			if (GameEconomy.Instance.UpgradePickaxe())
+			{
+				CloseShopPanel();
+			}
 		}
 	}
 
@@ -253,6 +283,11 @@ public class BuildingShopUI : MonoBehaviour
 		{
 			ShowNotEnoughCoinsWarning("Không đủ vàng để mua tường!");
 			return;
+		}
+
+		if (WallSelectionManager.Instance != null)
+		{
+			WallSelectionManager.Instance.DeselectWall();
 		}
 
 		CloseShopPanel();
@@ -266,13 +301,16 @@ public class BuildingShopUI : MonoBehaviour
 	{
 		if (GameEconomy.Instance != null)
 		{
-			GameEconomy.Instance.UpgradeGlobalWall();
+			if (GameEconomy.Instance.UpgradeGlobalWall())
+			{
+				CloseShopPanel();
+			}
 		}
 	}
 
 	public void OnRotate()
 	{
-		if (buildingSystem != null) buildingSystem.RotatePreview(45f);
+		if (buildingSystem != null) buildingSystem.RotatePreview(90f);
 	}
 
 	public void OnCancel()

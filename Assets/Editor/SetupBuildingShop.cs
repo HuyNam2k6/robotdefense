@@ -22,11 +22,9 @@ namespace IdleFactoryDefense.Editor
 		{
 			if (EditorApplication.isPlayingOrWillChangePlaymode) return;
 
-			// Kiểm tra nếu còn UI cũ hoặc thiếu icon giỏ hàng / Dashboard ngang
+			// Kiểm tra nếu còn UI cũ
 			bool hasOldUI = GameObject.Find("Building_Shop_Bar") != null || GameObject.Find("Btn_OpenShop") != null || GameObject.Find("Shop_Panel") != null;
-			bool missingDashboard = GameObject.Find("Btn_ShoppingCart") == null || GameObject.Find("Dashboard_Panel") == null;
-
-			if (hasOldUI || missingDashboard)
+			if (hasOldUI)
 			{
 				SetupShop();
 			}
@@ -127,8 +125,10 @@ namespace IdleFactoryDefense.Editor
 				Undo.RegisterCreatedObjectUndo(ecoObj, "Tạo Game_Economy");
 			}
 
-			// 6. Gán prefab Robot cho GameEconomy
-			GameObject bipedPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/BipedRobot/BipedRobot_Prefab.prefab");
+			// 6. Gán prefab Robot cho GameEconomy từ thư mục prefabsbot
+			GameObject bipedPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabsbot/BipedRobot_Prefab.prefab");
+			if (bipedPrefab == null)
+				bipedPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/BipedRobot/BipedRobot_Prefab.prefab");
 			if (bipedPrefab != null)
 			{
 				economy.workerRobotPrefab = bipedPrefab;
@@ -405,10 +405,10 @@ namespace IdleFactoryDefense.Editor
 			Button btnDefenseRobot = CreateShopItemButton(card2Content, "Btn_DefenseRobot", "🛡️ <b>ROBOT PHÒNG THỦ</b>\n<color=#888888>(🔒 Sắp ra mắt)</color>", new Color(0.25f, 0.25f, 0.28f), safeFont, uiLayer);
 			Text defenseRobotTxt = btnDefenseRobot.GetComponentInChildren<Text>();
 
-			// ----- CARD 3: TƯỜNG (KÉO CLASH OF CLANS) -----
-			GameObject card3 = CreateDashboardCard(cardsRowObj.transform, "Card_Wall", "🧱 TƯỜNG CLASH OF CLANS", new Color(0.18f, 0.14f, 0.10f, 0.95f), new Color(0.75f, 0.5f, 0.2f, 0.5f), safeFont, uiLayer);
+			// ----- CARD 3: TƯỜNG -----
+			GameObject card3 = CreateDashboardCard(cardsRowObj.transform, "Card_Wall", "🧱 BỨC TƯỜNG", new Color(0.18f, 0.14f, 0.10f, 0.95f), new Color(0.75f, 0.5f, 0.2f, 0.5f), safeFont, uiLayer);
 			Transform card3Content = card3.transform.Find("Content");
-			Button btnWall = CreateShopItemButton(card3Content, "Btn_Wall", "🧱 <b>MUA TƯỜNG (KÉO CO-C)</b>\n<color=#FFD700>🪙 0 Vàng/Đoạn</color>", new Color(0.2f, 0.52f, 0.72f), safeFont, uiLayer);
+			Button btnWall = CreateShopItemButton(card3Content, "Btn_Wall", "🧱 <b>MUA TƯỜNG (KÉO DÀI)</b>\n<color=#FFD700>🪙 0 Vàng/Đoạn</color>", new Color(0.2f, 0.52f, 0.72f), safeFont, uiLayer);
 			Text wallTxt = btnWall.GetComponentInChildren<Text>();
 
 			Button btnUpgradeWall = CreateShopItemButton(card3Content, "Btn_UpgradeWall", "⭐ <b>NÂNG CẤP TƯỜNG</b>\n<color=#00FFFF>✦ Bạc Sáng</color> • <color=#FFD700>0🪙</color>", new Color(0.55f, 0.35f, 0.15f), safeFont, uiLayer);
@@ -512,6 +512,11 @@ namespace IdleFactoryDefense.Editor
 			shopUI.placementHUD = hudObj;
 			shopUI.rotateIconButton = btnRotate;
 			shopUI.cancelIconButton = btnCancel;
+
+			WallSelectionManager wallSelectMgr = canvasObj.GetComponent<WallSelectionManager>();
+			if (wallSelectMgr == null) wallSelectMgr = canvasObj.AddComponent<WallSelectionManager>();
+			wallSelectMgr.buildingSystem = buildingSys;
+			wallSelectMgr.shopUI = shopUI;
 
 			EditorUtility.SetDirty(canvasObj);
 			EditorUtility.SetDirty(buildingSys);

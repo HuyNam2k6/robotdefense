@@ -26,6 +26,13 @@ public class WorkerBot : MonoBehaviour
         animator = GetComponent<Animator>();
         cc = GetComponent<CharacterController>();
 
+        // Xóa bệ gỗ ở chân nếu có
+        Transform ground = transform.Find("Ground");
+        if (ground != null)
+        {
+            Destroy(ground.gameObject);
+        }
+
         // Đảm bảo vừa vào game TUYỆT ĐỐI không tự động Attack
         if (animator != null)
         {
@@ -49,15 +56,17 @@ public class WorkerBot : MonoBehaviour
         }
         cc.Move(velocity * Time.deltaTime);
 
-        // Nếu không có mục tiêu -> tự động tìm tảng đá rocks (1) hoặc rocks trong scene
+        // Nếu không có mục tiêu -> tự động tìm tảng đá rocks trong scene
         if (targetRock == null)
         {
-            GameObject r1 = GameObject.Find("rocks (1)");
-            if (r1 != null) targetRock = r1.transform;
-            else
+            GameObject[] allObjects = FindObjectsByType<GameObject>(FindObjectsInactive.Exclude);
+            foreach(var obj in allObjects)
             {
-                GameObject r0 = GameObject.Find("rocks");
-                if (r0 != null) targetRock = r0.transform;
+                if (obj.name.ToLower().Contains("rock"))
+                {
+                    targetRock = obj.transform;
+                    break;
+                }
             }
 
             if (targetRock == null)
@@ -70,11 +79,12 @@ public class WorkerBot : MonoBehaviour
         // ================= 2. TÍNH KHOẢNG CÁCH TRÊN MẶT ĐẤT =================
         Vector3 targetPosXZ = new Vector3(targetRock.position.x, transform.position.y, targetRock.position.z);
         float sqrDistance = (transform.position - targetPosXZ).sqrMagnitude;
-        float sqrStopDistance = stopDistance * stopDistance;
+        float actualStopDist = stopDistance * Mathf.Max(1f, transform.localScale.x);
+        float sqrStopDistance = actualStopDist * actualStopDist;
 
         // Kiểm tra nếu chạm sát collider của đá hoặc khoảng cách đạt tầm đào
         bool reachedRock = sqrDistance <= sqrStopDistance;
-        if (!reachedRock && sqrDistance <= (stopDistance + 0.6f) * (stopDistance + 0.6f))
+        if (!reachedRock && sqrDistance <= (actualStopDist + 0.8f) * (actualStopDist + 0.8f))
         {
             if ((cc.collisionFlags & CollisionFlags.Sides) != 0)
             {

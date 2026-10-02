@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -12,6 +13,12 @@ public class WallSegment : MonoBehaviour
 
     private Renderer[] cachedRenderers;
     private MaterialPropertyBlock propBlock;
+    private Vector3 baseScale = Vector3.zero;
+
+    public void SetBaseScale(Vector3 scale)
+    {
+        baseScale = scale;
+    }
 
     void OnEnable()
     {
@@ -27,11 +34,13 @@ public class WallSegment : MonoBehaviour
     {
         cachedRenderers = GetComponentsInChildren<Renderer>(true);
         propBlock = new MaterialPropertyBlock();
+        baseScale = transform.localScale;
     }
 
     void Start()
     {
-        if (GameEconomy.Instance != null)
+        if (baseScale == Vector3.zero) baseScale = transform.localScale;
+        if (GameEconomy.Instance != null && currentLevel <= 1)
         {
             ApplyLevel(GameEconomy.Instance.wallLevel);
         }
@@ -145,6 +154,147 @@ public class WallSegment : MonoBehaviour
                 AllWalls[i].ApplyLevel(newLevel);
             }
         }
+    }
+
+    // ================= NÂNG CẤP TỪNG ĐOẠN HOẶC CẢ HÀNG (CLASH OF CLANS STYLE) =================
+
+    public int GetUpgradeCost()
+    {
+        if (currentLevel >= 6) return 0;
+        if (GameEconomy.Instance != null)
+        {
+            return GameEconomy.Instance.GetWallUpgradeCost(currentLevel);
+        }
+        return 0;
+    }
+
+    public bool UpgradeSingle()
+    {
+        if (currentLevel >= 6) return false;
+
+        int cost = GetUpgradeCost();
+        if (cost <= 0 || (GameEconomy.Instance != null && GameEconomy.Instance.SpendCoins(cost)))
+        {
+            ApplyLevel(currentLevel + 1);
+            TriggerUpgradePunch();
+            return true;
+        }
+        else if (GameEconomy.Instance != null)
+        {
+            GameEconomy.Instance.TriggerNotEnoughCoins("Không đủ vàng để nâng cấp đoạn tường này!");
+        }
+        return false;
+    }
+
+    public void TriggerUpgradePunch(float delay = 0f)
+    {
+        if (gameObject.activeInHierarchy)
+        {
+            StartCoroutine(PunchScaleCoroutine(delay));
+        }
+    }
+
+    private IEnumerator PunchScaleCoroutine(float delay)
+    {
+        if (delay > 0f) yield return new WaitForSeconds(delay);
+
+        if (baseScale == Vector3.zero) baseScale = transform.localScale;
+        Vector3 orig = baseScale;
+        if (orig.x <= 1.05f && transform.localScale.x > 1.5f) orig = transform.localScale;
+        if (orig == Vector3.one) orig = Vector3.one * 3f;
+
+        float elapsed = 0f;
+        float duration = 0.26f;
+
+        while (elapsed < duration)
+        {
+            elapsed += Time.deltaTime;
+            float t = elapsed / duration;
+            // Nảy nhẹ đàn hồi: nảy lên 1.25x rồi về 1.0x
+            float bounce = 1f + Mathf.Sin(t * Mathf.PI) * 0.25f;
+            transform.localScale = orig * bounce;
+            yield return null;
+        }
+
+        transform.localScale = orig;
+    }
+
+    // Tìm tất cả các đoạn tường kết nối trong hàng theo phong cách Clash of Clans
+    public List<WallSegment> GetConnectedRow(float maxDistance = 3.8f)
+    {
+        List<WallSegment> connected = new List<WallSegment>();
+        Queue<WallSegment> queue = new Queue<WallSegment>();
+        HashSet<WallSegment> visited = new HashSet<WallSegment>();
+
+        queue.Enqueue(this);
+        visited.Add(this);
+
+        while (queue.Count > 0)
+        {
+            WallSegment cur = queue.Dequeue();
+            connected.Add(cur);
+
+            for (int i = 0; i < AllWalls.Count; i++)
+            {
+                WallSegment other = AllWalls[i];
+                if (other == null || visited.Contains(other)) continue;
+
+                float dist = Vector3.Distance(cur.transform.position, other.transform.position);
+                if (dist <= maxDistance)
+                {
+                    visited.Add(other);
+                    queue.Enqueue(other);
+                }
+            }
+        }
+
+        return connected;
+    }
+
+    public int CalculateRowUpgradeCost(List<WallSegment> row)
+    {
+        int total = 0;
+        if (row == null) return 0;
+        for (int i = 0; i < row.Count; i++)
+        {
+            if (row[i] != null && row[i].currentLevel < 6)
+            {
+                total += row[i].GetUpgradeCost();
+            }
+        }
+        return total;
+    }
+
+    public bool UpgradeConnectedRow()
+    {
+        List<WallSegment> row = GetConnectedRow();
+        List<WallSegment> upgradeable = new List<WallSegment>();
+        for (int i = 0; i < row.Count; i++)
+        {
+            if (row[i] != null && row[i].currentLevel < 6)
+            {
+                upgradeable.Add(row[i]);
+            }
+        }
+
+        if (upgradeable.Count == 0) return false;
+
+        int totalCost = CalculateRowUpgradeCost(upgradeable);
+        if (totalCost <= 0 || (GameEconomy.Instance != null && GameEconomy.Instance.SpendCoins(totalCost)))
+        {
+            for (int i = 0; i < upgradeable.Count; i++)
+            {
+                WallSegment wall = upgradeable[i];
+                wall.ApplyLevel(wall.currentLevel + 1);
+                wall.TriggerUpgradePunch(i * 0.04f); // Hiệu ứng sóng lan tỏa
+            }
+            return true;
+        }
+        else if (GameEconomy.Instance != null)
+        {
+            GameEconomy.Instance.TriggerNotEnoughCoins("Không đủ vàng để nâng cấp cả hàng tường!");
+        }
+        return false;
     }
 }
 

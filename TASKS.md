@@ -1,4 +1,5 @@
-﻿# 📋 LỘ TRÌNH TRIỂN KHAI DỰ ÁN: ROBOT DEFENSE 3D (MOBILE PORTRAIT)
+﻿
+# 📋 LỘ TRÌNH TRIỂN KHAI DỰ ÁN: ROBOT DEFENSE 3D (MOBILE PORTRAIT)
 *Nền tảng: Mobile Android & iOS | Góc nhìn: 3D Isometric Màn Hình Dọc (9:16) | Tiêu chuẩn: Chạy mượt 60 FPS trên Snapdragon 810+*
 *Hướng dẫn: Đánh dấu `[x]` vào các ô trống sau khi hoàn thành từng việc để theo dõi tiến độ.*
 

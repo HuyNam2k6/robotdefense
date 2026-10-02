@@ -52,7 +52,7 @@ public class GameEconomy : MonoBehaviour
             workerRobotPrefab = Resources.Load<GameObject>("BipedRobot_Prefab");
             if (workerRobotPrefab == null)
             {
-                var existing = GameObject.Find("BipedRobot_Prefab");
+                var existing = GameObject.Find("mine");
                 if (existing != null) workerRobotPrefab = existing;
             }
         }
@@ -107,7 +107,7 @@ public class GameEconomy : MonoBehaviour
         if (SpendCoins(cost))
         {
             pickaxeLevel++;
-            WorkerBot[] allBots = FindObjectsByType<WorkerBot>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            WorkerBot[] allBots = FindObjectsByType<WorkerBot>(FindObjectsInactive.Include);
             foreach (var bot in allBots)
             {
                 bot.mineInterval = Mathf.Max(0.5f, 1.8f - pickaxeLevel * 0.15f);
@@ -122,9 +122,22 @@ public class GameEconomy : MonoBehaviour
     // ================= 2. MUA ROBOT ĐÀO MỎ =================
     public bool BuyWorkerRobot()
     {
+        if (workerRobotPrefab == null)
+        {
+#if UNITY_EDITOR
+            workerRobotPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabsbot/BipedRobot_Prefab.prefab");
+#endif
+            if (workerRobotPrefab == null)
+            {
+                Debug.LogWarning("[GameEconomy] Chưa gán workerRobotPrefab từ thư mục prefabsbot!");
+                return false;
+            }
+        }
+
         if (SpendCoins(workerRobotCost))
         {
-            Vector3 spawnPos = Vector3.zero;
+            Vector3 spawnPos = new Vector3(-0.05f, 11.05f, -35.7f);
+
             if (robotSpawnPoint != null)
             {
                 spawnPos = robotSpawnPoint.position + UnityEngine.Random.insideUnitSphere * 1.5f;
@@ -132,24 +145,48 @@ public class GameEconomy : MonoBehaviour
             }
             else
             {
-                var sceneBot = GameObject.Find("BipedRobot_Prefab");
-                if (sceneBot != null)
+                var existingBot = FindAnyObjectByType<WorkerBot>();
+                if (existingBot != null)
                 {
-                    spawnPos = sceneBot.transform.position + new Vector3(UnityEngine.Random.Range(-1.5f, 1.5f), 0, UnityEngine.Random.Range(-1.5f, 1.5f));
+                    spawnPos = existingBot.transform.position + new Vector3(UnityEngine.Random.Range(-1.8f, 1.8f), 0f, UnityEngine.Random.Range(-1.8f, 1.8f));
+                }
+                else
+                {
+                    var player = GameObject.FindGameObjectWithTag("Player") ?? GameObject.Find("Player");
+                    if (player != null)
+                    {
+                        spawnPos = player.transform.position + new Vector3(UnityEngine.Random.Range(-2f, 2f), 0f, UnityEngine.Random.Range(-2f, 2f));
+                    }
                 }
             }
 
-            if (workerRobotPrefab != null)
+            // Đảm bảo bám đúng bề mặt Terrain
+            if (Terrain.activeTerrain != null)
             {
-                GameObject newBot = Instantiate(workerRobotPrefab, spawnPos, Quaternion.identity);
-                newBot.name = $"BipedRobot_Worker_{FindObjectsByType<WorkerBot>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length}";
-                WorkerBot wb = newBot.GetComponent<WorkerBot>();
-                if (wb != null)
-                {
-                    wb.mineInterval = Mathf.Max(0.5f, 1.8f - pickaxeLevel * 0.15f);
-                }
-                Debug.Log("<color=#00FF88>[Mua Robot]</color> Đã mua thành công 1 Robot đào mỏ!");
+                float terrHeight = Terrain.activeTerrain.SampleHeight(spawnPos) + Terrain.activeTerrain.transform.position.y;
+                spawnPos.y = Mathf.Max(spawnPos.y, terrHeight);
             }
+
+            GameObject newBot = Instantiate(workerRobotPrefab, spawnPos, Quaternion.identity);
+            newBot.name = $"BipedRobot_Worker_{FindObjectsByType<WorkerBot>(FindObjectsInactive.Include).Length}";
+            
+            // Kích thước robot tăng gấp đôi đồng nhất (tuyệt đối không bóp méo tỉ lệ)
+            newBot.transform.localScale = Vector3.one * 2f;
+
+            WorkerBot wb = newBot.GetComponent<WorkerBot>();
+            if (wb != null)
+            {
+                wb.mineInterval = Mathf.Max(0.5f, 1.8f - pickaxeLevel * 0.15f);
+                if (wb.targetRock == null)
+                {
+                    GameObject rock = GameObject.Find("rocks") ?? GameObject.Find("Rock");
+                    if (rock != null) wb.targetRock = rock.transform;
+                }
+            }
+
+            newBot.SetActive(true);
+            Debug.Log("<color=#00FF88>[Mua Robot]</color> Đã mua và thả thành công 1 Robot đào mỏ từ thư mục prefabsbot (tỉ lệ 1:1 chuẩn)!</color>");
+
             OnEconomyChanged?.Invoke();
             return true;
         }
@@ -169,7 +206,12 @@ public class GameEconomy : MonoBehaviour
 
     public int GetWallUpgradeCost()
     {
-        int index = wallLevel - 1;
+        return GetWallUpgradeCost(wallLevel);
+    }
+
+    public int GetWallUpgradeCost(int currentLvl)
+    {
+        int index = currentLvl - 1;
         if (wallUpgradeCosts != null && index >= 0 && index < wallUpgradeCosts.Length)
         {
             return wallUpgradeCosts[index];
