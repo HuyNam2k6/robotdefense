@@ -1,4 +1,4 @@
-# GAME DESIGN DOCUMENT (GDD) - GAME SPRINT 2026
+1# GAME DESIGN DOCUMENT (GDD) - GAME SPRINT 2026
 
 ## 1. Project Overview
 - **Game Title:** Robot Defense 3D

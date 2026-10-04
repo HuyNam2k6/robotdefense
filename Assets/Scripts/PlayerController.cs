@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
@@ -13,6 +13,14 @@ public class PlayerController : MonoBehaviour
 	public float acceleration = 12f;     // Tốc độ vào đà
 	public float deceleration = 18f;     // Tốc độ phanh lại
 	public bool alignWithCamera = true;
+
+	[Header("Cài đặt Trọng Lực & Rơi Tự Do")]
+	[Tooltip("Độ mạnh của trọng lực game (Mặc định -25f rơi rất đầm chắc, chân thực; thay vì -9.81 lơ lửng như trên mặt trăng)")]
+	public float gravity = -25f;
+	[Tooltip("Lực ép bám sát dốc khi chạy nhanh qua sườn đồi gồ ghề")]
+	public float groundStickForce = -6f;
+	[Tooltip("Tốc độ rơi tối đa khi rơi từ độ cao lớn")]
+	public float terminalVelocity = -40f;
 
 	[Header("Cài đặt Bật Nhảy Vật Lý")]
 	public float jumpHeight = 1.6f;      // Chiều cao nhảy lên không trung (mét)
@@ -94,11 +102,23 @@ public class PlayerController : MonoBehaviour
 		float rate = (targetSpeed > currentSpeed) ? acceleration : deceleration;
 		currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, rate * Time.deltaTime);
 
-		// ========== 4. TRỌNG LỰC & RƠI ==========
-		if (cc.isGrounded && verticalVelocity < 0f)
-			verticalVelocity = -2f; // Bám sát dốc
+		// ========== 4. TRỌNG LỰC & RƠI TỰ DO ==========
+		if (cc.isGrounded)
+		{
+			if (verticalVelocity < 0f)
+			{
+				verticalVelocity = groundStickForce; // Ép chặt vào mặt đất, không bị bay bổng khi xuống dốc
+			}
+		}
 		else
-			verticalVelocity += Physics.gravity.y * Time.deltaTime; // Rơi tự do
+		{
+			// Đang trên không trung: Rơi tự do kéo xuống đất
+			verticalVelocity += gravity * Time.deltaTime;
+			if (verticalVelocity < terminalVelocity)
+			{
+				verticalVelocity = terminalVelocity;
+			}
+		}
 
 		// ========== 5. DI CHUYỂN BẰNG CHARACTER CONTROLLER ==========
 		Vector3 move = transform.forward * currentSpeed;
@@ -163,7 +183,7 @@ public class PlayerController : MonoBehaviour
 	{
 		if (cc.isGrounded)
 		{
-			verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * Physics.gravity.y);
+			verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
 
 			if (animator != null)
 				animator.SetTrigger("jump");
