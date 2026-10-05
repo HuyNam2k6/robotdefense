@@ -5,3 +5,4 @@ cấm đoán bừa hãy kiểm tra rồi làm
 không cần nịnh tôi cần kết quả tốt nhất, hoặc là xấu nhất nhưng phải nói rõ để tôi có thể chọn cách làm khác
 sau 1 lỗi cần lưu lại bài học lưu ý chỉ là bài học trước khi chạy phải đọc lại để tránh tái phạm.
 khi làm việc có liên quan đến file unity không cần đọc file temp
+Nếu không biết phải nói không biết cấm dẫn dắt đi sai lầm
