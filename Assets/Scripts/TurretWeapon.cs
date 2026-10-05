@@ -13,6 +13,9 @@ public class TurretWeapon : MonoBehaviour
 	[Tooltip("(Tạm thời tắt tính tự động) Tốc độ bắn cũ: số phát / giây")]
 	public float fireRate = 2f;
 
+	[Header("--- Sát Thương Đạn ---")]
+	public int bulletDamage = 15;
+
 	// Bộ đếm hồi chiêu nội bộ trong vòng lặp game
 	private float cooldownTimer;
 
@@ -31,6 +34,7 @@ public class TurretWeapon : MonoBehaviour
 		if (dir.sqrMagnitude < 0.0001f) return;
 
 		Bullet b = Instantiate(bulletPrefab, firePoint.position, Quaternion.LookRotation(dir));
+		if (bulletDamage > 0) b.damage = bulletDamage;
 		b.Fire(dir);
 
 		cooldownTimer = Mathf.Max(0.001f, cooldown);

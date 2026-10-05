@@ -37,15 +37,6 @@ public class Bullet : MonoBehaviour
 		if (other.CompareTag("Enemy"))
 		{
 			Debug.Log($"<color=red>[Đạn]</color> Bắn trúng quái: {other.name}! Sát thương: {damage}");
-			Enemy enemy = other.GetComponentInParent<Enemy>();
-			if (enemy != null)
-			{
-				enemy.TakeDamage(damage);
-			}
-			else
-			{
-				other.SendMessage("TakeDamage", (float)damage, SendMessageOptions.DontRequireReceiver);
-			}
 		}
 		else
 		{

@@ -126,6 +126,19 @@
 
 ---
 
+### ❌ Lỗi 9: Truy cập biến/thuộc tính chưa được khai báo ở script mục tiêu và đứt gãy chuỗi truyền dữ liệu (CS1061)
+- **Mô tả chi tiết:**
+  - `UpgradableTurret` gọi `rocketLauncher.rocketDamage = ...` để nâng cấp sát thương pháo tự hành MLRS, nhưng `RocketLauncherTurret` chưa từng khai báo trường `rocketDamage`. Đồng thời `HomingRocket` cũng không có biến `damage` để truyền vào `ExplosionEffect`.
+  - Hậu quả: Gây lỗi biên dịch CS1061 chặn toàn bộ dự án Unity không chạy được.
+- **Nguyên nhân gốc rễ:**
+  - Viết logic nâng cấp chỉ số ở script điều khiển cấp cao nhưng không kiểm tra định nghĩa thành phần ở script con và không kiểm tra chuỗi truyền sát thương (Turret -> Rocket -> Explosion -> Enemy).
+- **Nguyên tắc khắc phục & bắt buộc tuân thủ:**
+  - Khi tham chiếu hoặc gán bất kỳ biến/thuộc tính nào giữa các script, bắt buộc kiểm tra xem class đích đã khai báo biến public đó chưa.
+  - Sau khi sửa bất kỳ mã nguồn C# nào, bắt buộc phải biên dịch thử nghiệm (chạy `dotnet build` hoặc kiểm tra log Unity) để xác nhận 0 Error trước khi kết thúc tác vụ.
+  - Luôn đảm bảo chuỗi dữ liệu (Data flow) thông suốt: Trụ bắn gán `damage` cho đạn -> đạn nổ truyền `damage` cho hiệu ứng vụ nổ `ExplosionEffect` -> gọi `TakeDamage` lên quái.
+
+---
+
 ## 📋 2. QUY TRÌNH BẮT BUỘC TRƯỚC KHI CHẠY MỖI PROMPT (PRE-FLIGHT CHECKLIST)
 
 Mỗi khi nhận được 1 prompt mới từ người dùng, AI phải thực hiện tuần tự:
@@ -147,4 +160,3 @@ BƯỚC 4: THỰC THI & KIỂM TRA TOÀN DIỆN
    - Chạy test, kiểm tra code không có lỗi compile.
    - Đảm bảo hệ thống cũ (Mua tường, Cúp, Robot) hoạt động bình thường song song với tính năng mới.
 ```
-

@@ -15,8 +15,9 @@ public class WallSelectionManager : MonoBehaviour
     public BuildingSystem buildingSystem;
     public BuildingShopUI shopUI;
 
-    [Header("--- Tường Đang Được Chọn ---")]
+    [Header("--- Công Trình / Trụ Đang Được Chọn ---")]
     public WallSegment selectedWall;
+    public UpgradableTurret selectedTurret;
 
     [Header("--- Giao Diện Nâng Cấp Tường (Clash of Clans Style) ---")]
     public GameObject wallCardPanel;
@@ -87,10 +88,10 @@ public class WallSelectionManager : MonoBehaviour
         // 1. Cập nhật vị trí và animation nhấp nhô của 3D Marker
         UpdateSelectionMarkerAnimation();
 
-        // 2. Không nhận click chọn tường nếu đang trong chế độ kéo đặt công trình
+        // 2. Không nhận click chọn nếu đang trong chế độ kéo đặt công trình
         if (buildingSystem != null && buildingSystem.IsPlacing)
         {
-            if (selectedWall != null) DeselectWall();
+            if (selectedWall != null || selectedTurret != null) DeselectAll();
             return;
         }
 
@@ -110,19 +111,25 @@ public class WallSelectionManager : MonoBehaviour
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, 250f))
             {
+                // Kiểm tra 1: Click vào Bức Tường
                 WallSegment clickedWall = hit.collider.GetComponentInParent<WallSegment>();
                 if (clickedWall != null)
                 {
                     SelectWall(clickedWall);
                     return;
                 }
+
+                // Kiểm tra 2: Click vào Ụ Pháo (Thunder, Phaotuhanh, FlamethrowerTurret)
+                UpgradableTurret clickedTurret = hit.collider.GetComponentInParent<UpgradableTurret>();
+                if (clickedTurret != null)
+                {
+                    SelectTurret(clickedTurret);
+                    return;
+                }
             }
 
-            // Click vào khoảng trống hoặc mặt đất -> Bỏ chọn tường
-            if (selectedWall != null)
-            {
-                DeselectWall();
-            }
+            // Click vào khoảng trống, mặt đất hoặc vật thể khác -> Bỏ chọn tất cả
+            DeselectAll();
         }
     }
 
@@ -133,6 +140,12 @@ public class WallSelectionManager : MonoBehaviour
     {
         if (wall == null) return;
 
+        // Bỏ chọn ụ pháo trước đó nếu có
+        if (selectedTurret != null)
+        {
+            DeselectTurret();
+        }
+
         // Tắt highlight của đoạn tường trước đó (nếu có)
         if (selectedWall != null && selectedWall != wall)
         {
@@ -142,7 +155,7 @@ public class WallSelectionManager : MonoBehaviour
         selectedWall = wall;
 
         // Phản ứng chọn tường chuẩn Clash of Clans:
-        // 1. Đoạn tường được chọn nảy tưng lên cao + bật phát sáng highlight viền vàng kim
+        // 1. Đoạn tường được chọn nảy tưng lên cao + bật phát sáng nhấp nháy màu xanh dương <-> màu nguyên bản
         selectedWall.SetSelected(true);
         selectedWall.TriggerSelectHop(0f, 0.45f);
 
@@ -158,7 +171,7 @@ public class WallSelectionManager : MonoBehaviour
             }
         }
 
-        // Đóng menu Cửa hàng nếu đang mở để người chơi tập trung nâng cấp tường
+        // Đóng menu Cửa hàng nếu đang mở để người chơi tập trung nâng cấp
         if (shopUI != null && shopUI.shopPanel != null && shopUI.shopPanel.activeSelf)
         {
             shopUI.CloseShopPanel();
@@ -179,6 +192,48 @@ public class WallSelectionManager : MonoBehaviour
     }
 
     /// <summary>
+    /// Chọn một ụ pháo (Thunder, Phaotuhanh, FlamethrowerTurret) và hiển thị giao diện nâng cấp
+    /// </summary>
+    public void SelectTurret(UpgradableTurret turret)
+    {
+        if (turret == null) return;
+
+        // Bỏ chọn tường nếu đang chọn
+        if (selectedWall != null)
+        {
+            DeselectWall();
+        }
+
+        // Bỏ chọn trụ cũ nếu khác
+        if (selectedTurret != null && selectedTurret != turret)
+        {
+            selectedTurret.SetSelected(false);
+        }
+
+        selectedTurret = turret;
+        selectedTurret.SetSelected(true);
+
+        // Đóng menu Cửa hàng nếu đang mở
+        if (shopUI != null && shopUI.shopPanel != null && shopUI.shopPanel.activeSelf)
+        {
+            shopUI.CloseShopPanel();
+        }
+
+        if (wallCardPanel != null)
+        {
+            wallCardPanel.SetActive(true);
+        }
+
+        if (selectionMarker != null)
+        {
+            selectionMarker.SetActive(true);
+            selectionMarker.transform.position = selectedTurret.GetMarkerPosition();
+        }
+
+        RefreshCardUI();
+    }
+
+    /// <summary>
     /// Bỏ chọn tường và ẩn giao diện
     /// </summary>
     public void DeselectWall()
@@ -186,129 +241,200 @@ public class WallSelectionManager : MonoBehaviour
         if (selectedWall != null)
         {
             selectedWall.SetSelected(false);
+            selectedWall = null;
         }
 
-        selectedWall = null;
-
-        if (wallCardPanel != null)
+        if (selectedTurret == null)
         {
-            wallCardPanel.SetActive(false);
-        }
-
-        if (selectionMarker != null)
-        {
-            selectionMarker.SetActive(false);
+            if (wallCardPanel != null) wallCardPanel.SetActive(false);
+            if (selectionMarker != null) selectionMarker.SetActive(false);
         }
     }
 
     /// <summary>
-    /// Cập nhật thông tin chi tiết trên Card nâng cấp tường
+    /// Bỏ chọn ụ pháo và ẩn giao diện
+    /// </summary>
+    public void DeselectTurret()
+    {
+        if (selectedTurret != null)
+        {
+            selectedTurret.SetSelected(false);
+            selectedTurret = null;
+        }
+
+        if (selectedWall == null)
+        {
+            if (wallCardPanel != null) wallCardPanel.SetActive(false);
+            if (selectionMarker != null) selectionMarker.SetActive(false);
+        }
+    }
+
+    /// <summary>
+    /// Bỏ chọn tất cả công trình (khi nhấn ra ngoài màn hình / vật thể khác)
+    /// </summary>
+    public void DeselectAll()
+    {
+        DeselectWall();
+        DeselectTurret();
+    }
+
+    /// <summary>
+    /// Cập nhật thông tin chi tiết trên Card nâng cấp (Tường hoặc Ụ Pháo)
     /// </summary>
     public void RefreshCardUI()
     {
-        if (selectedWall == null)
+        if (selectedWall == null && selectedTurret == null)
         {
             if (wallCardPanel != null && wallCardPanel.activeSelf) wallCardPanel.SetActive(false);
             if (selectionMarker != null && selectionMarker.activeSelf) selectionMarker.SetActive(false);
             return;
         }
 
-        int lvl = selectedWall.currentLevel;
-        string curName = (GameEconomy.WallLevelNames != null && lvl >= 1 && lvl <= GameEconomy.WallLevelNames.Length)
-            ? GameEconomy.WallLevelNames[lvl - 1]
-            : $"Cấp {lvl}";
-
-        // Tiêu đề
-        if (titleText != null)
+        // ================= 1. NẾU ĐANG CHỌN BỨC TƯỜNG =================
+        if (selectedWall != null)
         {
-            if (lvl >= 6)
+            if (upgradeRowButton != null) upgradeRowButton.gameObject.SetActive(true);
+
+            int lvl = selectedWall.currentLevel;
+            string curName = (GameEconomy.WallLevelNames != null && lvl >= 1 && lvl <= GameEconomy.WallLevelNames.Length)
+                ? GameEconomy.WallLevelNames[lvl - 1]
+                : $"Cấp {lvl}";
+
+            // Tiêu đề
+            if (titleText != null)
             {
-                titleText.text = $"🧱 <b>BỨC TƯỜNG (CẤP 6 - MAX (TỐI ĐA))</b>";
+                titleText.text = (lvl >= 6)
+                    ? $"🧱 <b>BỨC TƯỜNG (CẤP 6 - MAX (TỐI ĐA))</b>"
+                    : $"🧱 <b>BỨC TƯỜNG (CẤP {lvl} / 6)</b>";
+            }
+
+            // Nâng cấp 1 đoạn đơn
+            if (lvl < 6)
+            {
+                int singleCost = selectedWall.GetUpgradeCost();
+                string nextName = (GameEconomy.WallLevelNames != null && lvl < GameEconomy.WallLevelNames.Length)
+                    ? GameEconomy.WallLevelNames[lvl]
+                    : $"Cấp {lvl + 1}";
+
+                if (subtitleText != null)
+                {
+                    subtitleText.text = $"✦ {curName}  ➔  <color=#00FFFF>{nextName}</color>";
+                }
+
+                if (upgradeSingleText != null)
+                {
+                    upgradeSingleText.text = $"⭐ <b>NÂNG CẤP</b>\n<color=#FFD700>{singleCost}🪙</color>";
+                }
+
+                if (upgradeSingleButton != null)
+                {
+                    upgradeSingleButton.interactable = true;
+                }
             }
             else
             {
-                titleText.text = $"🧱 <b>BỨC TƯỜNG (CẤP {lvl} / 6)</b>";
+                if (subtitleText != null)
+                {
+                    subtitleText.text = $"👑 <color=#E0B0FF>ĐÃ ĐẠT CẤP 6 - MAX (TỐI ĐA)</color>";
+                }
+
+                if (upgradeSingleText != null)
+                {
+                    upgradeSingleText.text = $"👑 <b>CẤP 6 - MAX (TỐI ĐA)</b>\n<color=#AAAAAA>(ĐÃ ĐẠT TỐI ĐA)</color>";
+                }
+
+                if (upgradeSingleButton != null)
+                {
+                    upgradeSingleButton.interactable = false;
+                }
+            }
+
+            // Nâng cấp cả hàng kết nối (Clash of Clans Row Upgrade)
+            List<WallSegment> connectedRow = selectedWall.GetConnectedRow();
+            int upgradeableCount = 0;
+            int rowTotalCost = 0;
+
+            for (int i = 0; i < connectedRow.Count; i++)
+            {
+                if (connectedRow[i] != null && connectedRow[i].currentLevel < 6)
+                {
+                    upgradeableCount++;
+                    rowTotalCost += connectedRow[i].GetUpgradeCost();
+                }
+            }
+
+            if (upgradeRowText != null)
+            {
+                if (upgradeableCount > 0)
+                {
+                    upgradeRowText.text = $"⚡ <b>NÂNG CẢ HÀNG ({upgradeableCount})</b>\n<color=#FFD700>{rowTotalCost}🪙</color>";
+                    if (upgradeRowButton != null) upgradeRowButton.interactable = true;
+                }
+                else
+                {
+                    upgradeRowText.text = $"⚡ <b>CẢ HÀNG ({connectedRow.Count})</b>\n<color=#AAAAAA>MAX (TỐI ĐA)</color>";
+                    if (upgradeRowButton != null) upgradeRowButton.interactable = false;
+                }
             }
         }
-
-        // Nâng cấp 1 đoạn đơn
-        if (lvl < 6)
+        // ================= 2. NẾU ĐANG CHỌN Ụ PHÁO (THUNDER, PHAOTUHANH, FLAMETHROWER) =================
+        else if (selectedTurret != null)
         {
-            int singleCost = selectedWall.GetUpgradeCost();
-            string nextName = (GameEconomy.WallLevelNames != null && lvl < GameEconomy.WallLevelNames.Length)
-                ? GameEconomy.WallLevelNames[lvl]
-                : $"Cấp {lvl + 1}";
+            // Trụ không có khái niệm nâng cả hàng -> Ẩn nút nâng cả hàng
+            if (upgradeRowButton != null) upgradeRowButton.gameObject.SetActive(false);
+
+            int lvl = selectedTurret.currentLevel;
+            int maxLvl = UpgradableTurret.MaxLevel;
+
+            if (titleText != null)
+            {
+                titleText.text = (lvl >= maxLvl)
+                    ? $"<b>{selectedTurret.turretDisplayName}</b> (CẤP {lvl} - MAX TỐI ĐA)"
+                    : $"<b>{selectedTurret.turretDisplayName}</b> (CẤP {lvl} / {maxLvl})";
+            }
 
             if (subtitleText != null)
             {
-                subtitleText.text = $"✦ {curName}  ➔  <color=#00FFFF>{nextName}</color>";
+                subtitleText.text = selectedTurret.GetStatsDescription();
             }
 
-            if (upgradeSingleText != null)
+            if (lvl < maxLvl)
             {
-                upgradeSingleText.text = $"⭐ <b>NÂNG CẤP</b>\n<color=#FFD700>{singleCost}🪙</color>";
-            }
-
-            if (upgradeSingleButton != null)
-            {
-                upgradeSingleButton.interactable = true;
-            }
-        }
-        else
-        {
-            if (subtitleText != null)
-            {
-                subtitleText.text = $"👑 <color=#E0B0FF>ĐÃ ĐẠT CẤP 6 - MAX (TỐI ĐA)</color>";
-            }
-
-            if (upgradeSingleText != null)
-            {
-                upgradeSingleText.text = $"👑 <b>CẤP 6 - MAX (TỐI ĐA)</b>\n<color=#AAAAAA>(ĐÃ ĐẠT TỐI ĐA)</color>";
-            }
-
-            if (upgradeSingleButton != null)
-            {
-                upgradeSingleButton.interactable = false;
-            }
-        }
-
-        // Nâng cấp cả hàng kết nối (Clash of Clans Row Upgrade)
-        List<WallSegment> connectedRow = selectedWall.GetConnectedRow();
-        int upgradeableCount = 0;
-        int rowTotalCost = 0;
-
-        for (int i = 0; i < connectedRow.Count; i++)
-        {
-            if (connectedRow[i] != null && connectedRow[i].currentLevel < 6)
-            {
-                upgradeableCount++;
-                rowTotalCost += connectedRow[i].GetUpgradeCost();
-            }
-        }
-
-        if (upgradeRowText != null)
-        {
-            if (upgradeableCount > 0)
-            {
-                upgradeRowText.text = $"⚡ <b>NÂNG CẢ HÀNG ({upgradeableCount})</b>\n<color=#FFD700>{rowTotalCost}🪙</color>";
-                if (upgradeRowButton != null) upgradeRowButton.interactable = true;
+                int cost = selectedTurret.GetUpgradeCost();
+                if (upgradeSingleText != null)
+                {
+                    upgradeSingleText.text = $"⭐ <b>NÂNG CẤP</b>\n<color=#FFD700>{cost}🪙</color>";
+                }
+                if (upgradeSingleButton != null)
+                {
+                    upgradeSingleButton.interactable = true;
+                }
             }
             else
             {
-                upgradeRowText.text = $"⚡ <b>CẢ HÀNG ({connectedRow.Count})</b>\n<color=#AAAAAA>MAX (TỐI ĐA)</color>";
-                if (upgradeRowButton != null) upgradeRowButton.interactable = false;
+                if (upgradeSingleText != null)
+                {
+                    upgradeSingleText.text = $"👑 <b>CẤP {maxLvl} - MAX</b>\n<color=#AAAAAA>(ĐÃ ĐẠT TỐI ĐA)</color>";
+                }
+                if (upgradeSingleButton != null)
+                {
+                    upgradeSingleButton.interactable = false;
+                }
             }
         }
     }
 
     private void OnUpgradeSingleClicked()
     {
-        if (selectedWall == null) return;
-
-        bool success = selectedWall.UpgradeSingle();
-        if (success)
+        if (selectedWall != null)
         {
-            RefreshCardUI();
+            bool success = selectedWall.UpgradeSingle();
+            if (success) RefreshCardUI();
+        }
+        else if (selectedTurret != null)
+        {
+            bool success = selectedTurret.Upgrade();
+            if (success) RefreshCardUI();
         }
     }
 
@@ -325,11 +451,24 @@ public class WallSelectionManager : MonoBehaviour
 
     private void UpdateSelectionMarkerAnimation()
     {
-        if (selectionMarker != null && selectionMarker.activeSelf && selectedWall != null)
+        if (selectionMarker != null && selectionMarker.activeSelf)
         {
-            float bob = Mathf.Sin(Time.time * 5.5f) * 0.12f;
-            selectionMarker.transform.position = selectedWall.transform.position + Vector3.up * (2.2f + bob);
-            selectionMarker.transform.Rotate(Vector3.up, 90f * Time.deltaTime, Space.World);
+            Vector3 targetPos = Vector3.zero;
+            if (selectedWall != null)
+            {
+                targetPos = selectedWall.transform.position + Vector3.up * 2.2f;
+            }
+            else if (selectedTurret != null)
+            {
+                targetPos = selectedTurret.GetMarkerPosition();
+            }
+
+            if (targetPos != Vector3.zero)
+            {
+                float bob = Mathf.Sin(Time.time * 5.5f) * 0.14f;
+                selectionMarker.transform.position = targetPos + Vector3.up * bob;
+                selectionMarker.transform.Rotate(Vector3.up, 90f * Time.deltaTime, Space.World);
+            }
         }
     }
 
@@ -338,7 +477,7 @@ public class WallSelectionManager : MonoBehaviour
         if (selectionMarker != null) return;
 
         selectionMarker = GameObject.CreatePrimitive(PrimitiveType.Cube);
-        selectionMarker.name = "[Wall_Selection_Marker]";
+        selectionMarker.name = "[Building_Selection_Marker]";
         selectionMarker.transform.localScale = new Vector3(0.45f, 0.45f, 0.45f);
         selectionMarker.transform.rotation = Quaternion.Euler(45f, 45f, 45f);
 
@@ -346,13 +485,13 @@ public class WallSelectionManager : MonoBehaviour
         Collider col = selectionMarker.GetComponent<Collider>();
         if (col != null) Destroy(col);
 
-        // Gán vật liệu phát sáng màu vàng/cyan
+        // Gán vật liệu phát sáng màu xanh dương / cyan công nghệ
         Renderer rend = selectionMarker.GetComponent<Renderer>();
         if (rend != null)
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color") ?? Shader.Find("Standard");
             Material mat = new Material(shader);
-            mat.color = new Color(1f, 0.85f, 0.2f, 0.95f);
+            mat.color = new Color(0.15f, 0.85f, 1f, 0.95f);
             rend.material = mat;
         }
 
@@ -523,7 +662,7 @@ public class WallSelectionManager : MonoBehaviour
         if (closeCardButton != null)
         {
             closeCardButton.onClick.RemoveAllListeners();
-            closeCardButton.onClick.AddListener(DeselectWall);
+            closeCardButton.onClick.AddListener(DeselectAll);
         }
     }
 }

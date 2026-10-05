@@ -69,18 +69,27 @@ public class WallSegment : MonoBehaviour
 
     void Update()
     {
-        // Hiệu ứng phát sáng viền nhấp nháy rõ ràng khi được chọn (Clash of Clans Selection Highlight)
+        // Hiệu ứng nhấp nháy màu xanh dương và trở về màu nguyên bản liên tục khi được chọn
         if (isSelected && cachedRenderers != null)
         {
-            float pulse = 0.55f + 0.45f * Mathf.Sin(Time.time * 8f);
-            Color selectHighlight = new Color(1.3f, 1.1f, 0.2f, 1f) * pulse; // Ánh vàng hoàng kim phát sáng nổi bật
+            // Dao động hình sin êm ái: 0.0 (Màu nguyên bản) <---> 1.0 (Màu xanh dương)
+            float t = (Mathf.Sin(Time.time * 6.5f) + 1f) * 0.5f;
+            Color neonBlue = new Color(0.12f, 0.65f, 1.0f, 1f);
+            Color blueEmission = new Color(0.15f, 0.75f, 2.2f, 1f) * t;
+
+            Color origWallColor = GetWallColorForLevel(currentLevel);
 
             for (int i = 0; i < cachedRenderers.Length; i++)
             {
                 var rend = cachedRenderers[i];
                 if (rend == null) continue;
                 rend.GetPropertyBlock(propBlock);
-                propBlock.SetColor("_EmissionColor", selectHighlight);
+
+                Color curCol = Color.Lerp(origWallColor, neonBlue, t);
+                propBlock.SetColor("_BaseColor", curCol);
+                propBlock.SetColor("_Color", curCol);
+                propBlock.SetColor("_EmissionColor", blueEmission);
+
                 rend.SetPropertyBlock(propBlock);
             }
         }
@@ -328,6 +337,20 @@ public class WallSegment : MonoBehaviour
 
     // ================= CẬP NHẬT CẤP ĐỘ & MÀU SẮC =================
 
+    public static Color GetWallColorForLevel(int level)
+    {
+        switch (level)
+        {
+            case 1: return Color.white;
+            case 2: return new Color(0.84f, 0.88f, 0.94f, 1f); // Bạc
+            case 3: return new Color(1.0f, 0.80f, 0.16f, 1f);  // Vàng
+            case 4: return new Color(0.93f, 0.96f, 1.0f, 1f);  // Bạch Kim
+            case 5: return new Color(0.18f, 0.92f, 1.0f, 1f);  // Kim Cương
+            case 6: return new Color(0.28f, 0.30f, 0.36f, 1f); // Đen Titan
+            default: return Color.white;
+        }
+    }
+
     public void ApplyLevel(int level)
     {
         currentLevel = Mathf.Clamp(level, 1, 6);
@@ -340,7 +363,7 @@ public class WallSegment : MonoBehaviour
 
         EnsureSparkleParticles();
 
-        Color wallColor;
+        Color wallColor = GetWallColorForLevel(currentLevel);
         float metallic = 0.5f;
         float smoothness = 0.5f;
         Color sparkleColor = Color.white;
@@ -349,32 +372,24 @@ public class WallSegment : MonoBehaviour
         switch (currentLevel)
         {
             case 1:
-                // Cấp 1: Nguyên bản (gạch đá thường, KHÔNG lấp lánh)
-                wallColor = Color.white;
                 metallic = 0.1f;
                 smoothness = 0.3f;
                 sparkleRate = 0f;
                 break;
 
             case 2:
-                // Cấp 2: Bạc (Silver) - kim loại bạc sáng bóng, KHÔNG lấp lánh
-                wallColor = new Color(0.84f, 0.88f, 0.94f, 1f);
                 metallic = 0.88f;
                 smoothness = 0.8f;
                 sparkleRate = 0f;
                 break;
 
             case 3:
-                // Cấp 3: Vàng (Gold) - kim loại vàng hoàng kim bóng bẩy, KHÔNG lấp lánh
-                wallColor = new Color(1.0f, 0.80f, 0.16f, 1f);
                 metallic = 0.95f;
                 smoothness = 0.88f;
                 sparkleRate = 0f;
                 break;
 
             case 4:
-                // Cấp 4: Bạch Kim (Platinum) - BẮT ĐẦU CÓ LẤP LÁNH RÕ HƠN 20%
-                wallColor = new Color(0.93f, 0.96f, 1.0f, 1f);
                 metallic = 0.92f;
                 smoothness = 0.92f;
                 sparkleColor = new Color(0.96f, 0.98f, 1.0f, 0.95f);
@@ -382,8 +397,6 @@ public class WallSegment : MonoBehaviour
                 break;
 
             case 5:
-                // Cấp 5: Kim Cương (Diamond) - ngọc bích trong sáng, lấp lánh rõ nét 20%
-                wallColor = new Color(0.18f, 0.92f, 1.0f, 1f);
                 metallic = 0.3f;
                 smoothness = 0.98f;
                 sparkleColor = new Color(0.35f, 0.96f, 1.0f, 1.0f);
@@ -391,18 +404,10 @@ public class WallSegment : MonoBehaviour
                 break;
 
             case 6:
-                // Cấp 6: Đen Titan - MAX (TỐI ĐA)
-                // Giảm bớt độ đen của tường: màu xám than chì titan ánh kim rõ chi tiết khối gờ
-                wallColor = new Color(0.28f, 0.30f, 0.36f, 1f);
                 metallic = 0.95f;
                 smoothness = 0.90f;
                 sparkleColor = new Color(0.85f, 0.60f, 1.0f, 0.95f);
                 sparkleRate = 3.0f;
-                break;
-
-            default:
-                wallColor = Color.white;
-                sparkleRate = 0f;
                 break;
         }
 

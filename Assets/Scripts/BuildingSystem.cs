@@ -384,6 +384,12 @@ public class BuildingSystem : MonoBehaviour
 				ws.ApplyLevel(GameEconomy.Instance.wallLevel);
 			}
 		}
+		else
+		{
+			UpgradableTurret ut = realObj.GetComponent<UpgradableTurret>();
+			if (ut == null) ut = realObj.AddComponent<UpgradableTurret>();
+			ut.EnsureColliderExists();
+		}
 
 		return realObj;
 	}

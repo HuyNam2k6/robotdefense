@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 [RequireComponent(typeof(Rigidbody))]
 public class HomingRocket : MonoBehaviour
@@ -53,6 +53,8 @@ public class HomingRocket : MonoBehaviour
             if (col == null || col.gameObject == gameObject) continue;
             if (col.CompareTag("Player")) continue;
             if (col.GetComponent<HomingRocket>() != null) continue;
+            if (col.GetComponentInParent<UpgradableTurret>() != null) continue;
+            if (col.GetComponentInParent<RocketLauncherTurret>() != null) continue;
 
             transform.position = hits[i].point + Vector3.up * 0.4f;
             Explode();
@@ -81,6 +83,7 @@ public class HomingRocket : MonoBehaviour
         if (!isArmed) return;
         if (other.gameObject == gameObject) return;
         if (other.CompareTag("Player") || other.GetComponent<HomingRocket>() != null) return;
+        if (other.GetComponentInParent<UpgradableTurret>() != null || other.GetComponentInParent<RocketLauncherTurret>() != null) return;
         Explode();
     }
 
@@ -89,6 +92,7 @@ public class HomingRocket : MonoBehaviour
         if (!isArmed) return;
         if (collision.gameObject == gameObject) return;
         if (collision.gameObject.CompareTag("Player") || collision.gameObject.GetComponent<HomingRocket>() != null) return;
+        if (collision.collider.GetComponentInParent<UpgradableTurret>() != null || collision.collider.GetComponentInParent<RocketLauncherTurret>() != null) return;
         Explode();
     }
 

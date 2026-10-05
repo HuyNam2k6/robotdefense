@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using UnityEditor;
 #endif
 using UnityEngine;
@@ -69,6 +69,10 @@ public class LightningTurret : MonoBehaviour
     void ShootLightning()
     {
         lineRenderer.enabled = true;
+        if (currentTarget != null)
+        {
+            currentTarget.SendMessage("TakeDamage", damagePerSecond * Time.deltaTime, SendMessageOptions.DontRequireReceiver);
+        }
         Vector3 startPos = firePoint.position;
         Vector3 targetPos = currentCollider != null ? currentCollider.bounds.center : currentTarget.position + Vector3.up;
         
