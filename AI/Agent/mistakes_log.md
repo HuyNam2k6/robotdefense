@@ -85,6 +85,19 @@
 
 ---
 
+### ❌ Lỗi 6: Lỗi compile C# trong file Editor khiến Unity rơi vào Safe Mode
+- **Mô tả chi tiết:**
+  - Dùng sai tên API `EditorGUILayout.Label` (thay vì `EditorGUILayout.LabelField`) dẫn đến lỗi biên dịch CS0117 trong assembly Editor.
+  - Hậu quả: Unity 6 tự động kích hoạt Safe Mode, cô lập mã nguồn và tự động mở sang Scene trống rỗng (Untitled), làm người dùng tưởng toàn bộ dự án bị hỏng/mất trắng.
+- **Nguyên nhân gốc rễ:**
+  - Viết code Editor nhưng không kiểm tra kỹ tên phương thức chính xác của Unity API trước khi lưu file.
+- **Nguyên tắc khắc phục & bắt buộc tuân thủ:**
+  - Bắt buộc kiểm tra chuẩn xác chữ ký hàm của Unity Editor API trước khi xuất mã.
+  - Ngay sau khi tạo hoặc sửa bất kỳ file C# nào, phải kiểm tra nhật ký `Editor.log` để xác nhận việc biên dịch thành công 100%, tuyệt đối không được để sót lỗi CS nào.
+  - Nếu Unity bị đưa về Scene rỗng `Untitled`, hướng dẫn mở lại đúng Scene gốc `Assets/Scenes/SampleScene.unity`.
+
+---
+
 ## 📋 2. QUY TRÌNH BẮT BUỘC TRƯỚC KHI CHẠY MỖI PROMPT (PRE-FLIGHT CHECKLIST)
 
 Mỗi khi nhận được 1 prompt mới từ người dùng, AI phải thực hiện tuần tự:
