@@ -85,6 +85,47 @@
 
 ---
 
+### ❌ Lỗi 6: Lỗi compile C# trong file Editor khiến Unity rơi vào Safe Mode
+- **Mô tả chi tiết:**
+  - Dùng sai tên API `EditorGUILayout.Label` (thay vì `EditorGUILayout.LabelField`) dẫn đến lỗi biên dịch CS0117 trong assembly Editor.
+  - Hậu quả: Unity 6 tự động kích hoạt Safe Mode, cô lập mã nguồn và tự động mở sang Scene trống rỗng (Untitled), làm người dùng tưởng toàn bộ dự án bị hỏng/mất trắng.
+- **Nguyên nhân gốc rễ:**
+  - Viết code Editor nhưng không kiểm tra kỹ tên phương thức chính xác của Unity API trước khi lưu file.
+- **Nguyên tắc khắc phục & bắt buộc tuân thủ:**
+  - Bắt buộc kiểm tra chuẩn xác chữ ký hàm của Unity Editor API trước khi xuất mã.
+  - Ngay sau khi tạo hoặc sửa bất kỳ file C# nào, phải kiểm tra nhật ký `Editor.log` để xác nhận việc biên dịch thành công 100%, tuyệt đối không được để sót lỗi CS nào.
+  - Nếu Unity bị đưa về Scene rỗng `Untitled`, hướng dẫn mở lại đúng Scene gốc `Assets/Scenes/SampleScene.unity`.
+
+---
+
+### ❌ Lỗi 7: Can thiệp ModelImporter và SaveAndReimport() trong Editor script gây lỗi Fatal Error MemoryStream trên Unity 6
+- **Mô tả chi tiết:**
+  - Khi cố gắng can thiệp `ModelImporter.clipAnimations` và gọi `SaveAndReimport()` bên trong Editor script để ép bật `Loop Time` cho file FBX của quái vật, bộ nhớ đệm RAM stream (`MemoryStream`) của Unity 6 bị đọc lệch con trỏ (`Position out of bounds`).
+  - Hậu quả: Unity văng cửa sổ `Fatal Error! The file 'MemoryStream' is corrupted! Remove it and launch unity again!` và cưỡng chế thoát (crash).
+- **Nguyên nhân gốc rễ:**
+  - Can thiệp trực tiếp vào luồng re-import của ModelImporter FBX ở runtime Editor trong Unity 6 khiến engine native C++ xung đột với các lệnh lưu Asset/Prefab đang diễn ra cùng thời điểm.
+- **Nguyên tắc khắc phục & bắt buộc tuân thủ:**
+  - **TUYỆT ĐỐI KHÔNG** gọi `SaveAndReimport()` trên `ModelImporter` một cách tùy tiện trong Editor scripts khi đang thao tác nhiều asset cùng lúc.
+  - Để bật `Loop Time` cho animation, phương pháp an toàn nhất là:
+    1. Hướng dẫn người dùng chỉnh thủ công 1 cú click trên tab `Animation` của file FBX trong Inspector rồi bấm `Apply`.
+    2. Hoặc trích xuất clip bằng `Object.Instantiate` tạo file `.anim` độc lập mà không can thiệp vào file gốc FBX.
+
+---
+
+### ❌ Lỗi 8: Ghi đè file DLL vào Library/ScriptAssemblies và dùng [InitializeOnLoadMethod] tự động re-import
+- **Mô tả chi tiết:**
+  - Tự ý dùng lệnh biên dịch ngoài rồi copy file `.dll` đè vào thư mục `Library/ScriptAssemblies/` trong lúc Unity đang mở, dẫn đến file mã máy và file ký hiệu `.pdb` bị lệch timestamp (`Symbol file doesn't match image`).
+  - Đồng thời script trong `Assets/Editor` chứa `[InitializeOnLoadMethod]` tự chạy ngầm mỗi lần khởi động dự án hoặc reload domain, cố tình re-import asset làm tràn bộ nhớ đệm RAM serialization.
+  - Hậu quả: Unity văng hộp thoại `Fatal Error! The file 'MemoryStream' is corrupted! Remove it and launch unity again! [Position out of bounds!]`.
+- **Nguyên nhân gốc rễ:**
+  - Can thiệp thô bạo vào thư mục nội bộ `Library/` của Unity thay vì để Unity Editor tự biên dịch C#.
+- **Nguyên tắc khắc phục & bắt buộc tuân thủ:**
+  - **TUYỆT ĐỐI KHÔNG** copy đè file `.dll` vào `Library/ScriptAssemblies/`. Để Unity tự biên dịch C# một cách tự nhiên.
+  - **TUYỆT ĐỐI KHÔNG** để các thuộc tính `[InitializeOnLoadMethod]` tự động trigger `AssetDatabase.Refresh()` hay `SaveAndReimport()` khi load dự án.
+  - Khi gặp lỗi `MemoryStream is corrupted`: Đóng hoàn toàn Unity, xóa thư mục `Temp/` và thư mục `Library/ScriptAssemblies/`, sau đó mở lại dự án từ Unity Hub.
+
+---
+
 ## 📋 2. QUY TRÌNH BẮT BUỘC TRƯỚC KHI CHẠY MỖI PROMPT (PRE-FLIGHT CHECKLIST)
 
 Mỗi khi nhận được 1 prompt mới từ người dùng, AI phải thực hiện tuần tự:

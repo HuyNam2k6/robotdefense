@@ -13,6 +13,10 @@ public class Enemy : MonoBehaviour
     public float attackDamage = 10f;
     public float attackCooldown = 1.2f;
 
+    [Header("--- Hiệu Chỉnh Góc Xoay Model ---")]
+    [Tooltip("Góc bù xoay nếu model gốc bị quay ngược (ví dụ 180 độ đối với Spider)")]
+    public float modelRotationOffset = 0f;
+
     [Header("--- Mục Tiêu Tấn Công ---")]
     public Transform target;
 
@@ -29,10 +33,24 @@ public class Enemy : MonoBehaviour
         currentHealth = maxHealth;
         myCollider = GetComponent<Collider>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
+
+        // Tự động xóa Rigidbody nếu có (game 3D dùng trọng lực code theo quy tắc dự án)
+        Rigidbody rb = GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            Destroy(rb);
+        }
+
+        // Tự động bù góc 180 độ cho Nhện nếu chưa đặt (vì model gốc hướng đầu về -Z)
+        if (modelRotationOffset == 0f && (name.ToLower().Contains("spider") || enemyName.ToLower().Contains("spider")))
+        {
+            modelRotationOffset = 180f;
+        }
     }
 
     void Start()
     {
+        SnapToGroundImmediately();
         FindTarget();
     }
 
@@ -67,8 +85,12 @@ public class Enemy : MonoBehaviour
             if (target == null)
             {
                 // Nếu chưa có mục tiêu, tự động bò xuôi theo trục Z hướng về phía dưới căn cứ
-                transform.position += Vector3.back * (moveSpeed * Time.deltaTime);
+                Vector3 fallbackDir = Vector3.back;
+                Quaternion targetRot = Quaternion.LookRotation(fallbackDir) * Quaternion.Euler(0f, modelRotationOffset, 0f);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 10f);
+                transform.position += fallbackDir * (moveSpeed * Time.deltaTime);
                 if (animator != null) animator.SetBool("isMoving", true);
+                ApplyGroundGravity();
                 return;
             }
         }
@@ -82,8 +104,8 @@ public class Enemy : MonoBehaviour
             if (dir.sqrMagnitude > 0.01f)
             {
                 dir.Normalize();
-                Quaternion lookRot = Quaternion.LookRotation(dir);
-                transform.rotation = Quaternion.Slerp(transform.rotation, lookRot, Time.deltaTime * 8f);
+                Quaternion targetRot = Quaternion.LookRotation(dir) * Quaternion.Euler(0f, modelRotationOffset, 0f);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 10f);
                 transform.position += dir * (moveSpeed * Time.deltaTime);
             }
 
@@ -91,7 +113,16 @@ public class Enemy : MonoBehaviour
         }
         else
         {
-            // Đã áp sát mục tiêu -> dừng và tấn công
+            // Đã áp sát mục tiêu -> dừng và xoay đầu hướng về phía mục tiêu để tấn công
+            Vector3 dir = (target.position - transform.position);
+            dir.y = 0f;
+            if (dir.sqrMagnitude > 0.01f)
+            {
+                dir.Normalize();
+                Quaternion targetRot = Quaternion.LookRotation(dir) * Quaternion.Euler(0f, modelRotationOffset, 0f);
+                transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, Time.deltaTime * 10f);
+            }
+
             if (animator != null) animator.SetBool("isMoving", false);
 
             if (Time.time >= lastAttackTime + attackCooldown)
@@ -99,6 +130,45 @@ public class Enemy : MonoBehaviour
                 lastAttackTime = Time.time;
                 Attack();
             }
+        }
+
+        ApplyGroundGravity();
+    }
+
+    // ================= TRỌNG LỰC BẰNG CODE CHO GAME 3D =================
+    private void SnapToGroundImmediately()
+    {
+        Vector3 currentPos = transform.position;
+        Vector3 rayOrigin = new Vector3(currentPos.x, currentPos.y + 10f, currentPos.z);
+        int layerMask = ~LayerMask.GetMask("Enemy");
+        if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 30f, layerMask, QueryTriggerInteraction.Ignore))
+        {
+            currentPos.y = hit.point.y;
+            transform.position = currentPos;
+        }
+        else if (Terrain.activeTerrain != null)
+        {
+            currentPos.y = Terrain.activeTerrain.SampleHeight(currentPos) + Terrain.activeTerrain.transform.position.y;
+            transform.position = currentPos;
+        }
+    }
+
+    private void ApplyGroundGravity()
+    {
+        Vector3 currentPos = transform.position;
+        Vector3 rayOrigin = new Vector3(currentPos.x, currentPos.y + 4f, currentPos.z);
+        int layerMask = ~LayerMask.GetMask("Enemy");
+        if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 15f, layerMask, QueryTriggerInteraction.Ignore))
+        {
+            float targetY = hit.point.y;
+            currentPos.y = Mathf.MoveTowards(currentPos.y, targetY, 20f * Time.deltaTime);
+            transform.position = currentPos;
+        }
+        else if (Terrain.activeTerrain != null)
+        {
+            float terrainY = Terrain.activeTerrain.SampleHeight(currentPos) + Terrain.activeTerrain.transform.position.y;
+            currentPos.y = Mathf.MoveTowards(currentPos.y, terrainY, 20f * Time.deltaTime);
+            transform.position = currentPos;
         }
     }
 
@@ -154,3 +224,4 @@ public class Enemy : MonoBehaviour
         Destroy(gameObject, 0.9f);
     }
 }
+
