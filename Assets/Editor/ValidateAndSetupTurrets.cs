@@ -55,6 +55,31 @@ public static class ValidateAndSetupTurrets
             }
         }
 
+        // Đảm bảo tất cả TurretController và TurretWeapon được liên kết hoàn chỉnh
+        TurretController[] allControllers = Object.FindObjectsByType<TurretController>(FindObjectsInactive.Include);
+        foreach (var tc in allControllers)
+        {
+            if (tc.weapon == null) tc.weapon = tc.GetComponent<TurretWeapon>() ?? tc.GetComponentInChildren<TurretWeapon>();
+            if (tc.headTransform == null) tc.headTransform = tc.transform.Find("rotator");
+            sceneDirty = true;
+        }
+
+        TurretWeapon[] allWeapons = Object.FindObjectsByType<TurretWeapon>(FindObjectsInactive.Include);
+        foreach (var tw in allWeapons)
+        {
+            if (tw.firePoint == null) tw.firePoint = tw.transform.Find("rotator/firepoint");
+            if (tw.bulletPrefab == null) tw.bulletPrefab = AssetDatabase.LoadAssetAtPath<Bullet>("Assets/prefabsbot/Cube (1).prefab");
+            sceneDirty = true;
+        }
+
+        // Đảm bảo Player trong Scene có Tag Player
+        PlayerController player = Object.FindAnyObjectByType<PlayerController>();
+        if (player != null && !player.CompareTag("Player"))
+        {
+            player.tag = "Player";
+            sceneDirty = true;
+        }
+
         // 2. Thiết lập trên Prefabs
         SetupPrefabTurret("Assets/prefabsbot/FlamethrowerTurret_Building.prefab", TurretType.FlamethrowerTurret);
         SetupPrefabTurret("Assets/Gun/Missile Turret/Phaotuhanhl.prefab", TurretType.Phaotuhanh);

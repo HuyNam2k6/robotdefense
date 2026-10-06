@@ -52,7 +52,21 @@ public class TurretController : MonoBehaviour
 	void Start()
 	{
 		if (weapon == null)
-			weapon = GetComponentInChildren<TurretWeapon>();
+			weapon = GetComponent<TurretWeapon>() ?? GetComponentInChildren<TurretWeapon>();
+
+		if (headTransform == null)
+		{
+			Transform r = transform.Find("rotator");
+			if (r != null) headTransform = r;
+			else
+			{
+				Transform[] allChildren = GetComponentsInChildren<Transform>(true);
+				foreach (var t in allChildren)
+				{
+					if (t.name.ToLower().Contains("rotator")) { headTransform = t; break; }
+				}
+			}
+		}
 
 		// Tự động nhận diện nếu người dùng kéo nhầm mesh con FBX thay vì GameObject 'rotator'
 		if (headTransform != null && headTransform.parent != null && headTransform.parent.name.ToLower().Contains("rotator"))
@@ -65,6 +79,9 @@ public class TurretController : MonoBehaviour
 
 		if (rotationSpeed <= 0f)
 			rotationSpeed = 360f;
+
+		if (enemyLayer.value == 0)
+			enemyLayer = ~0;
 	}
 
 	void Update()

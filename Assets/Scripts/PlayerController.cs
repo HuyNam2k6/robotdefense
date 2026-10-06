@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
@@ -43,11 +43,29 @@ public class PlayerController : MonoBehaviour
 	private float idleTimer = 0f;
 	private float nextIdleActionTime = 7f;
 
+	void Awake()
+	{
+		// Đảm bảo đối tượng luôn có Tag Player chuẩn xác để hệ thống vũ khí tự động bỏ qua
+		if (!gameObject.CompareTag("Player"))
+		{
+			try { gameObject.tag = "Player"; } catch { }
+		}
+	}
+
 	void Start()
 	{
 		animator = GetComponent<Animator>();
 		cc = GetComponent<CharacterController>();
 		mainCam = Camera.main;
+
+		// Cấu hình CharacterController chuẩn xác để tránh trèo leo hoặc nảy vật lý
+		if (cc != null)
+		{
+			cc.stepOffset = 0.35f;
+			cc.slopeLimit = 55f;
+			cc.skinWidth = 0.08f;
+			cc.minMoveDistance = 0f;
+		}
 
 		if (joystick == null)
 			joystick = FindAnyObjectByType<VirtualJoystick>();
@@ -113,17 +131,28 @@ public class PlayerController : MonoBehaviour
 		else
 		{
 			// Đang trên không trung: Rơi tự do kéo xuống đất
-			verticalVelocity += gravity * Time.deltaTime;
+			float dt = Mathf.Min(Time.deltaTime, 0.04f); // Chặn spike deltaTime để tránh rơi xuyên sàn
+			verticalVelocity += gravity * dt;
 			if (verticalVelocity < terminalVelocity)
 			{
 				verticalVelocity = terminalVelocity;
 			}
 		}
 
+		// KHÓA AN TOÀN: Tuyệt đối không cho phép vận tốc hướng lên vượt quá 10m/s (tránh PhysX bắn vọt lên trời)
+		if (verticalVelocity > 10f)
+		{
+			verticalVelocity = 10f;
+		}
+
 		// ========== 5. DI CHUYỂN BẰNG CHARACTER CONTROLLER ==========
+		float moveDt = Mathf.Min(Time.deltaTime, 0.04f);
 		Vector3 move = transform.forward * currentSpeed;
 		move.y = verticalVelocity;
-		cc.Move(move * Time.deltaTime);
+		cc.Move(move * moveDt);
+
+		// ========== 5.1. BẢO VỆ CHỐNG RƠI XUYÊN LÒNG ĐẤT VÀ CHỐNG BAY LÊN TRỜI (TRIỆT ĐỂ) ==========
+		EnforceGroundBoundary();
 
 		// ========== 6. ANIMATOR ==========
 		if (animator != null)
@@ -239,5 +268,70 @@ public class PlayerController : MonoBehaviour
 	{
 		if (animator != null)
 			animator.SetTrigger("dance");
+	}
+
+	// ================= HỆ THỐNG BẢO VỆ AN TOÀN CHO PLAYER =================
+	private void EnforceGroundBoundary()
+	{
+		Vector3 currentPos = transform.position;
+
+		// 1. CỨU HỘ VỰC THẲM / BIỂN: Nếu rơi khỏi mép đảo xuống biển (Y < 4.0m)
+		// Đưa ngay về vị trí an toàn ở trung tâm đảo, triệt tiêu vận tốc rơi
+		if (currentPos.y < 4.0f)
+		{
+			bool wasEnabled = cc.enabled;
+			if (wasEnabled) cc.enabled = false;
+
+			transform.position = new Vector3(0f, 10.5f, -32f);
+			verticalVelocity = 0f;
+
+			if (wasEnabled) cc.enabled = true;
+			Debug.LogWarning("<color=yellow>[Bảo Vệ Player]</color> Đã tự động cứu hộ Player về vị trí trung tâm đảo an toàn!");
+			return;
+		}
+
+		// 2. CHỐNG BAY LÊN TRỜI: Nếu độ cao vượt quá mức cho phép bất thường (Y > 15.0m)
+		// Triệt tiêu lực đẩy lên, để trọng lực kéo Player hạ cánh tự nhiên
+		if (currentPos.y > 15.0f)
+		{
+			if (verticalVelocity > 0f)
+			{
+				verticalVelocity = 0f;
+			}
+		}
+
+		// 3. CHỐNG LÚN SÂU XUYÊN ĐẤT: Chỉ can thiệp khi bị kẹt rơi sâu hơn 0.8m dưới bề mặt đảo
+		if (currentPos.y < 7.5f && currentPos.y >= 4.0f)
+		{
+			if (Terrain.activeTerrain != null)
+			{
+				float terrainY = Terrain.activeTerrain.SampleHeight(currentPos) + Terrain.activeTerrain.transform.position.y;
+				if (terrainY > 8.0f && currentPos.y < terrainY - 0.8f)
+				{
+					bool wasEnabled = cc.enabled;
+					if (wasEnabled) cc.enabled = false;
+
+					currentPos.y = terrainY + 0.1f;
+					transform.position = currentPos;
+					verticalVelocity = 0f;
+
+					if (wasEnabled) cc.enabled = true;
+				}
+			}
+		}
+	}
+
+	// ================= MIỄN NHIỄM SÁT THƯƠNG TỪ ĐẠN VÀ TIA SÉT =================
+	/// <summary>
+	/// Player hoàn toàn miễn nhiễm 100% với mọi loại đạn, tia sét và vũ khí phòng thủ
+	/// </summary>
+	public void TakeDamage(float amount)
+	{
+		// Bỏ qua 100%, không nhận sát thương hay hiệu ứng nào
+	}
+
+	public void TakeDamage(int amount)
+	{
+		// Bỏ qua 100%, không nhận sát thương hay hiệu ứng nào
 	}
 }

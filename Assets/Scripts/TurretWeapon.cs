@@ -19,6 +19,33 @@ public class TurretWeapon : MonoBehaviour
 	// Bộ đếm hồi chiêu nội bộ trong vòng lặp game
 	private float cooldownTimer;
 
+	void Awake()
+	{
+		if (firePoint == null)
+		{
+			firePoint = transform.Find("rotator/firepoint") ?? transform.Find("firepoint");
+			if (firePoint == null)
+			{
+				Transform[] allChildren = GetComponentsInChildren<Transform>(true);
+				foreach (var t in allChildren)
+				{
+					if (t.name.ToLower().Contains("firepoint"))
+					{
+						firePoint = t;
+						break;
+					}
+				}
+			}
+		}
+
+		if (bulletPrefab == null)
+		{
+#if UNITY_EDITOR
+			bulletPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<Bullet>("Assets/prefabsbot/Cube (1).prefab");
+#endif
+		}
+	}
+
 	void Update()
 	{
 		if (cooldownTimer > 0f) cooldownTimer -= Time.deltaTime;
@@ -26,7 +53,15 @@ public class TurretWeapon : MonoBehaviour
 
 	public void Fire(Vector3 aimPoint)
 	{
-		if (cooldownTimer > 0f || bulletPrefab == null || firePoint == null) return;
+		if (cooldownTimer > 0f || firePoint == null) return;
+
+		if (bulletPrefab == null)
+		{
+#if UNITY_EDITOR
+			bulletPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<Bullet>("Assets/prefabsbot/Cube (1).prefab");
+#endif
+			if (bulletPrefab == null) return;
+		}
 
 		// Đạn bắn thẳng tắp theo hướng nòng súng (firePoint.forward)
 		// Giúp nòng súng và tia đạn trùng khớp 100%, không bị bắn bẻ góc

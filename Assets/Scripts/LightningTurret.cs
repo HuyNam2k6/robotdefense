@@ -66,13 +66,47 @@ public class LightningTurret : MonoBehaviour
         }
     }
 
+    // Hàm nhận diện chuẩn xác 100% tất cả các bộ phận của Player
+    private bool IsPlayer(Collider col)
+    {
+        if (col == null) return false;
+        if (col.CompareTag("Player")) return true;
+        if (col.transform.root.CompareTag("Player")) return true;
+        if (col.GetComponentInParent<PlayerController>() != null) return true;
+        if (col.transform.root.GetComponentInChildren<PlayerController>() != null) return true;
+        if (col is CharacterController) return true;
+
+        string n = col.gameObject.name.ToLower();
+        string rootName = col.transform.root.gameObject.name.ToLower();
+        if (n.Contains("player") || rootName.Contains("player")) return true;
+        if (n.Contains("cuterobot") || rootName.Contains("cuterobot")) return true;
+
+        return false;
+    }
+
     void ShootLightning()
     {
-        lineRenderer.enabled = true;
-        if (currentTarget != null)
+        if (currentTarget == null || !currentTarget.gameObject.activeInHierarchy)
         {
-            currentTarget.SendMessage("TakeDamage", damagePerSecond * Time.deltaTime, SendMessageOptions.DontRequireReceiver);
+            lineRenderer.enabled = false;
+            return;
         }
+
+        // Tuyệt đối không gây sát thương hay hiệu ứng lên Player
+        if (!IsPlayer(currentCollider) && currentTarget.GetComponentInParent<PlayerController>() == null)
+        {
+            Enemy enemy = currentTarget.GetComponent<Enemy>() ?? currentTarget.GetComponentInParent<Enemy>();
+            if (enemy != null)
+            {
+                enemy.TakeDamage(damagePerSecond * Time.deltaTime);
+            }
+            else
+            {
+                currentTarget.SendMessage("TakeDamage", damagePerSecond * Time.deltaTime, SendMessageOptions.DontRequireReceiver);
+            }
+        }
+
+        lineRenderer.enabled = true;
         Vector3 startPos = firePoint.position;
         Vector3 targetPos = currentCollider != null ? currentCollider.bounds.center : currentTarget.position + Vector3.up;
         
@@ -110,7 +144,11 @@ public class LightningTurret : MonoBehaviour
         float best = Mathf.Infinity;
         for (int i = 0; i < count; i++)
         {
-            if (!buffer[i].CompareTag(enemyTag)) continue;
+            // BỎ QUA 100% PLAYER: Tuyệt đối không nhắm vào người chơi
+            if (IsPlayer(buffer[i])) continue;
+
+            if (!buffer[i].CompareTag(enemyTag) && buffer[i].GetComponentInParent<Enemy>() == null) continue;
+
             float sqr = (buffer[i].transform.position - transform.position).sqrMagnitude;
             if (sqr < best)
             {

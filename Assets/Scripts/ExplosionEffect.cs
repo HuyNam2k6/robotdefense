@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 
 public class ExplosionEffect : MonoBehaviour
 {
@@ -13,6 +13,23 @@ public class ExplosionEffect : MonoBehaviour
     private float duration = 0.28f; // Nổ nhanh, dứt khoát
     private float timer = 0f;
     private Material fireballMat;
+
+    private bool IsPlayer(Collider col)
+    {
+        if (col == null) return false;
+        if (col.CompareTag("Player")) return true;
+        if (col.transform.root.CompareTag("Player")) return true;
+        if (col.GetComponentInParent<PlayerController>() != null) return true;
+        if (col.transform.root.GetComponentInChildren<PlayerController>() != null) return true;
+        if (col is CharacterController) return true;
+
+        string n = col.gameObject.name.ToLower();
+        string rootName = col.transform.root.gameObject.name.ToLower();
+        if (n.Contains("player") || rootName.Contains("player")) return true;
+        if (n.Contains("cuterobot") || rootName.Contains("cuterobot")) return true;
+
+        return false;
+    }
 
     void Start()
     {
@@ -34,7 +51,11 @@ public class ExplosionEffect : MonoBehaviour
         fireball.transform.localScale = Vector3.one * 0.2f;
         
         Collider c = fireball.GetComponent<Collider>();
-        if (c != null) Destroy(c);
+        if (c != null)
+        {
+            c.enabled = false;
+            DestroyImmediate(c);
+        }
 
         Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
         if (unlitShader == null) unlitShader = Shader.Find("Sprites/Default");
@@ -50,13 +71,23 @@ public class ExplosionEffect : MonoBehaviour
         Renderer r = fireball.GetComponent<Renderer>();
         if (r != null) r.material = fireballMat;
 
-        // 3. Sát thương diện rộng
+        // 3. Sát thương diện rộng (chỉ áp dụng lên Quái vật, tuyệt đối loại trừ Người chơi)
         Collider[] hitColliders = Physics.OverlapSphere(transform.position, explosionRadius * 1.5f, enemyLayer);
         foreach (var hitCollider in hitColliders)
         {
-            if (hitCollider.CompareTag(enemyTag))
+            if (IsPlayer(hitCollider)) continue; // Bỏ qua 100% Player!
+
+            if (hitCollider.CompareTag(enemyTag) || hitCollider.GetComponentInParent<Enemy>() != null)
             {
-                hitCollider.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
+                Enemy enemy = hitCollider.GetComponent<Enemy>() ?? hitCollider.GetComponentInParent<Enemy>();
+                if (enemy != null)
+                {
+                    enemy.TakeDamage(damage);
+                }
+                else
+                {
+                    hitCollider.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
+                }
             }
         }
 

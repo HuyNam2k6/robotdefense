@@ -12,13 +12,48 @@ public class HomingRocket : MonoBehaviour
     private bool isArmed = false;
     private float radius = 0.25f;
 
+    // Hàm nhận diện chuẩn xác 100% tất cả các bộ phận của Player
+    private bool IsPlayer(Collider col)
+    {
+        if (col == null) return false;
+        if (col.CompareTag("Player")) return true;
+        if (col.transform.root.CompareTag("Player")) return true;
+        if (col.GetComponentInParent<PlayerController>() != null) return true;
+        if (col.transform.root.GetComponentInChildren<PlayerController>() != null) return true;
+        if (col is CharacterController) return true;
+
+        string n = col.gameObject.name.ToLower();
+        string rootName = col.transform.root.gameObject.name.ToLower();
+        if (n.Contains("player") || rootName.Contains("player")) return true;
+        if (n.Contains("cuterobot") || rootName.Contains("cuterobot")) return true;
+
+        return false;
+    }
+
     void Start()
     {
         rb = GetComponent<Rigidbody>();
         rb.interpolation = RigidbodyInterpolation.Interpolate;
         
         Collider col = GetComponent<Collider>();
-        if (col != null) col.isTrigger = true;
+        if (col != null)
+        {
+            col.isTrigger = true;
+
+            // Vô hiệu hóa va chạm vật lý với tất cả Collider / CharacterController của Player
+            PlayerController player = Object.FindAnyObjectByType<PlayerController>();
+            if (player != null)
+            {
+                Collider[] pCols = player.GetComponentsInChildren<Collider>(true);
+                foreach (var pc in pCols)
+                {
+                    if (pc != null && pc != col)
+                    {
+                        Physics.IgnoreCollision(col, pc, true);
+                    }
+                }
+            }
+        }
         
         Vector3 randomUp = (Vector3.up * 1.5f + Random.insideUnitSphere * 0.5f).normalized;
         transform.rotation = Quaternion.LookRotation(randomUp);
@@ -44,14 +79,14 @@ public class HomingRocket : MonoBehaviour
             return;
         }
 
-        // 2. Quét va chạm phía trước (Bỏ qua bản thân và tên lửa khác)
+        // 2. Quét va chạm phía trước (Bỏ qua Player, bản thân và tên lửa khác)
         float distanceThisFrame = speed * Time.deltaTime * 2f;
         RaycastHit[] hits = Physics.SphereCastAll(transform.position, radius, transform.forward, distanceThisFrame);
         for (int i = 0; i < hits.Length; i++)
         {
             Collider col = hits[i].collider;
             if (col == null || col.gameObject == gameObject) continue;
-            if (col.CompareTag("Player")) continue;
+            if (IsPlayer(col)) continue; // Xuyên qua Player 100%, không nổ!
             if (col.GetComponent<HomingRocket>() != null) continue;
             if (col.GetComponentInParent<UpgradableTurret>() != null) continue;
             if (col.GetComponentInParent<RocketLauncherTurret>() != null) continue;
@@ -81,8 +116,9 @@ public class HomingRocket : MonoBehaviour
     void OnTriggerEnter(Collider other)
     {
         if (!isArmed) return;
-        if (other.gameObject == gameObject) return;
-        if (other.CompareTag("Player") || other.GetComponent<HomingRocket>() != null) return;
+        if (other == null || other.gameObject == gameObject) return;
+        if (IsPlayer(other)) return; // Xuyên qua Player hoàn toàn!
+        if (other.GetComponent<HomingRocket>() != null) return;
         if (other.GetComponentInParent<UpgradableTurret>() != null || other.GetComponentInParent<RocketLauncherTurret>() != null) return;
         Explode();
     }
@@ -91,7 +127,8 @@ public class HomingRocket : MonoBehaviour
     {
         if (!isArmed) return;
         if (collision.gameObject == gameObject) return;
-        if (collision.gameObject.CompareTag("Player") || collision.gameObject.GetComponent<HomingRocket>() != null) return;
+        if (IsPlayer(collision.collider)) return; // Xuyên qua Player hoàn toàn!
+        if (collision.gameObject.GetComponent<HomingRocket>() != null) return;
         if (collision.collider.GetComponentInParent<UpgradableTurret>() != null || collision.collider.GetComponentInParent<RocketLauncherTurret>() != null) return;
         Explode();
     }

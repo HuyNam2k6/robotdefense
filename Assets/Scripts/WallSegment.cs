@@ -197,7 +197,7 @@ public class WallSegment : MonoBehaviour
 
     // ================= TẠO VẬT LIỆU & HỆ THỐNG HẠT LẤP LÁNH =================
 
-    private static Material GetSharedSparkleMaterial()
+    public static Material GetSharedSparkleMaterial()
     {
         if (sharedSparkleMaterial != null) return sharedSparkleMaterial;
 
@@ -271,8 +271,14 @@ public class WallSegment : MonoBehaviour
         {
             GameObject pObj = new GameObject("Sparkle_VFX");
             pObj.transform.SetParent(transform, false);
-            pObj.transform.localPosition = new Vector3(0f, 0.55f, 0f);
             sparkleParticles = pObj.AddComponent<ParticleSystem>();
+        }
+
+        if (sparkleParticles == null) return;
+
+        if (sparkleParticles.isPlaying)
+        {
+            sparkleParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
         }
 
         var renderer = sparkleParticles.GetComponent<ParticleSystemRenderer>();
@@ -299,7 +305,10 @@ public class WallSegment : MonoBehaviour
 
         var velocityOverLifetime = sparkleParticles.velocityOverLifetime;
         velocityOverLifetime.enabled = true;
+        // Đảm bảo cả 3 trục x, y, z đều cùng chế độ TwoConstants để tránh lỗi Unity
+        velocityOverLifetime.x = new ParticleSystem.MinMaxCurve(-0.06f, 0.06f);
         velocityOverLifetime.y = new ParticleSystem.MinMaxCurve(0.14f, 0.32f);
+        velocityOverLifetime.z = new ParticleSystem.MinMaxCurve(-0.06f, 0.06f);
 
         // Nở ra rồi thu nhỏ nhẹ
         var sizeOverLifetime = sparkleParticles.sizeOverLifetime;
@@ -471,11 +480,7 @@ public class WallSegment : MonoBehaviour
 
     public int GetUpgradeCost()
     {
-        if (currentLevel >= 6) return 0;
-        if (GameEconomy.Instance != null)
-        {
-            return GameEconomy.Instance.GetWallUpgradeCost(currentLevel);
-        }
+        // Tạm thời chỉnh lại coin nâng cấp về 0 hết theo yêu cầu
         return 0;
     }
 
@@ -613,5 +618,15 @@ public class WallSegment : MonoBehaviour
             GameEconomy.Instance.TriggerNotEnoughCoins("Không đủ vàng để nâng cấp cả hàng tường!");
         }
         return false;
+    }
+
+    /// <summary>
+    /// Xoay hướng đoạn tường 90 độ tại chỗ và nhấp nhô nhẹ phản hồi
+    /// </summary>
+    public void Rotate90Degrees()
+    {
+        transform.Rotate(0f, 90f, 0f, Space.World);
+        baseLocalPosition = transform.localPosition;
+        TriggerSelectHop(0f, 0.35f);
     }
 }

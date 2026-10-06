@@ -5,11 +5,17 @@ public class GameEconomy : MonoBehaviour
 {
     public static GameEconomy Instance { get; private set; }
 
-    [Header("--- Tài Nguyên & Tiền Tệ ---")]
-    [Tooltip("Số vàng hiện có của người chơi")]
-    public int coins = 0; // Để 0 theo yêu cầu, có thể chỉnh trong Inspector
-    public int stoneCount = 0;
-    public int woodCount = 0;
+    [Header("--- Tài Nguyên & Tiền Tệ (Hiển Thị Trên Top HUD Bar) ---")]
+    [Tooltip("Số vàng hiện có")]
+    public int coins = 12450;
+    [Tooltip("Số đá / sắt hiện có")]
+    public int stoneCount = 8230;
+    [Tooltip("Số gỗ / gạch hiện có")]
+    public int woodCount = 5180;
+    [Tooltip("Số điện / năng lượng hiện có")]
+    public int energyCount = 320;
+    [Tooltip("Số kim cương / đá quý tím hiện có")]
+    public int gemCount = 120;
 
     [Header("--- Chi Phí Mua Sắm (Mặc Định 0🪙 - Tự Do Chỉnh Trong Inspector) ---")]
     [Tooltip("Giá mua Robot đào mỏ (Mặc định 0, bạn có thể chỉnh lại bất kỳ lúc nào)")]
@@ -103,6 +109,42 @@ public class GameEconomy : MonoBehaviour
         if (woodCount >= amount)
         {
             woodCount -= amount;
+            OnEconomyChanged?.Invoke();
+            return true;
+        }
+        return false;
+    }
+
+    public void AddEnergy(int amount)
+    {
+        energyCount += amount;
+        OnEconomyChanged?.Invoke();
+    }
+
+    public bool SpendEnergy(int amount)
+    {
+        if (amount <= 0) return true;
+        if (energyCount >= amount)
+        {
+            energyCount -= amount;
+            OnEconomyChanged?.Invoke();
+            return true;
+        }
+        return false;
+    }
+
+    public void AddGems(int amount)
+    {
+        gemCount += amount;
+        OnEconomyChanged?.Invoke();
+    }
+
+    public bool SpendGems(int amount)
+    {
+        if (amount <= 0) return true;
+        if (gemCount >= amount)
+        {
+            gemCount -= amount;
             OnEconomyChanged?.Invoke();
             return true;
         }
@@ -225,16 +267,11 @@ public class GameEconomy : MonoBehaviour
 
     public int GetWallUpgradeCost()
     {
-        return GetWallUpgradeCost(wallLevel);
+        return 0;
     }
 
     public int GetWallUpgradeCost(int currentLvl)
     {
-        int index = currentLvl - 1;
-        if (wallUpgradeCosts != null && index >= 0 && index < wallUpgradeCosts.Length)
-        {
-            return wallUpgradeCosts[index];
-        }
         return 0;
     }
 
