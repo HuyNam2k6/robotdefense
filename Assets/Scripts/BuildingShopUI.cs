@@ -27,9 +27,15 @@ public class BuildingShopUI : MonoBehaviour
 	public Button upgradePickaxeButton;
 	public Text upgradePickaxeText;
 
-	[Header("--- Mục 2: Đồ Phòng Thủ (Robot Phòng Thủ) ---")]
-	public Button defenseRobotButton;
-	public Text defenseRobotText;
+	[Header("--- Mục 2: Nhà Máy Sản Xuất & Chế Tạo Robot (15s) ---")]
+	public Button buildFactoryButton;   // Nút Xây Nhà Máy
+	public Text buildFactoryText;
+	public Button craftRobotButton;     // Nút Chế Tạo Robot (15s)
+	public Text craftRobotText;
+
+	// Tương thích ngược với defenseRobotButton cũ
+	public Button defenseRobotButton { get => craftRobotButton != null ? craftRobotButton : buildFactoryButton; set => craftRobotButton = value; }
+	public Text defenseRobotText { get => craftRobotText != null ? craftRobotText : buildFactoryText; set => craftRobotText = value; }
 
 	[Header("--- Mục 3: Bức Tường (Kéo Trái/Phải & Nâng Cấp) ---")]
 	public Button wallButton;
@@ -47,6 +53,7 @@ public class BuildingShopUI : MonoBehaviour
 	public Button cancelIconButton;
 
 	private Coroutine warningCoroutine;
+	private float nextLiveUiUpdate = 0f;
 
 	void Awake()
 	{
@@ -85,13 +92,14 @@ public class BuildingShopUI : MonoBehaviour
 		if (upgradePickaxeButton != null)
 			upgradePickaxeButton.onClick.AddListener(OnUpgradePickaxe);
 
-		// 2. Phòng Thủ
-		if (defenseRobotButton != null)
-		{
-			defenseRobotButton.interactable = false; // Hiện chưa có, để placeholder
-			if (defenseRobotText != null)
-				defenseRobotText.text = "🛡️ <b>ROBOT PHÒNG THỦ</b>\n<color=#AAAAAA>(🔒 Sắp ra mắt)</color>";
-		}
+		// 2. Nhà Máy Sản Xuất & Chế Tạo Robot (15s)
+		if (buildFactoryButton != null)
+			buildFactoryButton.onClick.AddListener(OnBuildFactoryClicked);
+
+		if (craftRobotButton != null)
+			craftRobotButton.onClick.AddListener(OnCraftRobotClicked);
+		else if (defenseRobotButton != null && defenseRobotButton != buildFactoryButton)
+			defenseRobotButton.onClick.AddListener(OnCraftRobotClicked);
 
 		// 3. Tường & Nâng Cấp Tường
 		if (wallButton != null)
@@ -147,7 +155,7 @@ public class BuildingShopUI : MonoBehaviour
 				placementHUD.SetActive(isPlacing);
 			}
 
-			// Khi đang kéo đặt tường: ẩn dashboard và icon giỏ hàng để dễ quan sát mặt đất
+			// Khi đang kéo đặt công trình: ẩn dashboard và icon giỏ hàng để dễ quan sát mặt đất
 			if (isPlacing)
 			{
 				if (dashboardPanel != null && dashboardPanel.activeSelf)
@@ -166,6 +174,47 @@ public class BuildingShopUI : MonoBehaviour
 					shoppingCartButton.gameObject.SetActive(true);
 				}
 			}
+		}
+
+		// Cập nhật thời gian thực khi đang mở Shop để thấy đồng hồ đếm ngược 15s nhảy từng giây
+		if (dashboardPanel != null && dashboardPanel.activeSelf)
+		{
+			if (Time.time >= nextLiveUiUpdate)
+			{
+				nextLiveUiUpdate = Time.time + 0.25f;
+				UpdateLiveFactoryUI();
+			}
+		}
+	}
+
+	private void UpdateLiveFactoryUI()
+	{
+		if (craftRobotText == null && defenseRobotText == null) return;
+		Text targetText = craftRobotText != null ? craftRobotText : defenseRobotText;
+
+		if (RobotFactory.Instance == null)
+		{
+			targetText.text = "🤖 <b>CHẾ TẠO ROBOT</b>\n<color=#FF7777>⚠️ Cần Xây Nhà Máy Trước</color>";
+			return;
+		}
+
+		int army = RobotFactory.Instance.GetCurrentArmyCount();
+		int maxArmy = RobotFactory.Instance.GetMaxArmySize();
+
+		if (RobotFactory.Instance.IsProducing)
+		{
+			float rem = RobotFactory.Instance.RemainingProductionTime;
+			int q = RobotFactory.Instance.QueuedCount;
+			string qText = q > 0 ? $" (+{q})" : "";
+			targetText.text = $"⏳ <b>ĐANG ĐÚC: {rem:F0}s{qText}</b>\n<color=#00FFFF>Quân: {army}/{maxArmy} • Stan/Mike/George/Leela</color>";
+		}
+		else if (army >= maxArmy)
+		{
+			targetText.text = $"👑 <b>QUÂN ĐỘI TỐI ĐA ({army}/{maxArmy})</b>\n<color=#00FF88>✦ Đang Tuần Tra Phòng Thủ</color>";
+		}
+		else
+		{
+			targetText.text = $"🤖 <b>CHẾ TẠO ROBOT (15s)</b>\n<color=#00FF88>Quân: {army}/{maxArmy} • Bấm Để Chế Tạo</color>";
 		}
 	}
 
@@ -188,6 +237,23 @@ public class BuildingShopUI : MonoBehaviour
 		{
 			buyWorkerText.text = $"🤖 <b>MUA ROBOT ĐÀO</b>\n<color=#FFD700>🪙 {GameEconomy.Instance.workerRobotCost} Vàng</color>";
 		}
+
+		// 2.1. Nút Xây Nhà Máy
+		if (buildFactoryText != null)
+		{
+			bool hasFactory = (RobotFactory.Instance != null);
+			if (hasFactory)
+			{
+				buildFactoryText.text = "🏭 <b>XÂY NHÀ MÁY ROBOT</b>\n<color=#00FF88>✦ Đang Hoạt Động (Xây thêm)</color>";
+			}
+			else
+			{
+				buildFactoryText.text = "🏭 <b>XÂY NHÀ MÁY ROBOT</b>\n<color=#FFD700>🪙 0 Vàng (Bấm Để Đặt)</color>";
+			}
+		}
+
+		// 2.2. Nút Chế Tạo Robot (15s)
+		UpdateLiveFactoryUI();
 
 		// 3. Nâng Cấp Cúp Sắt
 		if (upgradePickaxeText != null)
@@ -268,6 +334,63 @@ public class BuildingShopUI : MonoBehaviour
 				CloseShopPanel();
 			}
 		}
+	}
+
+	/// <summary>
+	/// Bấm Xây Nhà Máy từ Cửa Hàng: Chuyển sang chế độ Hologram của BuildingSystem
+	/// </summary>
+	public void OnBuildFactoryClicked()
+	{
+		if (buildingSystem != null)
+		{
+			int factoryIndex = -1;
+			for (int i = 0; i < buildingSystem.items.Length; i++)
+			{
+				if (buildingSystem.items[i] != null && buildingSystem.items[i].itemName.ToLower().Contains("nhà máy"))
+				{
+					factoryIndex = i;
+					break;
+				}
+			}
+
+			if (factoryIndex < 0) factoryIndex = 2; // fallback
+
+			CloseShopPanel();
+			buildingSystem.SelectItem(factoryIndex);
+			Debug.Log("<color=#00FF88>[Xây Nhà Máy]</color> Chuyển sang chế độ đặt Nhà Máy! Nhấn chuột trái lên mặt đất để xây.");
+		}
+	}
+
+	/// <summary>
+	/// Bấm Chế Tạo Robot (15s) từ Cửa Hàng
+	/// </summary>
+	public void OnCraftRobotClicked()
+	{
+		if (RobotFactory.Instance == null)
+		{
+			ShowNotEnoughCoinsWarning("⚠️ Chưa có Nhà Máy! Hãy bấm 'XÂY NHÀ MÁY ROBOT' trước.");
+			return;
+		}
+
+		bool queued = RobotFactory.Instance.QueueCraftRobot();
+		if (queued)
+		{
+			UpdateUI();
+			Transform btnT = craftRobotButton != null ? craftRobotButton.transform : (defenseRobotButton != null ? defenseRobotButton.transform : null);
+			if (btnT != null)
+			{
+				StartCoroutine(AnimateButtonBounce(btnT));
+			}
+		}
+		else
+		{
+			ShowNotEnoughCoinsWarning("⚠️ Quân đội đã đạt tối đa (8/8)! Robot đang bảo vệ căn cứ.");
+		}
+	}
+
+	public void OnDefenseRobotClicked()
+	{
+		OnCraftRobotClicked();
 	}
 
 	public void OnUpgradePickaxe()

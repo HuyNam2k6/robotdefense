@@ -22,15 +22,16 @@ namespace IdleFactoryDefense.Editor
 		{
 			if (EditorApplication.isPlayingOrWillChangePlaymode) return;
 
-			// Kiểm tra nếu còn UI cũ
+			// Kiểm tra nếu còn UI cũ hoặc chưa có nút Xây Nhà Máy
 			bool hasOldUI = GameObject.Find("Building_Shop_Bar") != null || GameObject.Find("Btn_OpenShop") != null || GameObject.Find("Shop_Panel") != null;
-			if (hasOldUI)
+			bool missingFactoryBtn = GameObject.Find("Btn_BuildFactory") == null;
+			if (hasOldUI || missingFactoryBtn)
 			{
 				SetupShop();
 			}
 		}
 
-		// [MenuItem("Tools/🛒 Thiết Lập Cửa Hàng Dashboard Ngang (Icon Giỏ Hàng)")]
+		[MenuItem("Tools/🛒 Cập Nhật Cửa Hàng (Xây Nhà Máy & Chế Tạo Robot 15s)")]
 		public static void SetupShop()
 		{
 			if (EditorApplication.isPlaying)
@@ -113,8 +114,9 @@ namespace IdleFactoryDefense.Editor
 				PrefabUtility.UnloadPrefabContents(root);
 			}
 
-			// 4. Tạo hoặc nạp Turret Prefab
+			// 4. Tạo hoặc nạp Turret Prefab & Factory Prefab
 			GameObject turretPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/FlamethrowerTurret_Building.prefab");
+			GameObject factoryPrefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/RobotFactory_Building.prefab");
 
 			// 5. TẠO GAMEECONOMY TRONG SCENE
 			GameEconomy economy = Object.FindAnyObjectByType<GameEconomy>();
@@ -144,7 +146,7 @@ namespace IdleFactoryDefense.Editor
 			}
 
 			buildingSys.blueHologramMaterial = holoMat;
-			buildingSys.items = new BuildingSystem.PlaceableItem[2];
+			buildingSys.items = new BuildingSystem.PlaceableItem[3];
 
 			// Item 0: Pháo
 			buildingSys.items[0] = new BuildingSystem.PlaceableItem
@@ -164,6 +166,16 @@ namespace IdleFactoryDefense.Editor
 				cost = 0,
 				isWall = true,
 				segmentLength = 1.0f
+			};
+
+			// Item 2: Nhà Máy Sản Xuất Robot
+			buildingSys.items[2] = new BuildingSystem.PlaceableItem
+			{
+				itemName = "Nhà Máy Robot",
+				prefab = factoryPrefab,
+				cost = 0,
+				isWall = false,
+				segmentLength = 1f
 			};
 
 			// 8. TẠO EVENTSYSTEM
@@ -399,11 +411,17 @@ namespace IdleFactoryDefense.Editor
 			Button btnUpgradePickaxe = CreateShopItemButton(card1Content, "Btn_UpgradePickaxe", "⛏️ <b>CÚP SẮT (CẤP 1)</b>\n<color=#FFD700>⭐ Nâng Cấp: 0🪙</color>", new Color(0.20f, 0.36f, 0.52f), safeFont, uiLayer);
 			Text upgradePickaxeTxt = btnUpgradePickaxe.GetComponentInChildren<Text>();
 
-			// ----- CARD 2: PHÒNG THỦ CHIẾN LƯỢC -----
-			GameObject card2 = CreateDashboardCard(cardsRowObj.transform, "Card_Defense", "🛡️ PHÒNG THỦ CHIẾN LƯỢC", new Color(0.15f, 0.12f, 0.16f, 0.95f), new Color(0.6f, 0.3f, 0.45f, 0.5f), safeFont, uiLayer);
+			// ----- CARD 2: PHÒNG THỦ & NHÀ MÁY ROBOT -----
+			GameObject card2 = CreateDashboardCard(cardsRowObj.transform, "Card_Defense", "🛡️ PHÒNG THỦ & NHÀ MÁY", new Color(0.15f, 0.12f, 0.16f, 0.95f), new Color(0.6f, 0.3f, 0.45f, 0.5f), safeFont, uiLayer);
 			Transform card2Content = card2.transform.Find("Content");
-			Button btnDefenseRobot = CreateShopItemButton(card2Content, "Btn_DefenseRobot", "🛡️ <b>ROBOT PHÒNG THỦ</b>\n<color=#888888>(🔒 Sắp ra mắt)</color>", new Color(0.25f, 0.25f, 0.28f), safeFont, uiLayer);
-			Text defenseRobotTxt = btnDefenseRobot.GetComponentInChildren<Text>();
+
+			// Nút 1: Xây Nhà Máy Robot
+			Button btnBuildFactory = CreateShopItemButton(card2Content, "Btn_BuildFactory", "🏭 <b>XÂY NHÀ MÁY ROBOT</b>\n<color=#FFD700>🪙 0 Vàng (Bấm Đặt)</color>", new Color(0.20f, 0.45f, 0.35f), safeFont, uiLayer);
+			Text buildFactoryTxt = btnBuildFactory.GetComponentInChildren<Text>();
+
+			// Nút 2: Chế Tạo Robot (15s)
+			Button btnCraftRobot = CreateShopItemButton(card2Content, "Btn_CraftRobot", "🤖 <b>CHẾ TẠO ROBOT (15s)</b>\n<color=#00FFFF>Stan/Mike/George/Leela</color>", new Color(0.45f, 0.25f, 0.55f), safeFont, uiLayer);
+			Text craftRobotTxt = btnCraftRobot.GetComponentInChildren<Text>();
 
 			// ----- CARD 3: TƯỜNG -----
 			GameObject card3 = CreateDashboardCard(cardsRowObj.transform, "Card_Wall", "🧱 BỨC TƯỜNG", new Color(0.18f, 0.14f, 0.10f, 0.95f), new Color(0.75f, 0.5f, 0.2f, 0.5f), safeFont, uiLayer);
@@ -498,8 +516,12 @@ namespace IdleFactoryDefense.Editor
 			shopUI.upgradePickaxeButton = btnUpgradePickaxe;
 			shopUI.upgradePickaxeText = upgradePickaxeTxt;
 
-			shopUI.defenseRobotButton = btnDefenseRobot;
-			shopUI.defenseRobotText = defenseRobotTxt;
+			shopUI.buildFactoryButton = btnBuildFactory;
+			shopUI.buildFactoryText = buildFactoryTxt;
+			shopUI.craftRobotButton = btnCraftRobot;
+			shopUI.craftRobotText = craftRobotTxt;
+			shopUI.defenseRobotButton = btnCraftRobot;
+			shopUI.defenseRobotText = craftRobotTxt;
 
 			shopUI.wallButton = btnWall;
 			shopUI.wallButtonText = wallTxt;

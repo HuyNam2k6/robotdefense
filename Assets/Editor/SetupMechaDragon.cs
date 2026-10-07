@@ -15,116 +15,55 @@ namespace IdleFactoryDefense.Editor
             EditorApplication.delayCall += () =>
             {
                 if (EditorApplication.isPlayingOrWillChangePlaymode) return;
-                InspectDragon();
-                SetupDragon();
+                CleanFriendlyDragonRemnants();
+                SetupEnemyBossMechaDragon();
             };
         }
 
-        public static void InspectDragon()
+        [MenuItem("Tools/🐉 Cài Đặt Boss Rồng Cơ Khí (Mecha Cyber Dragon [BOSS])")]
+        public static void MenuSetupBossDragon()
         {
-            string fbxPath = "Assets/Models/MechaDragon/source/MechaDragon.fbx";
-            GameObject fbxObj = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
-            if (fbxObj == null) return;
+            CleanFriendlyDragonRemnants();
+            SetupEnemyBossMechaDragon();
+        }
 
-            foreach (var smr in fbxObj.GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        [MenuItem("Tools/⚡ Triệu Hồi Boss Rồng Cơ Khí Vào Trận Đấu")]
+        public static void MenuSpawnBossInScene()
+        {
+            CleanFriendlyDragonRemnants();
+            SetupEnemyBossMechaDragon();
+            SpawnBossInScene();
+        }
+
+        public static void CleanFriendlyDragonRemnants()
+        {
+            // 1. Quét và dọn sạch các bản rồng thân thiện nhầm lẫn trong Scene
+            var allObjects = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
+            int cleaned = 0;
+            foreach (var go in allObjects)
             {
-                Debug.Log($"<color=magenta>[Dragon SMR]</color> {smr.name}, rootBone: {(smr.rootBone != null ? smr.rootBone.name : "null")}, bones: {smr.bones.Length}, mats: {smr.sharedMaterials.Length}");
-                for (int i = 0; i < smr.sharedMaterials.Length; i++)
+                if (go == null) continue;
+                string n = go.name.ToLower();
+                if (n.Contains("friendly_mechadragon") || n.Contains("friendlymecha"))
                 {
-                    Debug.Log($"   Material [{i}]: {(smr.sharedMaterials[i] != null ? smr.sharedMaterials[i].name : "null")}");
+                    Undo.DestroyObjectImmediate(go);
+                    cleaned++;
                 }
             }
-            foreach (var mr in fbxObj.GetComponentsInChildren<MeshRenderer>(true))
+            if (cleaned > 0)
             {
-                Debug.Log($"<color=yellow>[Dragon MR]</color> {mr.name}, parent: {(mr.transform.parent != null ? mr.transform.parent.name : "null")}");
+                Debug.Log($"<color=#00FF88>🧹 Đã dọn dẹp sạch {cleaned} bản Rồng Cơ Khí thân thiện nhầm lẫn khỏi Scene!</color>");
+                EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             }
 
-            // Kiểm tra các clips và curves
-            Object[] assets = AssetDatabase.LoadAllAssetsAtPath(fbxPath);
-            foreach (var a in assets)
+            // 2. Xóa prefab Friendly_MechaDragon nếu còn tồn tại
+            if (File.Exists("Assets/prefabs/Friendly_MechaDragon.prefab"))
             {
-                if (a is AnimationClip clip && clip.name.ToLower().Contains("attack"))
-                {
-                    Debug.Log($"<color=cyan>[Dragon Clip]</color> {clip.name}, length: {clip.length}s, events: {clip.events.Length}");
-                    var bindings = AnimationUtility.GetCurveBindings(clip);
-                    foreach (var b in bindings)
-                    {
-                        if (b.path.ToLower().Contains("eye") || b.propertyName.ToLower().Contains("eye"))
-                        {
-                            Debug.Log($"   Binding: path={b.path}, prop={b.propertyName}");
-                        }
-                    }
-                }
-            }
-
-            // Kiểm tra toàn bộ hierarchy các con của FBX
-            Transform[] allT = fbxObj.GetComponentsInChildren<Transform>(true);
-            foreach (var t in allT)
-            {
-                if (t.name.ToLower().Contains("eye") || t.name.ToLower().Contains("head") || t.name.ToLower().Contains("face"))
-                {
-                    Debug.Log($"<color=orange>[Dragon Bone/Part]</color> {t.name}, parent: {(t.parent != null ? t.parent.name : "null")}");
-                }
+                AssetDatabase.DeleteAsset("Assets/prefabs/Friendly_MechaDragon.prefab");
             }
         }
 
-        [MenuItem("Tools/🐉 Đặt 1 Quái Rồng Cơ Khí Vào Scene")]
-        public static void SpawnDragonInScene()
-        {
-            SetupDragon();
-
-            string prefabPath = "Assets/prefabs/Enemy_MechaDragon.prefab";
-            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
-            if (prefab == null) return;
-
-            // Xác định vị trí xuất hiện đẹp nhất trên chiến trường
-            Vector3 spawnPos = new Vector3(3.5f, 15.5f, -10f);
-
-            Enemy existingEnemy = Object.FindFirstObjectByType<Enemy>();
-            if (existingEnemy != null && existingEnemy.name != "Enemy_MechaDragon")
-            {
-                spawnPos = existingEnemy.transform.position + new Vector3(0f, 4f, 6f);
-            }
-            else
-            {
-                GameObject player = GameObject.FindGameObjectWithTag("Player") ?? GameObject.Find("Player");
-                if (player != null)
-                {
-                    spawnPos = player.transform.position + new Vector3(0f, 4.5f, 22f);
-                }
-            }
-
-            if (Terrain.activeTerrain != null)
-            {
-                float terrY = Terrain.activeTerrain.SampleHeight(spawnPos) + Terrain.activeTerrain.transform.position.y;
-                spawnPos.y = Mathf.Max(spawnPos.y, terrY + 4f);
-            }
-
-            // Xóa instance cũ nếu đã tồn tại trong Scene
-            GameObject oldDragon = GameObject.Find("Enemy_MechaDragon");
-            if (oldDragon != null)
-            {
-                Object.DestroyImmediate(oldDragon);
-            }
-
-            GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
-            instance.name = "Enemy_MechaDragon";
-            instance.transform.position = spawnPos;
-            instance.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
-
-            Undo.RegisterCreatedObjectUndo(instance, "Spawn Mecha Dragon");
-            Selection.activeGameObject = instance;
-
-            if (SceneView.lastActiveSceneView != null)
-            {
-                SceneView.lastActiveSceneView.FrameSelected();
-            }
-
-            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
-            Debug.Log($"<color=#00FFFF><b>[Mecha Dragon]</b> ĐÃ ĐẶT QUÁI RỒNG CƠ KHÍ VÀO SCENE TẠI: {spawnPos} VÀ ZOOM CAMERA VÀO RỒNG!</color>");
-        }
-
-        public static void SetupDragon()
+        public static void SetupEnemyBossMechaDragon()
         {
             string rootPath = "Assets/Models/MechaDragon";
             string fbxPath = Path.Combine(rootPath, "source/MechaDragon.fbx").Replace("\\", "/");
@@ -140,33 +79,37 @@ namespace IdleFactoryDefense.Editor
 
             EnsureDirectory(matDir);
             EnsureDirectory("Assets/prefabs");
+            if (Directory.Exists("Assets/prefabsEnemy"))
+            {
+                EnsureDirectory("Assets/prefabsEnemy");
+            }
 
             // 1. Cấu hình ModelImporter cho FBX
             FixDragonImporter(fbxPath);
 
-            // 2. Tạo bộ Material PBR Kim Loại / Cơ Khí Chuẩn URP
+            // 2. Tạo bộ Material PBR Kim Loại / Cơ Khí Chuẩn URP (Tone màu Hắc Kim Cyber Boss cực ngầu)
             Shader urpShader = Shader.Find("Universal Render Pipeline/Lit") ?? Shader.Find("Standard");
 
-            // Thân chính: Hợp kim Titan Carbon xám thép sẫm
+            // Thân chính: Hợp kim Titan xám sẫm công nghệ cao
             Material matMain = CreatePbrMaterial(matDir, "MechaDragon_Main", urpShader,
-                new Color(0.20f, 0.22f, 0.26f, 1f), metallic: 0.90f, smoothness: 0.75f);
+                new Color(0.18f, 0.20f, 0.24f, 1f), metallic: 0.92f, smoothness: 0.78f);
 
-            // Bụng: Giáp thép gia cố mạ vàng đồng Steampunk Brass
+            // Bụng: Giáp cường lực mạ đồng Steampunk Brass
             Material matBelly = CreatePbrMaterial(matDir, "MechaDragon_Belly", urpShader,
-                new Color(0.85f, 0.65f, 0.25f, 1f), metallic: 0.95f, smoothness: 0.82f);
+                new Color(0.85f, 0.62f, 0.22f, 1f), metallic: 0.95f, smoothness: 0.82f);
 
-            // Cánh: Khung hợp kim siêu nhẹ carbon bọc viền thép
+            // Cánh: Khung composite siêu nhẹ bọc viền thép
             Material matWings = CreatePbrMaterial(matDir, "MechaDragon_Wings", urpShader,
-                new Color(0.14f, 0.16f, 0.20f, 1f), metallic: 0.85f, smoothness: 0.68f);
+                new Color(0.14f, 0.16f, 0.20f, 1f), metallic: 0.88f, smoothness: 0.70f);
 
-            // Móng vuốt & Sừng: Crom mạ bóng sáng loáng sắc bén
+            // Móng vuốt & Sừng: Crom sắc bén phản quang
             Material matClaws = CreatePbrMaterial(matDir, "MechaDragon_Claws", urpShader,
                 new Color(0.92f, 0.94f, 0.96f, 1f), metallic: 0.96f, smoothness: 0.90f);
 
-            // Mắt cảm biến: Mắt quang học Laser Neon Cyan phát sáng rực rỡ
+            // Mắt Boss: Laser Neon Đỏ / Xanh Plasma rực lửa chết chóc
             Material matEyes = CreatePbrMaterial(matDir, "MechaDragon_Eyes", urpShader,
                 new Color(0f, 0.95f, 1f, 1f), metallic: 0.5f, smoothness: 0.9f,
-                emissionColor: new Color(0f, 1f, 1f) * 4.0f);
+                emissionColor: new Color(0f, 1f, 1f) * 4.5f);
 
             // 3. Tải Animation Clips & Avatar từ FBX
             Object[] allAssets = AssetDatabase.LoadAllAssetsAtPath(fbxPath);
@@ -191,7 +134,7 @@ namespace IdleFactoryDefense.Editor
                 }
             }
 
-            // Đổi sang Attack 2 (Dragon_Attack2 - Đòn vươn mình gầm thét quẫy cánh khạc lửa dữ dội 40 frames)
+            // Đòn Attack 2 (Dragon_Attack2 - Đòn vươn mình gầm thét quẫy cánh khạc đạn plasma)
             AnimationClip chosenAttackClip = clipAttack2 != null ? clipAttack2 : clipAttack1;
 
             // 4. Cấu hình Animator Controller
@@ -228,7 +171,7 @@ namespace IdleFactoryDefense.Editor
 
                 var fromAtk = stAttack.AddTransition(stFly);
                 fromAtk.hasExitTime = true;
-                fromAtk.exitTime = 0.88f; // Thời gian chuyển tiếp mượt mà cho Attack 2 (40 frames)
+                fromAtk.exitTime = 0.88f;
                 fromAtk.duration = 0.15f;
 
                 var stDie = sm.AddState("Die");
@@ -257,15 +200,19 @@ namespace IdleFactoryDefense.Editor
                 EditorUtility.SetDirty(controller);
             }
 
-            // 5. Khởi tạo Game Object và Xây dựng Prefab Quái Rồng Cơ Khí
+            // 5. Khởi tạo Game Object và Xây dựng Prefab Boss Rồng Cơ Khí (ENEMY BOSS)
             GameObject fbxObj = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);
             if (fbxObj != null)
             {
                 GameObject instance = Object.Instantiate(fbxObj);
-                PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+                if (PrefabUtility.IsPartOfPrefabInstance(instance))
+                {
+                    PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+                }
                 instance.name = "Enemy_MechaDragon";
-                instance.transform.localScale = new Vector3(2.4f, 2.4f, 2.4f);
+                instance.transform.localScale = new Vector3(2.5f, 2.5f, 2.5f);
 
+                // THUỘC PHE ENEMY (BOSS)
                 instance.tag = "Enemy";
                 int enemyLayer = LayerMask.NameToLayer("Enemy");
                 if (enemyLayer >= 0) instance.layer = enemyLayer;
@@ -274,30 +221,27 @@ namespace IdleFactoryDefense.Editor
                 foreach (var r in rends)
                 {
                     if (enemyLayer >= 0) r.gameObject.layer = enemyLayer;
-                    r.gameObject.tag = "Enemy";
-
-                    Material[] sharedMats = r.sharedMaterials;
-                    for (int i = 0; i < sharedMats.Length; i++)
+                    Material[] mats = new Material[r.sharedMaterials.Length];
+                    for (int i = 0; i < mats.Length; i++)
                     {
-                        string matName = sharedMats[i] != null ? sharedMats[i].name.ToLower() : "";
-                        if (matName.Contains("belly")) sharedMats[i] = matBelly;
-                        else if (matName.Contains("wing")) sharedMats[i] = matWings;
-                        else if (matName.Contains("claw")) sharedMats[i] = matClaws;
-                        else if (matName.Contains("eye")) sharedMats[i] = matEyes;
-                        else sharedMats[i] = matMain;
+                        string mName = r.sharedMaterials[i] != null ? r.sharedMaterials[i].name.ToLower() : "";
+                        if (mName.Contains("belly")) mats[i] = matBelly;
+                        else if (mName.Contains("wing")) mats[i] = matWings;
+                        else if (mName.Contains("claw") || mName.Contains("horn")) mats[i] = matClaws;
+                        else if (mName.Contains("eye")) mats[i] = matEyes;
+                        else mats[i] = matMain;
                     }
-                    r.sharedMaterials = sharedMats;
+                    r.sharedMaterials = mats;
                 }
 
+                // Animator
                 Animator anim = instance.GetComponent<Animator>();
                 if (anim == null) anim = instance.AddComponent<Animator>();
                 anim.runtimeAnimatorController = controller;
                 if (avatar != null) anim.avatar = avatar;
+                anim.applyRootMotion = false;
 
-                // ================= FIX TRIỆT ĐỂ LỖI MẮT RỒNG ĐI MỘT MÌNH MỘT HƯỚNG =================
-                // Trong file FBX gốc, EyeArmature và SkinnedMesh Eyes nằm ở Root chứ không được parent vào xương Head.
-                // Khi Rồng cử động đầu cắn/gầm (Attack/Attack2), đầu cúi xuống lao đi nhưng mắt lại đứng im ở Root!
-                // Gắn EyeArmature và Eyes làm con của Head ngay tại Rest Pose để mắt luôn dính chặt vào hốc mắt 100%!
+                // Cố định mắt rồng vào xương Head (khắc phục triệt để lỗi mắt bay lệch của model FBX gốc)
                 Transform headBone = null;
                 Transform eyeArmature = null;
                 Transform eyesMeshObj = null;
@@ -311,10 +255,7 @@ namespace IdleFactoryDefense.Editor
 
                 if (headBone != null)
                 {
-                    if (eyeArmature != null)
-                    {
-                        eyeArmature.SetParent(headBone, true);
-                    }
+                    if (eyeArmature != null) eyeArmature.SetParent(headBone, true);
                     if (eyesMeshObj != null)
                     {
                         eyesMeshObj.SetParent(headBone, true);
@@ -323,47 +264,46 @@ namespace IdleFactoryDefense.Editor
                     }
                 }
 
-                // Sample Flying animation để trong Editor rồng dang rộng cánh bay lượn uy dũng
                 if (clipFlying != null)
                 {
                     clipFlying.SampleAnimation(instance, 0.45f);
                 }
 
-                // Collider bao trọn thân rồng
+                // Collider
                 CapsuleCollider col = instance.GetComponent<CapsuleCollider>();
                 if (col == null) col = instance.AddComponent<CapsuleCollider>();
                 col.center = new Vector3(0, 1.2f, 0);
-                col.radius = 0.9f;
-                col.height = 2.4f;
+                col.radius = 1.0f;
+                col.height = 2.6f;
                 col.direction = 2; // Trục Z
 
-                // Nguồn sáng lõi năng lượng phát sáng dịu quanh ngực rồng
+                // Nguồn sáng lõi năng lượng phát sáng quanh thân rồng
                 GameObject glowCore = new GameObject("Cyber_EnergyGlow");
                 glowCore.transform.SetParent(instance.transform, false);
-                glowCore.transform.localPosition = new Vector3(0f, 1.2f, 0.4f);
+                glowCore.transform.localPosition = new Vector3(0, 1.2f, 0.3f);
                 Light coreLight = glowCore.AddComponent<Light>();
                 coreLight.type = LightType.Point;
                 coreLight.color = new Color(0f, 0.95f, 1f);
-                coreLight.range = 4.5f;
-                coreLight.intensity = 2.2f;
+                coreLight.range = 5.0f;
+                coreLight.intensity = 2.5f;
 
-                // Script Enemy
+                // GẮN SCRIPT ENEMY (BOSS CHÍNH THỨC CỦA PHE QUÁI VẬT)
                 Enemy enemyComp = instance.GetComponent<Enemy>();
                 if (enemyComp == null) enemyComp = instance.AddComponent<Enemy>();
                 enemyComp.animator = anim;
-                enemyComp.enemyName = "Mecha Cyber Dragon";
-                enemyComp.maxHealth = 260f;
-                enemyComp.currentHealth = 260f;
-                enemyComp.moveSpeed = 3.6f;
-                enemyComp.goldReward = 85;
-                enemyComp.attackDamage = 35f;
-                enemyComp.attackRange = 5.5f;
-                enemyComp.attackCooldown = 1.5f;
+                enemyComp.enemyName = "Mecha Cyber Dragon [BOSS]";
+                enemyComp.maxHealth = 1200f;
+                enemyComp.currentHealth = 1200f;
+                enemyComp.moveSpeed = 3.8f;
+                enemyComp.goldReward = 250;
+                enemyComp.attackDamage = 45f;
+                enemyComp.attackRange = 7.0f;
+                enemyComp.attackCooldown = 1.6f;
                 enemyComp.attackDelay = 0.5f;
                 enemyComp.modelRotationOffset = 0f;
 
                 enemyComp.isFlying = true;
-                enemyComp.flightAltitude = 3.5f;
+                enemyComp.flightAltitude = 3.8f;
                 enemyComp.hoverBobSpeed = 2.4f;
                 enemyComp.hoverBobAmount = 0.35f;
 
@@ -381,10 +321,11 @@ namespace IdleFactoryDefense.Editor
                     enemyComp.projectilePrefab = plasmaPrefab;
                 }
 
-                // TUÂN THỦ RULE 8: KHÔNG dùng Rigidbody
+                // TUÂN THỦ RULE 8: KHÔNG dùng Rigidbody (trọng lực code)
                 Rigidbody rb = instance.GetComponent<Rigidbody>();
                 if (rb != null) Object.DestroyImmediate(rb);
 
+                // Lưu Prefab vào cả 2 thư mục để tương thích toàn dự án
                 PrefabUtility.SaveAsPrefabAsset(instance, prefabPath);
                 if (Directory.Exists("Assets/prefabsEnemy"))
                 {
@@ -396,34 +337,69 @@ namespace IdleFactoryDefense.Editor
                 GameObject sceneDragon = GameObject.Find("Enemy_MechaDragon");
                 if (sceneDragon != null)
                 {
-                    Transform sHead = null, sEyeArm = null, sEyes = null;
-                    foreach (var t in sceneDragon.GetComponentsInChildren<Transform>(true))
-                    {
-                        if (t.name.Equals("Head", System.StringComparison.OrdinalIgnoreCase)) sHead = t;
-                        else if (t.name.Equals("EyeArmature", System.StringComparison.OrdinalIgnoreCase)) sEyeArm = t;
-                        else if (t.name.Equals("Eyes", System.StringComparison.OrdinalIgnoreCase)) sEyes = t;
-                    }
-                    if (sHead != null)
-                    {
-                        if (sEyeArm != null && sEyeArm.parent != sHead) sEyeArm.SetParent(sHead, true);
-                        if (sEyes != null && sEyes.parent != sHead) sEyes.SetParent(sHead, true);
-                    }
-                    Animator sAnim = sceneDragon.GetComponent<Animator>();
-                    if (sAnim != null) sAnim.runtimeAnimatorController = controller;
-
+                    sceneDragon.tag = "Enemy";
+                    if (enemyLayer >= 0) sceneDragon.layer = enemyLayer;
                     Enemy sEnemy = sceneDragon.GetComponent<Enemy>();
                     if (sEnemy != null && plasmaPrefab != null)
                     {
                         sEnemy.projectilePrefab = plasmaPrefab;
                     }
-
                     EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
                 }
 
                 AssetDatabase.SaveAssets();
                 AssetDatabase.Refresh();
-                Debug.Log("<color=#00FFFF><b>[Mecha Dragon]</b> ĐÃ CẬP NHẬT HOÀN THIỆN PREFAB QUÁI RỒNG CƠ KHÍ TẠI: " + prefabPath + "!</color>");
+                Debug.Log("<color=#FF0055><b>[BOSS MECHA DRAGON]</b> ĐÃ THIẾT LẬP HOÀN TẤT PREFAB BOSS RỒNG CƠ KHÍ TẠI: " + prefabPath + " (TAG: ENEMY)!</color>");
             }
+        }
+
+        public static void SpawnBossInScene()
+        {
+            string prefabPath = "Assets/prefabs/Enemy_MechaDragon.prefab";
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            if (prefab == null)
+            {
+                SetupEnemyBossMechaDragon();
+                prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+            }
+            if (prefab == null) return;
+
+            // Xóa boss cũ trong scene nếu có
+            GameObject oldBoss = GameObject.Find("Enemy_MechaDragon");
+            if (oldBoss != null)
+            {
+                Undo.DestroyObjectImmediate(oldBoss);
+            }
+
+            // Vị trí xuất hiện: Trên không trung, phía sau làn quái vật (xa căn cứ)
+            Vector3 spawnPos = new Vector3(0f, 18f, 25f);
+            GameObject baseHQ = GameObject.FindGameObjectWithTag("Base") ?? GameObject.Find("Base") ?? GameObject.Find("BaseHQ");
+            if (baseHQ != null)
+            {
+                spawnPos = baseHQ.transform.position + new Vector3(0f, 5.0f, 32f);
+            }
+
+            if (Terrain.activeTerrain != null)
+            {
+                float terrY = Terrain.activeTerrain.SampleHeight(spawnPos) + Terrain.activeTerrain.transform.position.y;
+                spawnPos.y = Mathf.Max(spawnPos.y, terrY + 4.5f);
+            }
+
+            GameObject instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            instance.name = "Enemy_MechaDragon";
+            instance.transform.position = spawnPos;
+            instance.transform.rotation = Quaternion.Euler(0, 180, 0); // Quay mặt về phía căn cứ
+
+            Undo.RegisterCreatedObjectUndo(instance, "Spawn Boss Mecha Dragon");
+            Selection.activeGameObject = instance;
+
+            if (SceneView.lastActiveSceneView != null)
+            {
+                SceneView.lastActiveSceneView.FrameSelected();
+            }
+
+            EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
+            Debug.Log($"<color=#FF3366><b>[BOSS MECHA DRAGON]</b> ĐÃ TRIỆU HỒI BOSS RỒNG CƠ KHÍ TẠI: {spawnPos} (MÁU 1200, ENEMY BOSS)!</color>");
         }
 
         public static GameObject CreateDragonPlasmaBallPrefab()

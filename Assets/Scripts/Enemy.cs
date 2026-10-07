@@ -113,9 +113,43 @@ public class Enemy : MonoBehaviour
 
     public void FindTarget()
     {
-        if (target != null && target.gameObject.activeInHierarchy) return;
+        if (target != null && target.gameObject.activeInHierarchy)
+        {
+            var friendlyBot = target.GetComponent<FriendlyCombatRobot>();
+            if (friendlyBot != null && friendlyBot.currentHealth <= 0f)
+            {
+                target = null;
+            }
+            else
+            {
+                return;
+            }
+        }
 
-        // 1. Ưu tiên tìm Căn cứ (Base / BaseHQ)
+        // 1. Kiểm tra xem có Robot đồng minh nào ở cự ly gần chặn đường không (trong vòng 8m)
+        FriendlyCombatRobot[] nearbyRobots = FindObjectsByType<FriendlyCombatRobot>(FindObjectsSortMode.None);
+        float closestRobotDist = 8f;
+        Transform closestRobot = null;
+        for (int i = 0; i < nearbyRobots.Length; i++)
+        {
+            if (nearbyRobots[i] != null && nearbyRobots[i].currentHealth > 0f)
+            {
+                float d = Vector3.Distance(transform.position, nearbyRobots[i].transform.position);
+                if (d < closestRobotDist)
+                {
+                    closestRobotDist = d;
+                    closestRobot = nearbyRobots[i].transform;
+                }
+            }
+        }
+
+        if (closestRobot != null)
+        {
+            target = closestRobot;
+            return;
+        }
+
+        // 2. Ưu tiên tìm Căn cứ (Base / BaseHQ)
         GameObject baseObj = GameObject.FindGameObjectWithTag("Base") ?? GameObject.Find("Base") ?? GameObject.Find("BaseHQ");
         if (baseObj != null)
         {
@@ -123,7 +157,7 @@ public class Enemy : MonoBehaviour
             return;
         }
 
-        // 2. Tìm Người chơi (Player)
+        // 3. Tìm Người chơi (Player)
         GameObject playerObj = GameObject.FindGameObjectWithTag("Player") ?? GameObject.Find("Player");
         if (playerObj != null)
         {

@@ -1381,6 +1381,10 @@ MonoBehaviour:
   hoverBobAmount: 0.35
   animator: {fileID: 5846890279176596594}
   deathVFX: {fileID: 0}
+  projectilePrefab: {fileID: 0}
+  projectileColor: {r: 0, g: 1, b: 1, a: 1}
+  shootPoint: {fileID: 0}
+  attackDelay: 0.5
 --- !u!1 &7899167191395511938
 GameObject:
   m_ObjectHideFlags: 0

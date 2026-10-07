@@ -1,0 +1,664 @@
+=== DANH SACH ANIMATION TRONG FBX ===
+
+[File] Assets/Models/AnimatedRobot/source/Robot.fbx:
+   - Clip: RobotArmature|Robot_Punch (Length: 0.83s)
+   - Clip: RobotArmature|Robot_No (Length: 1.67s)
+   - Clip: RobotArmature|Robot_Walking (Length: 0.96s)
+   - Clip: RobotArmature|Robot_Sitting (Length: 0.42s)
+   - Clip: RobotArmature|Robot_Wave (Length: 1.83s)
+   - Clip: RobotArmature|Robot_Jump (Length: 0.71s)
+   - Clip: RobotArmature|Robot_ThumbsUp (Length: 1.58s)
+   - Clip: RobotArmature|Robot_Dance (Length: 3.33s)
+   - Clip: RobotArmature|Robot_Standing (Length: 0.42s)
+   - Clip: RobotArmature|Robot_Idle (Length: 3.33s)
+   - Clip: RobotArmature|Robot_Yes (Length: 1.67s)
+   - Clip: RobotArmature|Robot_WalkJump (Length: 0.83s)
+   - Clip: RobotArmature|Robot_Running (Length: 0.96s)
+   - Clip: RobotArmature|Robot_Death (Length: 0.96s)
+
+[File] Assets/Models/BipedRobot/source/Robot.FBX:
+   - Clip: Robot_Soldat (Length: 3.33s)
+
+[File] Assets/Models/CombatSteampunkRobot/source/SteampunkRobot.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/Drone/source/Drone.FBX:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/EnemyBug/source/AlienBug.fbx:
+   - Clip: Armature|Idle_Armature (Length: 1.63s)
+   - Clip: Armature|Run_Armature (Length: 0.42s)
+   - Clip: Armature|Attack.000_Armature (Length: 0.42s)
+   - Clip: Armature|Attack.001_Armature (Length: 0.42s)
+
+[File] Assets/Models/EnemySpider/source/Spider.fbx:
+   - Clip: Armature|neutral (Length: 0.04s)
+   - Clip: Armature|walk (Length: 0.96s)
+   - Clip: Armature|attack (Length: 1.88s)
+   - Clip: Armature|die (Length: 0.96s)
+   - Clip: Armature|wakeup (Length: 0.76s)
+   - Clip: Armature|fallasleep (Length: 1.00s)
+   - Clip: Armature|sleep (Length: 3.96s)
+
+[File] Assets/Models/FactoryKit/Models/FBX format/arrow-basic-rounded.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/arrow-basic.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/arrow-rounded.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/arrow.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/box-large.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/box-long.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/box-small.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/box-wide.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/button-floor-round-small.fbx:
+   - Clip: toggle (Length: 0.50s)
+   - Clip: toggle-off (Length: 0.20s)
+   - Clip: toggle-on (Length: 0.20s)
+
+[File] Assets/Models/FactoryKit/Models/FBX format/button-floor-round.fbx:
+   - Clip: toggle (Length: 0.50s)
+   - Clip: toggle-off (Length: 0.20s)
+   - Clip: toggle-on (Length: 0.20s)
+
+[File] Assets/Models/FactoryKit/Models/FBX format/button-floor-square-small.fbx:
+   - Clip: toggle (Length: 0.50s)
+   - Clip: toggle-off (Length: 0.20s)
+   - Clip: toggle-on (Length: 0.20s)
+
+[File] Assets/Models/FactoryKit/Models/FBX format/button-floor-square.fbx:
+   - Clip: toggle (Length: 0.50s)
+   - Clip: toggle-off (Length: 0.20s)
+   - Clip: toggle-on (Length: 0.20s)
+
+[File] Assets/Models/FactoryKit/Models/FBX format/catwalk-corner.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/catwalk-cross.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/catwalk-junction.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/catwalk-stairs-loop.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/catwalk-stairs.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/catwalk-straight.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/cog-a.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/cog-b.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/cog-c.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/cog-d.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/cog-e.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/cone.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-bars-fence-slope.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-bars-fence.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-bars-high-slope.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-bars-high.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-bars-sides.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-bars-stripe-fence-slope.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-bars-stripe-fence.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-bars-stripe-high-slope.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-bars-stripe-high.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-bars-stripe-side.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-bars-stripe.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-bars.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-corner.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-cross.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-junction-t.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-long-part-end.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-long-part-middle.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-long-sides-part-end.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-long-sides-part-middle.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-long-sides.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-long-stripe-sides-part-end.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-long-stripe-sides-part-middle.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-long-stripe-sides.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-long-stripe.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-long.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-sides-cross.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-sides-junction-t.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-sides.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-stripe-corner.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-stripe-cross.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-stripe-junction-t.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-stripe-part-end.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-stripe-part-middle.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-stripe-sides-cross.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-stripe-sides-junction-t.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-stripe-sides.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor-stripe.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/conveyor.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/crane-lift.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/crane-magnet.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/crane.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/door-wide-closed.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/door-wide-half.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/door-wide-open.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/door.fbx:
+   - Clip: close (Length: 1.00s)
+   - Clip: open-and-close (Length: 2.00s)
+   - Clip: open (Length: 1.00s)
+
+[File] Assets/Models/FactoryKit/Models/FBX format/floor-large.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/floor.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/hopper-high-round.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/hopper-high-square.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/hopper-round.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/hopper-square.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/indicator-special-area.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/indicator-special-arrow.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/indicator-special-cross.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/indicator-special-lines.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/lever-double.fbx:
+   - Clip: toggle (Length: 1.00s)
+   - Clip: toggle-off (Length: 0.50s)
+   - Clip: toggle-on (Length: 0.50s)
+
+[File] Assets/Models/FactoryKit/Models/FBX format/lever-single.fbx:
+   - Clip: toggle (Length: 1.00s)
+   - Clip: toggle-off (Length: 0.50s)
+   - Clip: toggle-on (Length: 0.50s)
+
+[File] Assets/Models/FactoryKit/Models/FBX format/machine-bed.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/machine-connection-hole.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/machine-connection-pipe.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/machine-fortified.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/machine-window-bar.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/machine-window.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/machine.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/oopi.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-glass-large-bend.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-glass-large-bump.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-glass-large-cross.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-glass-large-curve.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-glass-large-junction.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-glass-large-long.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-glass-large-side.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-glass-large-valve.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-glass-large.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-large-bend.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-large-bump.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-large-cross.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-large-curve.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-large-junction.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-large-long.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-large-side.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-large-valve.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/pipe-large.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/piston-round.fbx:
+   - Clip: toggle (Length: 0.50s)
+   - Clip: toggle-off (Length: 0.20s)
+   - Clip: toggle-on (Length: 0.20s)
+
+[File] Assets/Models/FactoryKit/Models/FBX format/piston-square.fbx:
+   - Clip: toggle (Length: 0.50s)
+   - Clip: toggle-off (Length: 0.20s)
+   - Clip: toggle-on (Length: 0.20s)
+
+[File] Assets/Models/FactoryKit/Models/FBX format/piston-thin-round.fbx:
+   - Clip: toggle (Length: 0.50s)
+   - Clip: toggle-off (Length: 0.20s)
+   - Clip: toggle-on (Length: 0.20s)
+
+[File] Assets/Models/FactoryKit/Models/FBX format/piston-thin-square.fbx:
+   - Clip: toggle (Length: 0.50s)
+   - Clip: toggle-off (Length: 0.20s)
+   - Clip: toggle-on (Length: 0.20s)
+
+[File] Assets/Models/FactoryKit/Models/FBX format/robot-arm-a.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/robot-arm-b.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/scanner-high.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/scanner-low.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/screen-flat.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/screen-hanging-small.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/screen-hanging-wide.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/screen-panel-flat.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/screen-panel-small.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/screen-panel-wide.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/screen-small.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/screen-wide.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-corner-inner.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-corner-outer.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-doorway-wide.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-doorway.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-high.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-medium.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-short.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-tall.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-wall.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-window-wide.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-window.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-yellow-high.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-yellow-medium.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-yellow-short.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/structure-yellow-tall.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/top-large-checkerboard.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/top-large.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/top.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/warning-orange.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/FactoryKit/Models/FBX format/warning-traffic.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/HeavyRobot/source/Robot.fbx:
+   -> Không có AnimationClip nào!
+
+[File] Assets/Models/MechaDragon/source/MechaDragon.fbx:
+   - Clip: DragonArmature|Dragon_Flying (Length: 1.67s)
+   - Clip: DragonArmature|Dragon_Attack2 (Length: 1.67s)
+   - Clip: DragonArmature|Dragon_Death (Length: 1.21s)
+   - Clip: DragonArmature|Dragon_Hit (Length: 1.67s)
+   - Clip: DragonArmature|Dragon_Attack (Length: 0.88s)
+
+[File] Assets/Models/NewMech/George.fbx:
+   - Clip: Dance (Length: 0.80s)
+   - Clip: Death (Length: 1.43s)
+   - Clip: Hello (Length: 1.50s)
+   - Clip: HitRecieve_1 (Length: 0.47s)
+   - Clip: HitRecieve_2 (Length: 0.47s)
+   - Clip: Idle (Length: 3.33s)
+   - Clip: Jump (Length: 0.87s)
+   - Clip: Kick (Length: 0.60s)
+   - Clip: No (Length: 1.40s)
+   - Clip: Pickup (Length: 1.40s)
+   - Clip: Punch (Length: 0.57s)
+   - Clip: RobotArmature|Dance (Length: 0.80s)
+   - Clip: RobotArmature|Death (Length: 1.43s)
+   - Clip: RobotArmature|Hello (Length: 1.50s)
+   - Clip: RobotArmature|HitRecieve_1 (Length: 0.47s)
+   - Clip: RobotArmature|HitRecieve_2 (Length: 0.47s)
+   - Clip: RobotArmature|Idle (Length: 3.33s)
+   - Clip: RobotArmature|Jump (Length: 0.87s)
+   - Clip: RobotArmature|Kick (Length: 0.60s)
+   - Clip: RobotArmature|No (Length: 1.40s)
+   - Clip: RobotArmature|Pickup (Length: 1.40s)
+   - Clip: RobotArmature|Punch (Length: 0.57s)
+   - Clip: RobotArmature|Run (Length: 0.83s)
+   - Clip: RobotArmature|Run_Holding (Length: 0.83s)
+   - Clip: RobotArmature|Run_Tall (Length: 0.83s)
+   - Clip: RobotArmature|Shoot (Length: 0.50s)
+   - Clip: RobotArmature|SwordSlash (Length: 0.60s)
+   - Clip: RobotArmature|Walk (Length: 0.83s)
+   - Clip: RobotArmature|Walk_Holding (Length: 0.83s)
+   - Clip: RobotArmature|Walk_Tall (Length: 0.83s)
+   - Clip: RobotArmature|Yes (Length: 1.40s)
+   - Clip: Run (Length: 0.83s)
+   - Clip: Run_Holding (Length: 0.83s)
+   - Clip: Run_Tall (Length: 0.83s)
+   - Clip: Shoot (Length: 0.50s)
+   - Clip: SwordSlash (Length: 0.60s)
+   - Clip: Walk (Length: 0.83s)
+   - Clip: Walk_Holding (Length: 0.83s)
+   - Clip: Walk_Tall (Length: 0.83s)
+   - Clip: Yes (Length: 1.40s)
+
+[File] Assets/Models/NewMech/Leela.fbx:
+   - Clip: Dance (Length: 1.00s)
+   - Clip: Death (Length: 1.79s)
+   - Clip: Hello (Length: 1.88s)
+   - Clip: HitRecieve_1 (Length: 0.58s)
+   - Clip: HitRecieve_2 (Length: 0.58s)
+   - Clip: Idle (Length: 4.17s)
+   - Clip: Jump (Length: 1.08s)
+   - Clip: Kick (Length: 0.75s)
+   - Clip: No (Length: 1.75s)
+   - Clip: Pickup (Length: 1.75s)
+   - Clip: Punch (Length: 0.71s)
+   - Clip: RobotArmature|Dance (Length: 1.00s)
+   - Clip: RobotArmature|Death (Length: 1.79s)
+   - Clip: RobotArmature|Hello (Length: 1.88s)
+   - Clip: RobotArmature|HitRecieve_1 (Length: 0.58s)
+   - Clip: RobotArmature|HitRecieve_2 (Length: 0.58s)
+   - Clip: RobotArmature|Idle (Length: 4.17s)
+   - Clip: RobotArmature|Jump (Length: 1.08s)
+   - Clip: RobotArmature|Kick (Length: 0.75s)
+   - Clip: RobotArmature|No (Length: 1.75s)
+   - Clip: RobotArmature|Pickup (Length: 1.75s)
+   - Clip: RobotArmature|Punch (Length: 0.71s)
+   - Clip: RobotArmature|Run (Length: 1.04s)
+   - Clip: RobotArmature|Run_Tall (Length: 1.04s)
+   - Clip: RobotArmature|Shoot (Length: 0.63s)
+   - Clip: RobotArmature|SwordSlash (Length: 0.75s)
+   - Clip: RobotArmature|Walk (Length: 1.04s)
+   - Clip: RobotArmature|Walk_Tall (Length: 1.04s)
+   - Clip: RobotArmature|Yes (Length: 1.75s)
+   - Clip: Run (Length: 1.04s)
+   - Clip: Run_Tall (Length: 1.04s)
+   - Clip: Shoot (Length: 0.63s)
+   - Clip: SwordSlash (Length: 0.75s)
+   - Clip: Walk (Length: 1.04s)
+   - Clip: Walk_Tall (Length: 1.04s)
+   - Clip: Yes (Length: 1.75s)
+
+[File] Assets/Models/NewMech/Mike.fbx:
+   - Clip: Dance (Length: 1.00s)
+   - Clip: Death (Length: 1.79s)
+   - Clip: Hello (Length: 1.88s)
+   - Clip: HitRecieve_1 (Length: 0.58s)
+   - Clip: HitRecieve_2 (Length: 0.58s)
+   - Clip: Idle (Length: 4.17s)
+   - Clip: Jump (Length: 1.08s)
+   - Clip: Kick (Length: 0.75s)
+   - Clip: No (Length: 1.75s)
+   - Clip: Pickup (Length: 1.75s)
+   - Clip: Punch (Length: 0.71s)
+   - Clip: RobotArmature|Dance (Length: 1.00s)
+   - Clip: RobotArmature|Death (Length: 1.79s)
+   - Clip: RobotArmature|Hello (Length: 1.88s)
+   - Clip: RobotArmature|HitRecieve_1 (Length: 0.58s)
+   - Clip: RobotArmature|HitRecieve_2 (Length: 0.58s)
+   - Clip: RobotArmature|Idle (Length: 4.17s)
+   - Clip: RobotArmature|Jump (Length: 1.08s)
+   - Clip: RobotArmature|Kick (Length: 0.75s)
+   - Clip: RobotArmature|No (Length: 1.75s)
+   - Clip: RobotArmature|Pickup (Length: 1.75s)
+   - Clip: RobotArmature|Punch (Length: 0.71s)
+   - Clip: RobotArmature|Run (Length: 1.04s)
+   - Clip: RobotArmature|Run_Holding (Length: 1.04s)
+   - Clip: RobotArmature|Shoot (Length: 0.63s)
+   - Clip: RobotArmature|SwordSlash (Length: 0.75s)
+   - Clip: RobotArmature|Walk (Length: 1.04s)
+   - Clip: RobotArmature|Walk_Holding (Length: 1.04s)
+   - Clip: RobotArmature|Yes (Length: 1.75s)
+   - Clip: Run (Length: 1.04s)
+   - Clip: Run_Holding (Length: 1.04s)
+   - Clip: Shoot (Length: 0.63s)
+   - Clip: SwordSlash (Length: 0.75s)
+   - Clip: Walk (Length: 1.04s)
+   - Clip: Walk_Holding (Length: 1.04s)
+   - Clip: Yes (Length: 1.75s)
+
+[File] Assets/Models/NewMech/Stan.fbx:
+   - Clip: Dance (Length: 1.00s)
+   - Clip: Death (Length: 1.79s)
+   - Clip: Hello (Length: 1.88s)
+   - Clip: HitRecieve_1 (Length: 0.58s)
+   - Clip: HitRecieve_2 (Length: 0.58s)
+   - Clip: Idle (Length: 4.17s)
+   - Clip: Jump (Length: 1.08s)
+   - Clip: Kick (Length: 0.75s)
+   - Clip: No (Length: 1.75s)
+   - Clip: Pickup (Length: 1.75s)
+   - Clip: Punch (Length: 0.71s)
+   - Clip: RobotArmature|Dance (Length: 1.00s)
+   - Clip: RobotArmature|Death (Length: 1.79s)
+   - Clip: RobotArmature|Hello (Length: 1.88s)
+   - Clip: RobotArmature|HitRecieve_1 (Length: 0.58s)
+   - Clip: RobotArmature|HitRecieve_2 (Length: 0.58s)
+   - Clip: RobotArmature|Idle (Length: 4.17s)
+   - Clip: RobotArmature|Jump (Length: 1.08s)
+   - Clip: RobotArmature|Kick (Length: 0.75s)
+   - Clip: RobotArmature|No (Length: 1.75s)
+   - Clip: RobotArmature|Pickup (Length: 1.75s)
+   - Clip: RobotArmature|Punch (Length: 0.71s)
+   - Clip: RobotArmature|Run (Length: 1.04s)
+   - Clip: RobotArmature|Run_Holding (Length: 1.04s)
+   - Clip: RobotArmature|Shoot (Length: 0.63s)
+   - Clip: RobotArmature|SwordSlash (Length: 0.75s)
+   - Clip: RobotArmature|Walk (Length: 1.04s)
+   - Clip: RobotArmature|Walk_Holding (Length: 1.04s)
+   - Clip: RobotArmature|Yes (Length: 1.75s)
+   - Clip: Run (Length: 1.04s)
+   - Clip: Run_Holding (Length: 1.04s)
+   - Clip: Shoot (Length: 0.63s)
+   - Clip: SwordSlash (Length: 0.75s)
+   - Clip: Walk (Length: 1.04s)
+   - Clip: Walk_Holding (Length: 1.04s)
+   - Clip: Yes (Length: 1.75s)
+
+[File] Assets/Animations/Attack.fbx:
+   - Clip: mixamo.com (Length: 2.27s)
+
+[File] Assets/Animations/Walking.fbx:
+   - Clip: mixamo.com (Length: 1.27s)

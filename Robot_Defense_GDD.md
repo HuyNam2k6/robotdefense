@@ -36,6 +36,25 @@
     - *Chức năng:* Tăng lượng tài nguyên mang về mỗi chuyến.
     - *Công thức giá:* Cost = (150 Gạch + 150 Gỗ) * 1.18^Level
 
+- **Hệ thống Nhà Máy & Quân Đội Đồng Minh (Combat Robot Army):**
+  - **Nhà máy sản xuất Robot 3D (Robot Factory):** Xây dựng từ Cửa Hàng (BuildingSystem). Khi người chơi nhấn vào Nhà Máy trên đảo (hoặc từ Cửa Hàng), một **Bảng Chế Tạo Robot to nửa màn hình căn giữa** sẽ xuất hiện, gồm 4 Icon đại diện cho 4 Robot phòng thủ. Trong mỗi icon có nút **[!]** để xem chi tiết thông số (Máu, Sát thương, Tầm xa, Tốc độ, Kỹ năng) giúp người chơi tự do lựa chọn con robot muốn sản xuất. Khi bấm sản xuất, thời gian 15s bắt đầu chạy, kích hoạt toàn bộ animation cơ khí chân thực của nhà máy (cánh tay hàn xì, bánh răng cưa quay, thân máy rung dập, tia lửa hàn điện chớp tắt), sau đúng 15s xuất xưởng đúng con robot đã chọn lên băng chuyền ra đảo chiến đấu.
+  - **4 Chủng Robot Chiến Đấu Đồng Minh (Tự do lựa chọn đúc theo chiến thuật):**
+    1. *Stan (Pháo Nhện 4 chân):* Hỏa lực tầm xa, bắn pháo diện rộng và dẫm đạp đẩy lùi.
+    2. *Mike (Đấu sĩ hộ pháp - Tanker):* Cận chiến trâu máu, cú đấm móc và vung kiếm càn quét tiền tuyến.
+    3. *George (Sát thủ chân kiếm):* Cơ động siêu tốc, lướt chém song kiếm và cú đá xoay liên hoàn.
+    4. *Leela (Xạ thủ bắn tỉa):* Tầm bắn siêu xa, phát bắn laser chuẩn xác và đá tự vệ khi bị áp sát.
+  - **Cơ chế chiến đấu:** Robot tự động tuần tra quanh căn cứ, phát hiện quái vật, tiếp cận và tung chiêu tương ứng. Có thanh máu 3D hiển thị thời gian thực và hoạt ảnh ăn mừng khi chiến thắng.
+  - **Tối ưu Snapdragon 810:** Toàn bộ trọng lực tính bằng Code (Rule 8 - Không dùng Rigidbody), giới hạn quân số tối đa 8 lính, chia sẻ Texture Palette chung để giảm Draw Calls.
+
+- **Hệ thống Quái Vật & Đại Boss (Enemy Faction & Bosses):**
+  - **Quái vật thường (Minions):**
+    1. *Scrap Bug (Bọ Cơ Khí - `Enemy_AlienBug`):* Quái vật trinh sát di chuyển nhanh, máu vừa phải, cắn phá công trình và tấn công căn cứ.
+    2. *Scrap Spider (Nhện Máy - `Enemy_Spider`):* Quái vật bọc giáp bò áp sát, càn quét phòng tuyến và thu hút hỏa lực của trụ súng.
+  - **Đại Boss Tối Thượng (Ultimate Boss - Xuất hiện ở Wave 10 hoặc Đợt Boss):**
+    - *Mecha Cyber Dragon [BOSS] (`Enemy_MechaDragon`):* Rồng Cơ Khí khổng lồ bay lượn trên không trung (Flying Unit). Sở hữu lượng máu khổng lồ (1000 - 1200 HP), giáp Titan hắc kim kiên cố và vũ khí hủy diệt: đạn cầu năng lượng Plasma (`Dragon_PlasmaBall`).
+    - *Hành vi Boss:* Bay lượn trên bầu trời, vượt qua mọi chướng ngại vật mặt đất, khạc đạn plasma tầm xa oanh tạc thẳng vào Căn cứ, Người chơi và Quân đội Robot đồng minh.
+    - *Nhiệm vụ người chơi:* Xây dựng dàn Trụ súng phòng không mặt đất, sản xuất đủ 4 Chủng Robot Chiến Đấu Đồng Minh (Stan, Mike, George, Leela) phối hợp hỏa lực tập trung để bắn hạ Boss rồng cơ khí, đem về chiến thắng vẻ vang cùng kho báu 250 Vàng!
+
 ## 4. Game Feel & Feedback
 - **Visual Feedback:**
   - *Floating Text:* Số nảy (bounce) bay lên từ xác quái (VD: +100 Vàng) và chữ đỏ báo mất máu căn cứ.
