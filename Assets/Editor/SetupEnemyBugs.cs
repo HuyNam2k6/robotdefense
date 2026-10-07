@@ -21,7 +21,7 @@ namespace IdleFactoryDefense.Editor
             };
         }
 
-        [MenuItem("Tools/🐛 Cài Đặt Quái Bọ 4 Chân (AlienBug & Spider)")]
+        // [MenuItem("Tools/🐛 Cài Đặt Quái Bọ 4 Chân (AlienBug & Spider)")]
         public static void SetupAllBugs()
         {
             SetupAlienBug();
@@ -33,7 +33,7 @@ namespace IdleFactoryDefense.Editor
         }
 
         // ================= 1. ALIEN BUG (BỌ 4 CHÂN NGOÀI HÀNH TINH) =================
-        [MenuItem("Tools/Enemies/1. Setup Alien Bug")]
+        // [MenuItem("Tools/Enemies/1. Setup Alien Bug")]
         public static void SetupAlienBug()
         {
             string rootPath = "Assets/Models/EnemyBug";
@@ -189,7 +189,7 @@ namespace IdleFactoryDefense.Editor
         }
 
         // ================= 2. SPIDER (NHỆN CƠ KHÍ 4 CHÂN) =================
-        [MenuItem("Tools/Enemies/2. Setup Spider")]
+        // [MenuItem("Tools/Enemies/2. Setup Spider")]
         public static void SetupSpider()
         {
             string rootPath = "Assets/Models/EnemySpider";

@@ -461,6 +461,19 @@ public class UpgradableTurret : MonoBehaviour
     /// </summary>
     public void EnsureColliderExists()
     {
+        // 1. Chuẩn hóa đặc biệt cho FlamethrowerTurret: Tránh BoxCollider bị quá khổ (11m) chắn đường và lơ lửng trên mặt đất
+        if (turretType == TurretType.FlamethrowerTurret || name.ToLower().Contains("flame"))
+        {
+            BoxCollider flameCol = GetComponent<BoxCollider>();
+            if (flameCol == null) flameCol = gameObject.AddComponent<BoxCollider>();
+
+            // Tỉ lệ scale thực tế: localScale {1.27, 1.19, 1.95}
+            // Size mới: X=2.0 (World 2.54m), Y=2.4 (World 2.86m), Z=1.4 (World 2.73m)
+            flameCol.size = new Vector3(2.0f, 2.4f, 1.4f);
+            flameCol.center = new Vector3(0f, 1.15f, 0.1f);
+            return;
+        }
+
         Collider existingCol = GetComponentInChildren<Collider>();
         if (existingCol == null)
         {
@@ -640,6 +653,35 @@ public class UpgradableTurret : MonoBehaviour
         return transform.position + Vector3.up * 2.8f;
     }
 
+    // Cache các bộ phận con hiển thị để chỉ tạo hiệu ứng nhún nhảy đàn hồi trên đồ họa,
+    // TUYỆT ĐỐI KHÔNG scale Root Transform để tránh làm BoxCollider vật lý phình to đè hất tung Player và Robot!
+    private struct TransformScaleBackup
+    {
+        public Transform transform;
+        public Vector3 originalLocalScale;
+    }
+    private readonly List<TransformScaleBackup> visualChildBackups = new List<TransformScaleBackup>();
+
+    private void CacheVisualChildren()
+    {
+        visualChildBackups.Clear();
+        for (int i = 0; i < transform.childCount; i++)
+        {
+            Transform child = transform.GetChild(i);
+            if (child.GetComponent<ParticleSystem>() != null) continue;
+            if (child.name.Contains("Sparkle") || child.name.Contains("Selection") || child.name.Contains("Marker") || child.name.Contains("VFX")) continue;
+
+            if (child.GetComponentInChildren<Renderer>() != null)
+            {
+                visualChildBackups.Add(new TransformScaleBackup
+                {
+                    transform = child,
+                    originalLocalScale = child.localScale
+                });
+            }
+        }
+    }
+
     public void TriggerPunchHop()
     {
         if (gameObject.activeInHierarchy)
@@ -651,8 +693,10 @@ public class UpgradableTurret : MonoBehaviour
 
     private IEnumerator DoPunchHop()
     {
-        if (baseScale == Vector3.zero) baseScale = transform.localScale;
-        Vector3 orig = baseScale;
+        if (visualChildBackups.Count == 0)
+        {
+            CacheVisualChildren();
+        }
 
         float elapsed = 0f;
         float duration = 0.22f;
@@ -662,11 +706,31 @@ public class UpgradableTurret : MonoBehaviour
             elapsed += Time.deltaTime;
             float t = elapsed / duration;
             float bounce = 1f + Mathf.Sin(t * Mathf.PI) * 0.18f;
-            transform.localScale = orig * bounce;
+
+            if (visualChildBackups.Count > 0)
+            {
+                for (int i = 0; i < visualChildBackups.Count; i++)
+                {
+                    var b = visualChildBackups[i];
+                    if (b.transform != null)
+                    {
+                        b.transform.localScale = b.originalLocalScale * bounce;
+                    }
+                }
+            }
             yield return null;
         }
 
-        transform.localScale = orig;
+        // Khôi phục kích thước hiển thị ban đầu
+        for (int i = 0; i < visualChildBackups.Count; i++)
+        {
+            var b = visualChildBackups[i];
+            if (b.transform != null)
+            {
+                b.transform.localScale = b.originalLocalScale;
+            }
+        }
+
         punchCoroutine = null;
     }
 

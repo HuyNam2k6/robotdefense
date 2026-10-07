@@ -23,7 +23,7 @@ namespace RobotDefense.Editor
             };
         }
 
-        [MenuItem("Tools/⛏️ Gắn Cúp & Giỏ Cho BipedRobot (Mining Bot)")]
+        // [MenuItem("Tools/⛏️ Gắn Cúp & Giỏ Cho BipedRobot (Mining Bot)")]
         public static void SetupEquipment()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;

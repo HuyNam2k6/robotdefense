@@ -23,7 +23,7 @@ namespace IdleFactoryDefense.Editor
             };
         }
 
-        [MenuItem("Tools/🎨 Cài Đặt Màu & Tạo Prefab Toàn Bộ Robot")]
+        // [MenuItem("Tools/🎨 Cài Đặt Màu & Tạo Prefab Toàn Bộ Robot")]
         public static void SetupAll()
         {
             SetupSteampunkRobot();
@@ -37,7 +37,7 @@ namespace IdleFactoryDefense.Editor
         }
 
         // ================= 1. COMBAT STEAMPUNK ROBOT =================
-        [MenuItem("Tools/Robots/1. Steampunk Robot")]
+        // [MenuItem("Tools/Robots/1. Steampunk Robot")]
         public static void SetupSteampunkRobot()
         {
             string rootPath = "Assets/Models/CombatSteampunkRobot";
@@ -82,7 +82,7 @@ namespace IdleFactoryDefense.Editor
         }
 
         // ================= 2. BIPED ROBOT =================
-        [MenuItem("Tools/Robots/2. Biped Robot")]
+        // [MenuItem("Tools/Robots/2. Biped Robot")]
         public static void SetupBipedRobot()
         {
             string rootPath = "Assets/Models/BipedRobot";
@@ -128,7 +128,7 @@ namespace IdleFactoryDefense.Editor
         }
 
         // ================= 3. HEAVY ROBOT =================
-        [MenuItem("Tools/Robots/3. Heavy Robot")]
+        // [MenuItem("Tools/Robots/3. Heavy Robot")]
         public static void SetupHeavyRobot()
         {
             string rootPath = "Assets/Models/HeavyRobot";
@@ -176,7 +176,7 @@ namespace IdleFactoryDefense.Editor
         }
 
         // ================= 4. DRONE =================
-        [MenuItem("Tools/Robots/4. Drone")]
+        // [MenuItem("Tools/Robots/4. Drone")]
         public static void SetupDrone()
         {
             string rootPath = "Assets/Models/Drone";

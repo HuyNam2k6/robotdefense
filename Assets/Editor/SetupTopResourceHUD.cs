@@ -27,7 +27,7 @@ namespace RobotDefense.Editor
             }
         }
 
-        [MenuItem("Tools/💎 Thiết Lập Thanh Tài Nguyên Đỉnh Màn Hình (Top HUD Bar)")]
+        // [MenuItem("Tools/💎 Thiết Lập Thanh Tài Nguyên Đỉnh Màn Hình (Top HUD Bar)")]
         public static void SetupHUD()
         {
             Canvas canvas = Object.FindAnyObjectByType<Canvas>();

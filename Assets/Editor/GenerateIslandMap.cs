@@ -23,7 +23,7 @@ namespace RobotDefense.Editor
             };
         }
 
-        [MenuItem("Tools/🏝️ Tự Động Tạo Đảo Bán Nguyệt Giữa Biển (Island Map)")]
+        // [MenuItem("Tools/🏝️ Tự Động Tạo Đảo Bán Nguyệt Giữa Biển (Island Map)")]
         public static void Generate()
         {
             // 1. Tìm hoặc tạo Terrain trong Scene

@@ -8,7 +8,7 @@ namespace IdleFactoryDefense.Editor
 {
     public static class SetupMobileUI
     {
-        [MenuItem("Tools/📱 Tạo Giao Diện Điều Khiển Mobile (Joystick & Buttons)")]
+        // [MenuItem("Tools/📱 Tạo Giao Diện Điều Khiển Mobile (Joystick & Buttons)")]
         public static void CreateMobileUI()
         {
             // 1. TẠO HOẶC TÌM EVENTSYSTEM

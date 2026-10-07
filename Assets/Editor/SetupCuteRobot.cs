@@ -13,11 +13,16 @@ namespace IdleFactoryDefense.Editor
         {
             EditorApplication.delayCall += () =>
             {
-                SetupRobot();
+                string controllerPath = "Assets/Models/AnimatedRobot/CuteRobot_Controller.controller";
+                AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
+                if (controller == null || !System.Array.Exists(controller.parameters, p => p.name == "die"))
+                {
+                    SetupRobot();
+                }
             };
         }
 
-        [MenuItem("Tools/🤖 Cài Đặt Cute Robot (Standing, Walking, Wave, Punch)")]
+        [MenuItem("Tools/🤖 Cài Đặt Cute Robot (Full States & Animations)")]
         public static void SetupRobot()
         {
             string rootPath = "Assets/Models/AnimatedRobot";
@@ -118,8 +123,9 @@ namespace IdleFactoryDefense.Editor
             AnimationClip clipPunch = AssetDatabase.LoadAssetAtPath<AnimationClip>(Path.Combine(animDir, "Punch.anim"));
             AnimationClip clipJump = AssetDatabase.LoadAssetAtPath<AnimationClip>(Path.Combine(animDir, "Jump.anim"));
             AnimationClip clipDance = AssetDatabase.LoadAssetAtPath<AnimationClip>(Path.Combine(animDir, "Dance.anim"));
+            AnimationClip clipDeath = AssetDatabase.LoadAssetAtPath<AnimationClip>(Path.Combine(animDir, "Death.anim"));
 
-            Debug.Log($"<color=#00FF88>[CuteRobot] Đã chuẩn hóa: Idle={clipIdle != null}, Walking={clipWalking != null}, Dance={clipDance != null}</color>");
+            Debug.Log($"<color=#00FF88>[CuteRobot] Đã chuẩn hóa: Idle={clipIdle != null}, Walking={clipWalking != null}, Dance={clipDance != null}, Death={clipDeath != null}</color>");
 
             // 2. TẠO HOẶC LẤY ANIMATOR CONTROLLER
             AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
@@ -142,6 +148,8 @@ namespace IdleFactoryDefense.Editor
             controller.AddParameter("mine", AnimatorControllerParameterType.Trigger);
             controller.AddParameter("jump", AnimatorControllerParameterType.Trigger);
             controller.AddParameter("dance", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("die", AnimatorControllerParameterType.Trigger);
+            controller.AddParameter("respawn", AnimatorControllerParameterType.Trigger);
 
             var rootStateMachine = controller.layers[0].stateMachine;
 
@@ -163,6 +171,9 @@ namespace IdleFactoryDefense.Editor
 
             AnimatorState stateDance = rootStateMachine.AddState("Dance");
             stateDance.motion = clipDance;
+
+            AnimatorState stateDeath = rootStateMachine.AddState("Death");
+            stateDeath.motion = clipDeath;
 
             // Đặt Idle chuẩn làm Default State!
             rootStateMachine.defaultState = stateIdle;
@@ -246,6 +257,19 @@ namespace IdleFactoryDefense.Editor
             fromDanceToWalk.hasExitTime = false;
             fromDanceToWalk.duration = 0.05f;
             fromDanceToWalk.AddCondition(AnimatorConditionMode.If, 0, "isMoving");
+
+            // Nối dây: AnyState -> Death (Khi máu về 0)
+            var toDeath = rootStateMachine.AddAnyStateTransition(stateDeath);
+            toDeath.hasExitTime = false;
+            toDeath.duration = 0.05f;
+            toDeath.canTransitionToSelf = false;
+            toDeath.AddCondition(AnimatorConditionMode.If, 0, "die");
+
+            // Nối dây: Death -> Idle (Khi hồi sinh)
+            var fromDeathToIdle = stateDeath.AddTransition(stateIdle);
+            fromDeathToIdle.hasExitTime = false;
+            fromDeathToIdle.duration = 0.15f;
+            fromDeathToIdle.AddCondition(AnimatorConditionMode.If, 0, "respawn");
 
             // 3. CẬP NHẬT PREFAB
             GameObject fbxObj = AssetDatabase.LoadAssetAtPath<GameObject>(fbxPath);

@@ -30,7 +30,7 @@ namespace IdleFactoryDefense.Editor
 			}
 		}
 
-		[MenuItem("Tools/🛒 Thiết Lập Cửa Hàng Dashboard Ngang (Icon Giỏ Hàng)")]
+		// [MenuItem("Tools/🛒 Thiết Lập Cửa Hàng Dashboard Ngang (Icon Giỏ Hàng)")]
 		public static void SetupShop()
 		{
 			if (EditorApplication.isPlaying)

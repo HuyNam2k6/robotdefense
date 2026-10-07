@@ -15,7 +15,7 @@ public static class RestorePhaotuhanh
         };
     }
 
-    [MenuItem("Tools/🚀 Khôi Phục Pháo Tự Hành MLRS & SampleScene")]
+    // [MenuItem("Tools/🚀 Khôi Phục Pháo Tự Hành MLRS & SampleScene")]
     public static void ExecuteRestore()
     {
         // 1. Mở SampleScene nếu chưa mở

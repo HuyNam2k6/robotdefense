@@ -29,7 +29,7 @@ namespace RobotDefense.Editor
             PlantFoliage();
         }
 
-        [MenuItem("Tools/🌿 Trồng Cây Cối & Bụi Rậm Khắp Đảo (Plant Nature)")]
+        // [MenuItem("Tools/🌿 Trồng Cây Cối & Bụi Rậm Khắp Đảo (Plant Nature)")]
         public static void PlantFoliage()
         {
             Terrain terrain = Object.FindFirstObjectByType<Terrain>();

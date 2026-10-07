@@ -16,7 +16,7 @@ namespace RobotDefense.Editor
             };
         }
 
-        [MenuItem("Tools/🚀 Cài Đặt Vật Liệu Space Station Kit")]
+        // [MenuItem("Tools/🚀 Cài Đặt Vật Liệu Space Station Kit")]
         public static void SetupMaterials()
         {
             string texturePath = "Assets/Map/Models/Textures/variation-a.png";

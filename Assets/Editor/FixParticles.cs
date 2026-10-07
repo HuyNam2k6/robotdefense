@@ -7,7 +7,7 @@ public class FixParticles {
         EditorApplication.delayCall += FixAllParticles;
     }
     
-    [MenuItem("Tools/Fix Particle Systems")]
+    // [MenuItem("Tools/Fix Particle Systems")]
     public static void FixAllParticles() {
         if (EditorApplication.isPlayingOrWillChangePlaymode) return;
         string[] guids = AssetDatabase.FindAssets("t:Prefab");

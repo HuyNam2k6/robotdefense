@@ -6,7 +6,7 @@ public class ModularWallBuilderEditor : Editor
 {
 	// MENU TẠO 1 CLICK: Bấm cái là tự sinh ra GameObject có sẵn mẫu tường, chỉ việc cầm kéo!
 	[MenuItem("GameObject/3D Object/Modular Wall Builder", false, 10)]
-	[MenuItem("Tools/Tạo Tường Tự Động (Wall Builder)")]
+	// [MenuItem("Tools/Tạo Tường Tự Động (Wall Builder)")]
 	public static void CreateWallBuilder()
 	{
 		GameObject go = new GameObject("Wall_Builder");

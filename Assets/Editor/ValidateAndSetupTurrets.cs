@@ -15,7 +15,7 @@ public static class ValidateAndSetupTurrets
         };
     }
 
-    [MenuItem("Tools/⚡ Thiết Lập & Nâng Cấp Turrets (Thunder, Pháo, Flamethrower, Tường)")]
+    // [MenuItem("Tools/⚡ Thiết Lập & Nâng Cấp Turrets (Thunder, Pháo, Flamethrower, Tường)")]
     public static void SetupTurretsInSceneAndPrefabs()
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) return; bool sceneDirty = false;

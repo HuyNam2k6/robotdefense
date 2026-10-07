@@ -16,7 +16,7 @@ namespace RobotDefense.Editor
             };
         }
 
-        [MenuItem("Tools/🌿 Tối Ưu & Làm Đẹp Texture Địa Hình (Beautify Terrain)")]
+        // [MenuItem("Tools/🌿 Tối Ưu & Làm Đẹp Texture Địa Hình (Beautify Terrain)")]
         public static void ApplyBeautification()
         {
             if (EditorApplication.isPlayingOrWillChangePlaymode) return;

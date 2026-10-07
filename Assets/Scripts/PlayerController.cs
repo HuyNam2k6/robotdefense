@@ -1,10 +1,25 @@
+using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
 	private Animator animator;
 	private CharacterController cc;
+
+	[Header("Cài đặt Máu & Sinh Mệnh (Health & Death)")]
+	public float maxHealth = 100f;
+	public float currentHealth = 100f;
+	public bool isDead = false;
+
+	[Header("Điểm Hồi Sinh (Respawn Point)")]
+	[Tooltip("Kéo Transform điểm hồi sinh vào đây. Nếu để trống, game sẽ tự động tạo/lấy điểm RespawnPoint")]
+	public Transform respawnPoint;
+	[Tooltip("Thời gian chờ hồi sinh (giây) sau khi chết")]
+	public float respawnDelay = 3.0f;
+	[Tooltip("Bật/tắt thanh máu nổi trên đầu Player")]
+	public bool showFloatingHealthBar = true;
 
 	[Header("Cài đặt Di Chuyển")]
 	public float moveSpeed = 4.5f;
@@ -39,12 +54,27 @@ public class PlayerController : MonoBehaviour
 	private float verticalVelocity = 0f; // Trọng lực và lực nhảy
 	private Camera mainCam;
 
+	private Vector3 initialSpawnPos;
+	private Quaternion initialSpawnRot;
+	private GameObject healthBarObj;
+	private RectTransform healthBarFill;
+	private Image healthBarFillImage;
+
 	// Biến đếm thời gian đứng yên
 	private float idleTimer = 0f;
 	private float nextIdleActionTime = 7f;
 
 	void Awake()
 	{
+		// KHÓA AN TOÀN 1: Nếu trên cùng GameObject có 2 component PlayerController -> Tự hủy bản sao thừa
+		PlayerController[] localPCs = GetComponents<PlayerController>();
+		if (localPCs.Length > 1 && localPCs[0] != this)
+		{
+			enabled = false;
+			Destroy(this);
+			return;
+		}
+
 		// Đảm bảo đối tượng luôn có Tag Player chuẩn xác để hệ thống vũ khí tự động bỏ qua
 		if (!gameObject.CompareTag("Player"))
 		{
@@ -70,12 +100,23 @@ public class PlayerController : MonoBehaviour
 		if (joystick == null)
 			joystick = FindAnyObjectByType<VirtualJoystick>();
 
+		initialSpawnPos = transform.position;
+		initialSpawnRot = transform.rotation;
+		currentHealth = maxHealth;
+
+		EnsureRespawnPointExists();
+		CreateFloatingHealthBar();
+
 		// Lên lịch ngẫu nhiên lần đầu tiên (từ 5 đến 10 giây)
 		nextIdleActionTime = Random.Range(minIdleTime, maxIdleTime);
 	}
 
 	void Update()
 	{
+		if (!enabled || isDead)
+		{
+			return;
+		}
 		// ========== 1. ĐỌC INPUT ==========
 		float h = Input.GetAxisRaw("Horizontal");
 		float v = Input.GetAxisRaw("Vertical");
@@ -149,10 +190,16 @@ public class PlayerController : MonoBehaviour
 		float moveDt = Mathf.Min(Time.deltaTime, 0.04f);
 		Vector3 move = transform.forward * currentSpeed;
 		move.y = verticalVelocity;
-		cc.Move(move * moveDt);
+		if (cc != null && cc.enabled)
+		{
+			cc.Move(move * moveDt);
+		}
 
 		// ========== 5.1. BẢO VỆ CHỐNG RƠI XUYÊN LÒNG ĐẤT VÀ CHỐNG BAY LÊN TRỜI (TRIỆT ĐỂ) ==========
-		EnforceGroundBoundary();
+		if (!isDead)
+		{
+			EnforceGroundBoundary();
+		}
 
 		// ========== 6. ANIMATOR ==========
 		if (animator != null)
@@ -270,68 +317,249 @@ public class PlayerController : MonoBehaviour
 			animator.SetTrigger("dance");
 	}
 
-	// ================= HỆ THỐNG BẢO VỆ AN TOÀN CHO PLAYER =================
+	void LateUpdate()
+	{
+		if (healthBarObj != null && mainCam != null)
+		{
+			healthBarObj.transform.rotation = mainCam.transform.rotation;
+		}
+	}
+
+	// ================= HỆ THỐNG CỨU HỘ VỰC BIỂN =================
 	private void EnforceGroundBoundary()
 	{
 		Vector3 currentPos = transform.position;
 
-		// 1. CỨU HỘ VỰC THẲM / BIỂN: Nếu rơi khỏi mép đảo xuống biển (Y < 4.0m)
-		// Đưa ngay về vị trí an toàn ở trung tâm đảo, triệt tiêu vận tốc rơi
-		if (currentPos.y < 4.0f)
+		// Rơi khỏi đảo xuống biển (Y < 2.0m)
+		if (currentPos.y < 2.0f && !isDead)
 		{
-			bool wasEnabled = cc.enabled;
-			if (wasEnabled) cc.enabled = false;
-
-			transform.position = new Vector3(0f, 10.5f, -32f);
-			verticalVelocity = 0f;
-
-			if (wasEnabled) cc.enabled = true;
-			Debug.LogWarning("<color=yellow>[Bảo Vệ Player]</color> Đã tự động cứu hộ Player về vị trí trung tâm đảo an toàn!");
-			return;
-		}
-
-		// 2. CHỐNG BAY LÊN TRỜI: Nếu độ cao vượt quá mức cho phép bất thường (Y > 15.0m)
-		// Triệt tiêu lực đẩy lên, để trọng lực kéo Player hạ cánh tự nhiên
-		if (currentPos.y > 15.0f)
-		{
-			if (verticalVelocity > 0f)
-			{
-				verticalVelocity = 0f;
-			}
-		}
-
-		// 3. CHỐNG LÚN SÂU XUYÊN ĐẤT: Chỉ can thiệp khi bị kẹt rơi sâu hơn 0.8m dưới bề mặt đảo
-		if (currentPos.y < 7.5f && currentPos.y >= 4.0f)
-		{
-			if (Terrain.activeTerrain != null)
-			{
-				float terrainY = Terrain.activeTerrain.SampleHeight(currentPos) + Terrain.activeTerrain.transform.position.y;
-				if (terrainY > 8.0f && currentPos.y < terrainY - 0.8f)
-				{
-					bool wasEnabled = cc.enabled;
-					if (wasEnabled) cc.enabled = false;
-
-					currentPos.y = terrainY + 0.1f;
-					transform.position = currentPos;
-					verticalVelocity = 0f;
-
-					if (wasEnabled) cc.enabled = true;
-				}
-			}
+			Debug.LogWarning("<color=yellow>[Cứu Hộ]</color> Player rơi xuống biển! Kích hoạt tử nạn và hồi sinh...");
+			TakeDamage(maxHealth);
 		}
 	}
 
-	// ================= MIỄN NHIỄM SÁT THƯƠNG TỪ ĐẠN VÀ TIA SÉT =================
-	/// <summary>
-	/// Player hoàn toàn miễn nhiễm 100% với mọi loại đạn, tia sét và vũ khí phòng thủ
-	/// </summary>
+	// ================= HỆ THỐNG MÁU, NHẬN SÁT THƯƠNG, TỬ NẠN & HỒI SINH =================
 	public void TakeDamage(float amount)
 	{
-		// Bỏ qua 100%, không nhận sát thương hay hiệu ứng nào
+		if (!enabled || isDead) return;
+
+		currentHealth -= amount;
+		currentHealth = Mathf.Max(0f, currentHealth);
+
+		Debug.Log($"<color=red>[Player]</color> Bị đánh trúng, nhận {amount} sát thương! HP: {currentHealth:F0}/{maxHealth}");
+
+		UpdateHealthBar();
+
+		if (currentHealth <= 0f)
+		{
+			Die();
+		}
 	}
 
 	public void TakeDamage(int amount)
 	{
-		// Bỏ qua 100%, không nhận sát thương hay hiệu ứng nào
+		TakeDamage((float)amount);
+	}
+
+	public void Die()
+	{
+		if (isDead) return;
+		isDead = true;
+
+		Debug.Log("<color=red><b>[Player]</b> ĐÃ BỊ TIÊU DIỆT! Sẽ hồi sinh sau " + respawnDelay + " giây...</color>");
+
+		currentSpeed = 0f;
+		verticalVelocity = 0f;
+
+		// Vô hiệu hóa CharacterController để Player nằm yên trên sàn, không bị trọng lực hoặc va chạm làm trôi
+		if (cc != null) cc.enabled = false;
+
+		// Kích hoạt animation chết (nằm gục xuống đất)
+		if (animator != null)
+		{
+			animator.ResetTrigger("die");
+			animator.SetTrigger("die");
+			animator.Play("Death", 0, 0f);
+		}
+
+		UpdateHealthBar();
+
+		StartCoroutine(RespawnRoutine());
+	}
+
+	private IEnumerator RespawnRoutine()
+	{
+		yield return new WaitForSeconds(respawnDelay);
+		Respawn();
+	}
+
+	public void Respawn()
+	{
+		Vector3 targetSpawnPos;
+		Quaternion targetSpawnRot = initialSpawnRot;
+
+		if (respawnPoint != null)
+		{
+			targetSpawnPos = respawnPoint.position;
+			targetSpawnRot = respawnPoint.rotation;
+		}
+		else
+		{
+			targetSpawnPos = initialSpawnPos;
+		}
+
+		// Đảm bảo không bị kẹt dưới địa hình
+		if (Terrain.activeTerrain != null)
+		{
+			float terrainH = Terrain.activeTerrain.SampleHeight(targetSpawnPos) + Terrain.activeTerrain.transform.position.y;
+			targetSpawnPos.y = Mathf.Max(targetSpawnPos.y, terrainH + 0.1f);
+		}
+
+		transform.position = targetSpawnPos;
+		transform.rotation = targetSpawnRot;
+
+		if (cc != null) cc.enabled = true;
+
+		currentHealth = maxHealth;
+		isDead = false;
+		verticalVelocity = 0f;
+		currentSpeed = 0f;
+
+		if (animator != null)
+		{
+			animator.ResetTrigger("die");
+			animator.SetTrigger("respawn");
+			animator.Play("Idle", 0, 0f);
+		}
+
+		UpdateHealthBar();
+
+		SpawnRespawnVFX(targetSpawnPos);
+
+		Debug.Log($"<color=cyan><b>[Player]</b> ĐÃ HỒI SINH THÀNH CÔNG TẠI: {targetSpawnPos}! HP đầy lại {maxHealth}/{maxHealth}.</color>");
+	}
+
+	private void EnsureRespawnPointExists()
+	{
+		if (respawnPoint == null)
+		{
+			GameObject existingPoint = GameObject.Find("RespawnPoint") ?? GameObject.FindWithTag("Respawn");
+			if (existingPoint != null)
+			{
+				respawnPoint = existingPoint.transform;
+			}
+			else
+			{
+				GameObject newPoint = new GameObject("RespawnPoint");
+				newPoint.transform.position = transform.position;
+				newPoint.transform.rotation = transform.rotation;
+				try { newPoint.tag = "Respawn"; } catch { }
+
+				CreateRespawnPadVisual(newPoint.transform);
+				respawnPoint = newPoint.transform;
+			}
+		}
+	}
+
+	private void CreateRespawnPadVisual(Transform parentPoint)
+	{
+		GameObject pad = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+		pad.name = "[RespawnPad_Visual]";
+		pad.transform.SetParent(parentPoint, false);
+		pad.transform.localPosition = new Vector3(0f, 0.04f, 0f);
+		pad.transform.localScale = new Vector3(2.2f, 0.04f, 2.2f);
+
+		Collider col = pad.GetComponent<Collider>();
+		if (col != null) Destroy(col);
+
+		Renderer r = pad.GetComponent<Renderer>();
+		if (r != null)
+		{
+			Shader sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
+			Material mat = new Material(sh);
+			mat.color = new Color(0f, 0.9f, 1f, 0.8f); // Cyan phát sáng
+			r.material = mat;
+		}
+	}
+
+	private void SpawnRespawnVFX(Vector3 pos)
+	{
+		GameObject aura = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+		aura.name = "[Respawn_Aura]";
+		aura.transform.position = pos + Vector3.up * 1.0f;
+		aura.transform.localScale = new Vector3(1.8f, 0.05f, 1.8f);
+
+		Collider col = aura.GetComponent<Collider>();
+		if (col != null) Destroy(col);
+
+		Renderer r = aura.GetComponent<Renderer>();
+		if (r != null)
+		{
+			Shader sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
+			Material mat = new Material(sh);
+			mat.color = new Color(0.1f, 1f, 0.8f, 0.75f);
+			r.material = mat;
+		}
+
+		Destroy(aura, 1.5f);
+	}
+
+	private void CreateFloatingHealthBar()
+	{
+		if (!showFloatingHealthBar) return;
+		if (healthBarObj != null) return;
+
+		healthBarObj = new GameObject("[Player_HealthBar]");
+		healthBarObj.transform.SetParent(transform, false);
+		healthBarObj.transform.localPosition = new Vector3(0f, 1.95f, 0f);
+
+		Canvas canvas = healthBarObj.AddComponent<Canvas>();
+		canvas.renderMode = RenderMode.WorldSpace;
+		CanvasScaler cs = healthBarObj.AddComponent<CanvasScaler>();
+		cs.dynamicPixelsPerUnit = 20;
+
+		RectTransform rt = healthBarObj.GetComponent<RectTransform>();
+		rt.sizeDelta = new Vector2(1.1f, 0.14f);
+		rt.localScale = Vector3.one;
+
+		// Khung nền đen xám viền
+		GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
+		bg.transform.SetParent(healthBarObj.transform, false);
+		RectTransform bgRt = bg.GetComponent<RectTransform>();
+		bgRt.anchorMin = Vector2.zero;
+		bgRt.anchorMax = Vector2.one;
+		bgRt.sizeDelta = Vector2.zero;
+		Image bgImg = bg.GetComponent<Image>();
+		bgImg.color = new Color(0.12f, 0.12f, 0.12f, 0.85f);
+
+		// Thanh fill máu
+		GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+		fill.transform.SetParent(healthBarObj.transform, false);
+		healthBarFill = fill.GetComponent<RectTransform>();
+		healthBarFill.anchorMin = new Vector2(0f, 0.1f);
+		healthBarFill.anchorMax = new Vector2(1f, 0.9f);
+		healthBarFill.sizeDelta = new Vector2(-0.02f, 0f);
+		healthBarFill.pivot = new Vector2(0f, 0.5f);
+		healthBarFill.anchoredPosition = new Vector2(0.01f, 0f);
+		healthBarFillImage = fill.GetComponent<Image>();
+		healthBarFillImage.color = new Color(0.2f, 0.9f, 0.3f, 1f);
+
+		UpdateHealthBar();
+	}
+
+	private void UpdateHealthBar()
+	{
+		if (healthBarFill == null) return;
+
+		float pct = maxHealth > 0f ? Mathf.Clamp01(currentHealth / maxHealth) : 0f;
+		healthBarFill.localScale = new Vector3(pct, 1f, 1f);
+
+		if (healthBarFillImage != null)
+		{
+			if (pct > 0.5f)
+				healthBarFillImage.color = Color.Lerp(new Color(1f, 0.85f, 0.1f), new Color(0.2f, 0.9f, 0.3f), (pct - 0.5f) * 2f);
+			else
+				healthBarFillImage.color = Color.Lerp(new Color(0.9f, 0.15f, 0.15f), new Color(1f, 0.85f, 0.1f), pct * 2f);
+		}
 	}
 }

@@ -7,7 +7,7 @@ namespace IdleFactoryDefense.Editor
 {
     public static class GraphicsApiSwitcher
     {
-        [MenuItem("Tools/⚙️ Ép Chuyển Sang DirectX 11 (DX11)")]
+        // [MenuItem("Tools/⚙️ Ép Chuyển Sang DirectX 11 (DX11)")]
         public static void SwitchToDirectX11()
         {
             // Tắt chế độ tự động chọn Graphics API cho Windows Standalone 64-bit
