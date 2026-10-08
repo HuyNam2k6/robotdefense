@@ -246,6 +246,21 @@
 
 ---
 
+### ❌ Lỗi 18: BipedRobot bị dịch chuyển lên nóc tảng đá hoặc bắn vọt lên trời (Y > 105m) khi va chạm với "Tảng Đá Rêu (Rocks)"
+- **Mô tả chi tiết:**
+  - Khi robot đào mỏ `BipedRobot_Prefab` di chuyển đến khai thác tảng đá `🪨 Tảng Đá Rêu (Rocks)`, vừa chạm vào đá thì robot bị dịch chuyển (teleport) lên một vị trí khác (lên đỉnh tảng đá hoặc bị bắn vọt thẳng lên trời với độ cao Y = 105.9572m).
+- **Nguyên nhân gốc rễ:**
+  1. **Va chạm bằng code thay vì va chạm bằng Collider**: Hàm `GetTrueGroundHeight()` trong `WorkerBot.cs` bắn Raycast từ trên xuống để dò độ cao mặt đất nhưng không lọc bỏ Collider của Tảng Đá (`Rock`). Khi tia raycast bắn trúng đỉnh đá, code hiểu nhầm đỉnh đá là "mặt đất" và cưỡng bức gán `transform.position.y = đỉnh đá`!
+  2. **Trùng lặp 2 CharacterController và 2 WorkerBot**: Do `SetupWorkerEquipment.cs` trước đây quét nhầm bone con `Bip001 Pelvis` và thêm `WorkerBot` vào `Bip001`, làm cho bone con `Bip001` bị gắn thêm 1 `CharacterController` thứ hai lồng vào `CharacterController` của Root. Khi ép sát vào tảng đá, 2 CharacterController va đập depenetration tạo ra xung lực cực lớn hất robot bay thẳng lên trời.
+  3. **Robot cố đi xuyên vào tâm tảng đá & trèo dốc**: Code tính khoảng cách tới tâm đá (`targetRock.position`) thay vì bề mặt vỏ đá (`Collider.ClosestPoint`), đồng thời `stepOffset = 0.3` nhân với scale 3x thành 0.9m khiến CharacterController tự động bước trèo lên dốc đá.
+- **Nguyên tắc khắc phục & bắt buộc tuân thủ:**
+  1. **Chuyển hoàn toàn sang va chạm Collider vật lý tự nhiên**: Sử dụng `OnControllerColliderHit` và khoảng cách bề mặt `Collider.ClosestPoint(transform.position)`. Khi robot chạm tới mép vỏ đá ($\le 0.5m$), lập tức triệt tiêu lực đẩy ngang (`horizontalMove = Vector3.zero`) và chuyển sang đào đá. Để Collider của tảng đá tự nhiên chặn đứng robot, không bao giờ dùng code dịch chuyển `transform.position`.
+  2. **Độ cao mặt đất chỉ lấy Terrain**: `GetTrueGroundHeight()` ưu tiên tuyệt đối `Terrain.activeTerrain.SampleHeight(pos)`. Khi raycast sàn phải loại trừ 100% Collider của Đá (`Rock`), Cây, Tường, Trụ, Quái (tuyệt đối không bao giờ nhận đỉnh đá làm mặt đất).
+  3. **Khóa trần và chặn trèo đá**: Đặt `stepOffset = 0.08f` để robot không thể bước lên gờ đá. Khóa vận tốc nhảy $Y \le 0$.
+  4. **Dọn sạch bone con**: Xóa triệt để mọi `WorkerBot` và `CharacterController` trên bone con `Bip001`. Trong `WorkerBot.Awake()` thêm cơ chế tự hủy nếu script bị gắn vào con.
+
+---
+
 ## 📋 2. QUY TRÌNH BẮT BUỘC TRƯỚC KHI CHẠY MỖI PROMPT (PRE-FLIGHT CHECKLIST)
 
 Mỗi khi nhận được 1 prompt mới từ người dùng, AI phải thực hiện tuần tự:

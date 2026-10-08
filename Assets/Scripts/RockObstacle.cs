@@ -1,9 +1,9 @@
 using UnityEngine;
 
 /// <summary>
-/// Đảm bảo tất cả các tảng đá (Rocks) đều có Collider vật lý vững chắc,
+/// Đảm bảo tất cả các tảng đá (Rocks) đều có Collider vật lý vững chắc và gán Tag "Rock",
 /// ngăn người chơi và robot đi xuyên qua đá.
-/// Tự động thêm MeshCollider hoặc kích hoạt Collider có sẵn.
+/// Tự động thêm MeshCollider (convex) hoặc BoxCollider.
 /// Chạy cả trong Editor (ExecuteAlways) lẫn khi Play game.
 /// </summary>
 [ExecuteAlways]
@@ -51,7 +51,20 @@ public class RockObstacle : MonoBehaviour
     {
         if (rockObj == null) return;
 
-        // 1. Kiểm tra xem đã có Collider nào trên GameObject hoặc các con chưa
+        // 1. Tự động gán Tag "Rock" nếu Tag này đã được khai báo trong dự án
+        try
+        {
+            if (rockObj.tag != "Rock")
+            {
+                rockObj.tag = "Rock";
+            }
+        }
+        catch
+        {
+            // Bỏ qua nếu Tag "Rock" chưa được thêm vào TagManager
+        }
+
+        // 2. Kiểm tra xem đã có Collider nào trên GameObject hoặc các con chưa
         Collider existingCol = rockObj.GetComponentInChildren<Collider>(true);
         if (existingCol != null)
         {
@@ -59,7 +72,7 @@ public class RockObstacle : MonoBehaviour
             return;
         }
 
-        // 2. Nếu chưa có Collider, tìm MeshFilter để tạo MeshCollider chính xác theo hình dáng đá
+        // 3. Nếu chưa có Collider, tìm MeshFilter để tạo MeshCollider
         MeshFilter mf = rockObj.GetComponentInChildren<MeshFilter>(true);
         if (mf != null && mf.sharedMesh != null)
         {
@@ -69,12 +82,13 @@ public class RockObstacle : MonoBehaviour
                 mc = mf.gameObject.AddComponent<MeshCollider>();
             }
             mc.sharedMesh = mf.sharedMesh;
-            mc.convex = false; // Bám sát từng đường gờ đá
+            // Bật convex để hỗ trợ va chạm mượt mà với Trigger và CharacterController
+            mc.convex = true;
             mc.enabled = true;
             return;
         }
 
-        // 3. Fallback: Nếu không tìm thấy MeshFilter, tạo BoxCollider bọc quanh
+        // 4. Fallback: Nếu không tìm thấy MeshFilter, tạo BoxCollider bọc quanh
         BoxCollider bc = rockObj.GetComponent<BoxCollider>();
         if (bc == null)
         {
@@ -83,4 +97,3 @@ public class RockObstacle : MonoBehaviour
         bc.enabled = true;
     }
 }
-

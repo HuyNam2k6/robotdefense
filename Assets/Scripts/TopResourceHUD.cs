@@ -80,6 +80,8 @@ public class TopResourceHUD : MonoBehaviour
         }
     }
 
+    private int lastStoneCount = -1;
+
     /// <summary>
     /// Cập nhật hiển thị số lượng tài nguyên có dấu phẩy phân cách hàng nghìn (ví dụ 12,450)
     /// </summary>
@@ -88,7 +90,15 @@ public class TopResourceHUD : MonoBehaviour
         if (GameEconomy.Instance == null) return;
 
         if (coinText != null) coinText.text = GameEconomy.Instance.coins.ToString("#,##0");
-        if (stoneText != null) stoneText.text = GameEconomy.Instance.stoneCount.ToString("#,##0");
+        if (stoneText != null)
+        {
+            stoneText.text = GameEconomy.Instance.stoneCount.ToString("#,##0");
+            if (lastStoneCount != -1 && GameEconomy.Instance.stoneCount > lastStoneCount)
+            {
+                PunchScale(stoneText);
+            }
+            lastStoneCount = GameEconomy.Instance.stoneCount;
+        }
         if (woodText != null) woodText.text = GameEconomy.Instance.woodCount.ToString("#,##0");
         if (energyText != null) energyText.text = GameEconomy.Instance.energyCount.ToString("#,##0");
         if (gemText != null) gemText.text = GameEconomy.Instance.gemCount.ToString("#,##0");
