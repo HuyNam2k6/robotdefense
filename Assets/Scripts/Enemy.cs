@@ -138,62 +138,130 @@ public class Enemy : MonoBehaviour
 
     public void FindTarget()
     {
-        if (target != null && target.gameObject.activeInHierarchy)
+        // ================= 3 TẦNG ƯU TIÊN MỤC TIÊU FIX CỨNG THEO YÊU CẦU =================
+        // Ưu tiên 1: TƯỜNG BẢO VỆ (WallSegment)
+        // Ưu tiên 2: VŨ KHÍ PHÒNG THỦ (Trụ súng) & ROBOT QUÂN ĐỘI (FriendlyCombatRobot)
+        // Ưu tiên 3: NGƯỜI CHƠI (Player - Mục tiêu cuối cùng)
+
+        // 1. TẦNG 1: TƯỜNG BẢO VỆ (WALLS)
+        WallSegment[] allWalls = FindObjectsByType<WallSegment>();
+        float closestWallDist = float.MaxValue;
+        Transform closestWall = null;
+        for (int i = 0; i < allWalls.Length; i++)
         {
-            var friendlyBot = target.GetComponent<FriendlyCombatRobot>();
-            if (friendlyBot != null && friendlyBot.currentHealth <= 0f)
+            WallSegment w = allWalls[i];
+            if (w != null && w.gameObject.activeInHierarchy && !w.isDestroyed && w.currentHealth > 0f)
             {
-                target = null;
-            }
-            else
-            {
-                return;
+                float d = Vector3.Distance(transform.position, w.transform.position);
+                if (d < closestWallDist)
+                {
+                    closestWallDist = d;
+                    closestWall = w.transform;
+                }
             }
         }
+        if (closestWall != null)
+        {
+            target = closestWall;
+            return;
+        }
 
-        // 1. Kiểm tra xem có Robot đồng minh nào ở cự ly gần chặn đường không (trong vòng 8m)
-        FriendlyCombatRobot[] nearbyRobots = FindObjectsByType<FriendlyCombatRobot>(FindObjectsSortMode.None);
-        float closestRobotDist = 8f;
-        Transform closestRobot = null;
+        // 2. TẦNG 2: VŨ KHÍ PHÒNG THỦ & ROBOT QUÂN ĐỘI
+        float closestDefenseDist = float.MaxValue;
+        Transform closestDefense = null;
+
+        // 2a. Quét Robot chiến đấu đồng minh
+        FriendlyCombatRobot[] nearbyRobots = FindObjectsByType<FriendlyCombatRobot>();
         for (int i = 0; i < nearbyRobots.Length; i++)
         {
-            if (nearbyRobots[i] != null && nearbyRobots[i].currentHealth > 0f)
+            FriendlyCombatRobot r = nearbyRobots[i];
+            if (r != null && r.gameObject.activeInHierarchy && !r.isDead && r.currentHealth > 0f)
             {
-                float d = Vector3.Distance(transform.position, nearbyRobots[i].transform.position);
-                if (d < closestRobotDist)
+                float d = Vector3.Distance(transform.position, r.transform.position);
+                if (d < closestDefenseDist)
                 {
-                    closestRobotDist = d;
-                    closestRobot = nearbyRobots[i].transform;
+                    closestDefenseDist = d;
+                    closestDefense = r.transform;
                 }
             }
         }
 
-        if (closestRobot != null)
+        // 2b. Quét Trụ súng nâng cấp (UpgradableTurret)
+        UpgradableTurret[] turrets = FindObjectsByType<UpgradableTurret>();
+        for (int i = 0; i < turrets.Length; i++)
         {
-            target = closestRobot;
+            UpgradableTurret t = turrets[i];
+            if (t != null && t.gameObject.activeInHierarchy && !t.isDestroyed && t.currentHealth > 0f)
+            {
+                float d = Vector3.Distance(transform.position, t.transform.position);
+                if (d < closestDefenseDist)
+                {
+                    closestDefenseDist = d;
+                    closestDefense = t.transform;
+                }
+            }
+        }
+
+        // 2c. Quét Trụ súng thông thường (TurretController)
+        TurretController[] simpleTurrets = FindObjectsByType<TurretController>();
+        for (int i = 0; i < simpleTurrets.Length; i++)
+        {
+            TurretController st = simpleTurrets[i];
+            if (st != null && st.gameObject.activeInHierarchy)
+            {
+                float d = Vector3.Distance(transform.position, st.transform.position);
+                if (d < closestDefenseDist)
+                {
+                    closestDefenseDist = d;
+                    closestDefense = st.transform;
+                }
+            }
+        }
+
+        if (closestDefense != null)
+        {
+            target = closestDefense;
             return;
         }
 
-        // 2. Ưu tiên tìm Căn cứ (Base / BaseHQ)
-        GameObject baseObj = GameObject.FindGameObjectWithTag("Base") ?? GameObject.Find("Base") ?? GameObject.Find("BaseHQ");
-        if (baseObj != null)
+        // 3. TẦNG 3: NGƯỜI CHƠI (PLAYER - MỤC TIÊU CUỐI CÙNG KHI KHÔNG CÒN TƯỜNG, TRỤ, LÍNH)
+        PlayerController player = FindAnyObjectByType<PlayerController>();
+        if (player != null && player.gameObject.activeInHierarchy && !player.isDead && player.currentHealth > 0f)
         {
-            target = baseObj.transform;
+            target = player.transform;
             return;
         }
 
-        // 3. Tìm Người chơi (Player)
-        GameObject playerObj = GameObject.FindGameObjectWithTag("Player") ?? GameObject.Find("Player");
-        if (playerObj != null)
-        {
-            target = playerObj.transform;
-            return;
-        }
+        // Không có mục tiêu hợp lệ nào
+        target = null;
     }
 
     void Update()
     {
         if (isDead) return;
+
+        // Kiểm tra xem mục tiêu hiện tại còn sống không
+        if (target != null)
+        {
+            if (!target.gameObject.activeInHierarchy)
+            {
+                target = null;
+            }
+            else
+            {
+                var wall = target.GetComponent<WallSegment>();
+                if (wall != null && (wall.isDestroyed || wall.currentHealth <= 0f)) target = null;
+
+                var robot = target.GetComponent<FriendlyCombatRobot>();
+                if (robot != null && (robot.isDead || robot.currentHealth <= 0f)) target = null;
+
+                var turret = target.GetComponent<UpgradableTurret>();
+                if (turret != null && (turret.isDestroyed || turret.currentHealth <= 0f)) target = null;
+
+                var player = target.GetComponent<PlayerController>();
+                if (player != null && (player.isDead || player.currentHealth <= 0f)) target = null;
+            }
+        }
 
         if (target == null || !target.gameObject.activeInHierarchy)
         {

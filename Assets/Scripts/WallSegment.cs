@@ -11,6 +11,24 @@ public class WallSegment : MonoBehaviour
     [Range(1, 6)]
     public int currentLevel = 1;
 
+    [Header("Máu Tường (Wall Health)")]
+    public float maxHealth = 150f;
+    public float currentHealth = 150f;
+    public bool isDestroyed = false;
+
+    public void TakeDamage(float amount)
+    {
+        if (isDestroyed) return;
+        currentHealth -= amount;
+        FloatingDamageText.Spawn(transform.position + Vector3.up * 1.5f, amount, new Color(0.9f, 0.6f, 0.2f));
+        if (currentHealth <= 0f)
+        {
+            isDestroyed = true;
+            AllWalls.Remove(this);
+            Destroy(gameObject);
+        }
+    }
+
     private Renderer[] cachedRenderers;
     private MaterialPropertyBlock propBlock;
     private Vector3 baseScale = Vector3.zero;

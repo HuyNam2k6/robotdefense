@@ -42,6 +42,24 @@ public class UpgradableTurret : MonoBehaviour
     public TurretController turretController;
     public TurretWeapon turretWeapon;
 
+    [Header("Máu Trụ Phòng Thủ (Turret Health)")]
+    public float maxHealth = 250f;
+    public float currentHealth = 250f;
+    public bool isDestroyed = false;
+
+    public void TakeDamage(float amount)
+    {
+        if (isDestroyed) return;
+        currentHealth -= amount;
+        FloatingDamageText.Spawn(transform.position + Vector3.up * 2.2f, amount, new Color(1f, 0.5f, 0.2f));
+        if (currentHealth <= 0f)
+        {
+            isDestroyed = true;
+            AllTurrets.Remove(this);
+            Destroy(gameObject);
+        }
+    }
+
     // Quản lý Renderers, Vật Liệu Gốc và Vật Liệu Cấp Độ
     private Renderer[] cachedRenderers;
     private MaterialPropertyBlock propBlock;

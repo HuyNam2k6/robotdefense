@@ -54,7 +54,7 @@ public class FriendlyCombatRobot : MonoBehaviour
     // Biến trạng thái
     private Transform currentTarget;
     private float lastAttackTime = 0f;
-    private bool isDead = false;
+    public bool isDead = false;
     private Vector3 guardPos;
     private Vector3 patrolDestination;
     private float nextPatrolTime = 0f;
