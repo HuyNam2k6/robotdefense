@@ -53,6 +53,19 @@ public class Enemy : MonoBehaviour
     private float lastAttackTime = 0f;
     private bool isDead = false;
     private Collider myCollider;
+    private float retargetTimer = 0f;
+
+    public static readonly System.Collections.Generic.List<Enemy> AllEnemies = new System.Collections.Generic.List<Enemy>();
+
+    void OnEnable()
+    {
+        if (!AllEnemies.Contains(this)) AllEnemies.Add(this);
+    }
+
+    void OnDisable()
+    {
+        AllEnemies.Remove(this);
+    }
 
     void Awake()
     {
@@ -138,18 +151,21 @@ public class Enemy : MonoBehaviour
 
     public void FindTarget()
     {
-        // ================= 3 TẦNG ƯU TIÊN MỤC TIÊU FIX CỨNG THEO YÊU CẦU =================
-        // Ưu tiên 1: TƯỜNG BẢO VỆ (WallSegment)
-        // Ưu tiên 2: VŨ KHÍ PHÒNG THỦ (Trụ súng) & ROBOT QUÂN ĐỘI (FriendlyCombatRobot)
-        // Ưu tiên 3: NGƯỜI CHƠI (Player - Mục tiêu cuối cùng)
+        // ================= CHỌN MỤC TIÊU LINH HOẠT THEO KHOẢNG CÁCH =================
+        // Không fix cứng thứ tự ưu tiên, mà trong 3 loại:
+        // 1. Tường (WallSegment)
+        // 2. Hệ thống phòng thủ / Robot đồng minh (Turret & FriendlyCombatRobot)
+        // 3. Người chơi (Player)
+        // Cái nào ở gần Quái vật nhất thì sẽ tự động tấn công cái đấy!
 
-        // 1. TẦNG 1: TƯỜNG BẢO VỆ (WALLS)
-        WallSegment[] allWalls = FindObjectsByType<WallSegment>();
+        // 1. Quét tìm BỨC TƯỜNG (WallSegment) gần nhất
         float closestWallDist = float.MaxValue;
         Transform closestWall = null;
-        for (int i = 0; i < allWalls.Length; i++)
+
+        // Ưu tiên dùng danh sách tĩnh AllWalls để tối ưu hiệu năng CPU
+        for (int i = 0; i < WallSegment.AllWalls.Count; i++)
         {
-            WallSegment w = allWalls[i];
+            WallSegment w = WallSegment.AllWalls[i];
             if (w != null && w.gameObject.activeInHierarchy && !w.isDestroyed && w.currentHealth > 0f)
             {
                 float d = Vector3.Distance(transform.position, w.transform.position);
@@ -160,17 +176,44 @@ public class Enemy : MonoBehaviour
                 }
             }
         }
-        if (closestWall != null)
+        if (closestWall == null)
         {
-            target = closestWall;
-            return;
+            WallSegment[] allWalls = FindObjectsByType<WallSegment>();
+            for (int i = 0; i < allWalls.Length; i++)
+            {
+                WallSegment w = allWalls[i];
+                if (w != null && w.gameObject.activeInHierarchy && !w.isDestroyed && w.currentHealth > 0f)
+                {
+                    float d = Vector3.Distance(transform.position, w.transform.position);
+                    if (d < closestWallDist)
+                    {
+                        closestWallDist = d;
+                        closestWall = w.transform;
+                    }
+                }
+            }
         }
 
-        // 2. TẦNG 2: VŨ KHÍ PHÒNG THỦ & ROBOT QUÂN ĐỘI
+        // 2. Quét tìm HỆ THỐNG PHÒNG THỦ / ROBOT ĐỒNG MINH gần nhất
         float closestDefenseDist = float.MaxValue;
         Transform closestDefense = null;
 
-        // 2a. Quét Robot chiến đấu đồng minh
+        // 2a. Trụ nâng cấp UpgradableTurret
+        for (int i = 0; i < UpgradableTurret.AllTurrets.Count; i++)
+        {
+            UpgradableTurret t = UpgradableTurret.AllTurrets[i];
+            if (t != null && t.gameObject.activeInHierarchy && !t.isDestroyed && t.currentHealth > 0f)
+            {
+                float d = Vector3.Distance(transform.position, t.transform.position);
+                if (d < closestDefenseDist)
+                {
+                    closestDefenseDist = d;
+                    closestDefense = t.transform;
+                }
+            }
+        }
+
+        // 2b. Robot chiến đấu đồng minh FriendlyCombatRobot
         FriendlyCombatRobot[] nearbyRobots = FindObjectsByType<FriendlyCombatRobot>();
         for (int i = 0; i < nearbyRobots.Length; i++)
         {
@@ -186,28 +229,12 @@ public class Enemy : MonoBehaviour
             }
         }
 
-        // 2b. Quét Trụ súng nâng cấp (UpgradableTurret)
-        UpgradableTurret[] turrets = FindObjectsByType<UpgradableTurret>();
-        for (int i = 0; i < turrets.Length; i++)
-        {
-            UpgradableTurret t = turrets[i];
-            if (t != null && t.gameObject.activeInHierarchy && !t.isDestroyed && t.currentHealth > 0f)
-            {
-                float d = Vector3.Distance(transform.position, t.transform.position);
-                if (d < closestDefenseDist)
-                {
-                    closestDefenseDist = d;
-                    closestDefense = t.transform;
-                }
-            }
-        }
-
-        // 2c. Quét Trụ súng thông thường (TurretController)
+        // 2c. Trụ súng thường TurretController (nếu có)
         TurretController[] simpleTurrets = FindObjectsByType<TurretController>();
         for (int i = 0; i < simpleTurrets.Length; i++)
         {
             TurretController st = simpleTurrets[i];
-            if (st != null && st.gameObject.activeInHierarchy)
+            if (st != null && st.gameObject.activeInHierarchy && st.GetComponent<UpgradableTurret>() == null)
             {
                 float d = Vector3.Distance(transform.position, st.transform.position);
                 if (d < closestDefenseDist)
@@ -218,22 +245,39 @@ public class Enemy : MonoBehaviour
             }
         }
 
-        if (closestDefense != null)
-        {
-            target = closestDefense;
-            return;
-        }
-
-        // 3. TẦNG 3: NGƯỜI CHƠI (PLAYER - MỤC TIÊU CUỐI CÙNG KHI KHÔNG CÒN TƯỜNG, TRỤ, LÍNH)
+        // 3. Quét tìm NGƯỜI CHƠI (Player)
+        float closestPlayerDist = float.MaxValue;
+        Transform closestPlayer = null;
         PlayerController player = FindAnyObjectByType<PlayerController>();
         if (player != null && player.gameObject.activeInHierarchy && !player.isDead && player.currentHealth > 0f)
         {
-            target = player.transform;
-            return;
+            closestPlayerDist = Vector3.Distance(transform.position, player.transform.position);
+            closestPlayer = player.transform;
         }
 
-        // Không có mục tiêu hợp lệ nào
-        target = null;
+        // ================= SO SÁNH: CÁI NÀO GẦN NHẤT THÌ TẤN CÔNG CÁI ĐẤY =================
+        float minDistance = float.MaxValue;
+        Transform chosenTarget = null;
+
+        if (closestWall != null && closestWallDist < minDistance)
+        {
+            minDistance = closestWallDist;
+            chosenTarget = closestWall;
+        }
+
+        if (closestDefense != null && closestDefenseDist < minDistance)
+        {
+            minDistance = closestDefenseDist;
+            chosenTarget = closestDefense;
+        }
+
+        if (closestPlayer != null && closestPlayerDist < minDistance)
+        {
+            minDistance = closestPlayerDist;
+            chosenTarget = closestPlayer;
+        }
+
+        target = chosenTarget;
     }
 
     void Update()
@@ -260,6 +304,23 @@ public class Enemy : MonoBehaviour
 
                 var player = target.GetComponent<PlayerController>();
                 if (player != null && (player.isDead || player.currentHealth <= 0f)) target = null;
+            }
+        }
+
+        // Định kỳ kiểm tra lại mục tiêu nếu đang di chuyển để luôn hướng về mục tiêu gần nhất
+        if (target != null)
+        {
+            float curDist = isFlying 
+                ? Vector3.Distance(transform.position, new Vector3(target.position.x, transform.position.y, target.position.z)) 
+                : Vector3.Distance(transform.position, target.position);
+            if (curDist > attackRange)
+            {
+                retargetTimer += Time.deltaTime;
+                if (retargetTimer >= 0.75f)
+                {
+                    retargetTimer = 0f;
+                    FindTarget();
+                }
             }
         }
 
@@ -539,6 +600,7 @@ public class Enemy : MonoBehaviour
     {
         if (isDead) return;
         isDead = true;
+        AllEnemies.Remove(this);
 
         if (healthBarObj != null)
         {

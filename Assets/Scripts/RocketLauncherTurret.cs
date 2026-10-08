@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 public class RocketLauncherTurret : MonoBehaviour
 {
@@ -24,13 +25,25 @@ public class RocketLauncherTurret : MonoBehaviour
 
     private float cooldownTimer = 0f;
     private Transform currentTarget;
-    private readonly Collider[] buffer = new Collider[32];
+    private readonly List<Transform> targetList = new List<Transform>();
+    private readonly Collider[] buffer = new Collider[64];
+
+    void Awake()
+    {
+        if (rocketPrefab == null)
+        {
+#if UNITY_EDITOR
+            rocketPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabsEnemy/PerfectRocket.prefab")
+                        ?? UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/PerfectRocket.prefab");
+#endif
+        }
+    }
 
     void Update()
     {
         if (cooldownTimer > 0) cooldownTimer -= Time.deltaTime;
 
-        FindTarget();
+        FindTargets();
 
         if (currentTarget != null)
         {
@@ -45,7 +58,7 @@ public class RocketLauncherTurret : MonoBehaviour
                 turretHead.localEulerAngles = new Vector3(turretHead.localEulerAngles.x, newYaw, turretHead.localEulerAngles.z);
             }
 
-            if (cooldownTimer <= 0f)
+            if (cooldownTimer <= 0f && targetList.Count > 0)
             {
                 StartCoroutine(FireVolley());
                 cooldownTimer = fireCooldown;
@@ -55,9 +68,43 @@ public class RocketLauncherTurret : MonoBehaviour
 
     IEnumerator FireVolley()
     {
+        // Snapshot danh sách các mục tiêu tại thời điểm bắt đầu loạt bắn
+        List<Transform> activeTargets = new List<Transform>(targetList);
+
         for (int i = 0; i < rocketsPerVolley; i++)
         {
-            if (currentTarget == null) break;
+            // Lọc nhanh bỏ các mục tiêu đã bị tiêu diệt giữa loạt bắn
+            for (int tIdx = activeTargets.Count - 1; tIdx >= 0; tIdx--)
+            {
+                Transform t = activeTargets[tIdx];
+                if (t == null || !t.gameObject.activeInHierarchy)
+                {
+                    activeTargets.RemoveAt(tIdx);
+                    continue;
+                }
+                Enemy e = t.GetComponent<Enemy>();
+                if (e != null && e.currentHealth <= 0f)
+                {
+                    activeTargets.RemoveAt(tIdx);
+                }
+            }
+
+            // Nếu danh sách tạm thời hết quái vật, thử nạp lại từ targetList mới nhất
+            if (activeTargets.Count == 0)
+            {
+                FindTargets();
+                activeTargets.AddRange(targetList);
+            }
+
+            // Nếu hoàn toàn không còn bất kỳ quái vật nào trong tầm bắn -> dừng loạt phóng
+            if (activeTargets.Count == 0) yield break;
+
+            // ================= LOGIC PHÂN BỔ HỎA LỰC =================
+            // - Khi CHỈ CÓ 1 CON ENEMY: Dồn 100% hỏa lực vào con enemy duy nhất đó!
+            // - Khi CÓ NHIỀU ENEMY: Tấn công nhiều mục tiêu (phân chia luân phiên các quả tên lửa vào từng con)
+            Transform assignedTarget = (activeTargets.Count == 1)
+                ? activeTargets[0]
+                : activeTargets[i % activeTargets.Count];
 
             Transform selectedPod = (i % 2 == 0) ? leftPod : rightPod;
             if (selectedPod == null) selectedPod = transform;
@@ -76,7 +123,7 @@ public class RocketLauncherTurret : MonoBehaviour
                 HomingRocket rocket = rocketObj.GetComponent<HomingRocket>();
                 if (rocket != null)
                 {
-                    rocket.target = currentTarget;
+                    rocket.target = assignedTarget;
                 }
             }
 
@@ -84,28 +131,57 @@ public class RocketLauncherTurret : MonoBehaviour
         }
     }
 
-    void FindTarget()
+    void FindTargets()
     {
-        if (currentTarget != null)
-        {
-            float sqr = (currentTarget.position - transform.position).sqrMagnitude;
-            if (sqr <= attackRange * attackRange && currentTarget.gameObject.activeInHierarchy) return;
-            currentTarget = null;
-        }
+        targetList.Clear();
 
-        int count = Physics.OverlapSphereNonAlloc(transform.position, attackRange, buffer, enemyLayer, QueryTriggerInteraction.Collide);
-        float best = Mathf.Infinity;
-        
-        for (int i = 0; i < count; i++)
+        // 1. Quét danh sách quái vật trong Enemy.AllEnemies (tối ưu hiệu năng CPU, zero allocation)
+        float rangeSqr = attackRange * attackRange;
+        for (int i = 0; i < Enemy.AllEnemies.Count; i++)
         {
-            if (!buffer[i].CompareTag(enemyTag)) continue;
-            float sqr = (buffer[i].transform.position - transform.position).sqrMagnitude;
-            if (sqr < best)
+            Enemy e = Enemy.AllEnemies[i];
+            if (e == null || !e.gameObject.activeInHierarchy || e.currentHealth <= 0f) continue;
+            float distSqr = (e.transform.position - transform.position).sqrMagnitude;
+            if (distSqr <= rangeSqr)
             {
-                best = sqr;
-                currentTarget = buffer[i].transform;
+                targetList.Add(e.transform);
             }
         }
+
+        // 2. Fallback quét Collider nếu Enemy.AllEnemies chưa có dữ liệu
+        if (targetList.Count == 0)
+        {
+            int count = Physics.OverlapSphereNonAlloc(transform.position, attackRange, buffer, enemyLayer, QueryTriggerInteraction.Collide);
+            for (int i = 0; i < count; i++)
+            {
+                Collider col = buffer[i];
+                if (col == null) continue;
+                if (!col.CompareTag(enemyTag) && col.GetComponentInParent<Enemy>() == null) continue;
+
+                Enemy enemyComp = col.GetComponent<Enemy>() ?? col.GetComponentInParent<Enemy>();
+                Transform t = enemyComp != null ? enemyComp.transform : col.transform;
+                if (enemyComp != null && enemyComp.currentHealth <= 0f) continue;
+
+                if (!targetList.Contains(t))
+                {
+                    targetList.Add(t);
+                }
+            }
+        }
+
+        // Sắp xếp mục tiêu theo khoảng cách tăng dần (gần nhất đứng đầu)
+        if (targetList.Count > 1)
+        {
+            targetList.Sort((a, b) =>
+            {
+                if (a == null || b == null) return 0;
+                float da = (a.position - transform.position).sqrMagnitude;
+                float db = (b.position - transform.position).sqrMagnitude;
+                return da.CompareTo(db);
+            });
+        }
+
+        currentTarget = (targetList.Count > 0) ? targetList[0] : null;
     }
 
     void OnDrawGizmosSelected()

@@ -99,6 +99,11 @@ public class HomingRocket : MonoBehaviour
 
     void FixedUpdate()
     {
+        if (target == null || !target.gameObject.activeInHierarchy || (target.GetComponent<Enemy>() != null && target.GetComponent<Enemy>().currentHealth <= 0f))
+        {
+            RetargetNearestEnemy();
+        }
+
         if (target != null && target.gameObject.activeInHierarchy)
         {
             Vector3 direction = (target.position - transform.position).normalized;
@@ -110,6 +115,31 @@ public class HomingRocket : MonoBehaviour
         else
         {
             rb.useGravity = true;
+        }
+    }
+
+    private void RetargetNearestEnemy()
+    {
+        float bestDistSqr = 35f * 35f;
+        Transform bestT = null;
+
+        for (int i = 0; i < Enemy.AllEnemies.Count; i++)
+        {
+            Enemy e = Enemy.AllEnemies[i];
+            if (e != null && e.gameObject.activeInHierarchy && e.currentHealth > 0f)
+            {
+                float dSqr = (e.transform.position - transform.position).sqrMagnitude;
+                if (dSqr < bestDistSqr)
+                {
+                    bestDistSqr = dSqr;
+                    bestT = e.transform;
+                }
+            }
+        }
+
+        if (bestT != null)
+        {
+            target = bestT;
         }
     }
 
