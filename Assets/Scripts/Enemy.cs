@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Enemy : MonoBehaviour
 {
@@ -12,6 +13,15 @@ public class Enemy : MonoBehaviour
     public float attackRange = 1.8f;
     public float attackDamage = 10f;
     public float attackCooldown = 1.2f;
+
+    [Header("--- Thanh Máu Nổi (World-Space HealthBar) ---")]
+    public bool showHealthBar = true;
+    public float healthBarHeight = 1.6f;
+    private GameObject healthBarObj;
+    private RectTransform healthBarFill;
+    private Image healthBarFillImage;
+    private Text healthBarText;
+    private Camera mainCamera;
 
     [Header("--- Hiệu Chỉnh Góc Xoay Model ---")]
     [Tooltip("Góc bù xoay nếu model gốc bị quay ngược (ví dụ 180 độ đối với Spider)")]
@@ -107,8 +117,23 @@ public class Enemy : MonoBehaviour
 
     void Start()
     {
+        mainCamera = Camera.main;
+        if (isFlying || name.ToLower().Contains("dragon"))
+        {
+            healthBarHeight = 3.6f;
+        }
+        else if (name.ToLower().Contains("spider") || enemyName.ToLower().Contains("spider"))
+        {
+            healthBarHeight = 1.6f;
+        }
+        else
+        {
+            healthBarHeight = 1.2f;
+        }
+
         SnapToGroundImmediately();
         FindTarget();
+        CreateFloatingHealthBar();
     }
 
     public void FindTarget()
@@ -227,6 +252,18 @@ public class Enemy : MonoBehaviour
         }
 
         ApplyGroundGravity();
+    }
+
+    void LateUpdate()
+    {
+        if (healthBarObj != null)
+        {
+            if (mainCamera == null) mainCamera = Camera.main;
+            if (mainCamera != null)
+            {
+                healthBarObj.transform.rotation = mainCamera.transform.rotation;
+            }
+        }
     }
 
     // ================= TRỌNG LỰC BẰNG CODE CHO GAME 3D (RULE 8) =================
@@ -409,7 +446,15 @@ public class Enemy : MonoBehaviour
         if (isDead) return;
 
         currentHealth -= amount;
-        Debug.Log($"<color=orange>[Enemy]</color> {name} bị bắn trúng! HP còn: {currentHealth:F0}/{maxHealth}");
+        currentHealth = Mathf.Max(0f, currentHealth);
+        UpdateHealthBar();
+
+        // Hiển thị số nảy sát thương trực quan (Floating Damage Popup)
+        Vector3 hitPos = transform.position + Vector3.up * (healthBarHeight * 0.8f);
+        Color dmgColor = isFlying ? new Color(1f, 0.45f, 0.1f) : new Color(1f, 0.9f, 0.15f);
+        FloatingDamageText.Spawn(hitPos, amount, dmgColor);
+
+        Debug.Log($"<color=orange>[Enemy]</color> {enemyName} bị bắn trúng! -{amount:F0} DMG | HP còn: {currentHealth:F0}/{maxHealth}");
 
         if (animator != null && currentHealth > 0f && HasAnimatorParameter("hit"))
         {
@@ -426,6 +471,11 @@ public class Enemy : MonoBehaviour
     {
         if (isDead) return;
         isDead = true;
+
+        if (healthBarObj != null)
+        {
+            Destroy(healthBarObj);
+        }
 
         Debug.Log($"<color=red>[Enemy]</color> {name} đã bị tiêu diệt! +{goldReward}🪙 Vàng");
 
@@ -452,6 +502,112 @@ public class Enemy : MonoBehaviour
         }
 
         Destroy(gameObject, 0.9f);
+    }
+
+    // ================= THANH MÁU NỔI CHO QUÁI VẬT & BOSS =================
+    private void CreateFloatingHealthBar()
+    {
+        if (!showHealthBar) return;
+
+        // Xóa bất kỳ thanh máu cũ nào còn sót lại để đảm bảo luôn chỉ có DUY NHẤT 1 thanh máu
+        Transform existing = transform.Find("[Enemy_HealthBar]");
+        if (existing != null)
+        {
+            Destroy(existing.gameObject);
+        }
+        if (healthBarObj != null)
+        {
+            Destroy(healthBarObj);
+            healthBarObj = null;
+        }
+
+        healthBarObj = new GameObject("[Enemy_HealthBar]");
+        healthBarObj.transform.SetParent(transform, false);
+        healthBarObj.transform.localPosition = new Vector3(0f, healthBarHeight, 0f);
+
+        Canvas canvas = healthBarObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        CanvasScaler cs = healthBarObj.AddComponent<CanvasScaler>();
+        cs.dynamicPixelsPerUnit = 20;
+
+        RectTransform rt = healthBarObj.GetComponent<RectTransform>();
+        bool isBoss = isFlying || maxHealth >= 500f;
+        float barWidth = isBoss ? 2.6f : 1.3f;
+        float barHeight = isBoss ? 0.32f : 0.16f;
+        rt.sizeDelta = new Vector2(barWidth, barHeight);
+        rt.localScale = Vector3.one;
+
+        // Khung nền đen xám viền (KHÔNG dùng Outline để tránh nhân bản đỉnh tạo cảm giác 3 thanh máu)
+        GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
+        bg.transform.SetParent(healthBarObj.transform, false);
+        RectTransform bgRt = bg.GetComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero;
+        bgRt.anchorMax = Vector2.one;
+        bgRt.sizeDelta = Vector2.zero;
+        Image bgImg = bg.GetComponent<Image>();
+        bgImg.color = isBoss ? new Color(0.12f, 0.04f, 0.06f, 0.95f) : new Color(0.12f, 0.12f, 0.12f, 0.85f);
+
+        // Thanh fill máu đơn nhất
+        GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+        fill.transform.SetParent(healthBarObj.transform, false);
+        healthBarFill = fill.GetComponent<RectTransform>();
+        healthBarFill.anchorMin = new Vector2(0.01f, 0.12f);
+        healthBarFill.anchorMax = new Vector2(0.99f, 0.88f);
+        healthBarFill.sizeDelta = Vector2.zero;
+        healthBarFill.pivot = new Vector2(0f, 0.5f);
+        healthBarFill.anchoredPosition = Vector2.zero;
+        healthBarFillImage = fill.GetComponent<Image>();
+        healthBarFillImage.color = isBoss ? new Color(1f, 0.18f, 0.25f, 1f) : new Color(0.95f, 0.25f, 0.25f, 1f);
+
+        // Text hiển thị số HP
+        GameObject textObj = new GameObject("HP_Text", typeof(RectTransform), typeof(Text));
+        textObj.transform.SetParent(healthBarObj.transform, false);
+        RectTransform textRt = textObj.GetComponent<RectTransform>();
+        textRt.anchorMin = Vector2.zero;
+        textRt.anchorMax = Vector2.one;
+        textRt.sizeDelta = Vector2.zero;
+        healthBarText = textObj.GetComponent<Text>();
+        Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        healthBarText.font = font;
+        healthBarText.fontSize = isBoss ? 15 : 11;
+        healthBarText.fontStyle = FontStyle.Bold;
+        healthBarText.alignment = TextAnchor.MiddleCenter;
+        healthBarText.color = Color.white;
+
+        UpdateHealthBar();
+    }
+
+    private void UpdateHealthBar()
+    {
+        if (healthBarFill == null) return;
+
+        float pct = maxHealth > 0f ? Mathf.Clamp01(currentHealth / maxHealth) : 0f;
+        healthBarFill.localScale = new Vector3(pct, 1f, 1f);
+
+        if (healthBarFillImage != null)
+        {
+            bool isBoss = isFlying || maxHealth >= 500f;
+            if (isBoss)
+            {
+                healthBarFillImage.color = Color.Lerp(new Color(0.8f, 0.1f, 0.1f), new Color(1f, 0.25f, 0.35f), pct);
+            }
+            else
+            {
+                if (pct > 0.5f)
+                    healthBarFillImage.color = Color.Lerp(new Color(1f, 0.7f, 0.1f), new Color(0.95f, 0.25f, 0.25f), (1f - pct) * 2f);
+                else
+                    healthBarFillImage.color = new Color(0.95f, 0.15f, 0.15f);
+            }
+        }
+
+        if (healthBarText != null)
+        {
+            bool isBoss = isFlying || maxHealth >= 500f;
+            if (isBoss)
+                healthBarText.text = $"👑 BOSS: {Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}";
+            else
+                healthBarText.text = $"{Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}";
+        }
     }
 }
 

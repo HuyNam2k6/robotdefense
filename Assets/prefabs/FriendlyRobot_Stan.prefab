@@ -1767,12 +1767,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FriendlyCombatRobot
   robotClass: 0
   robotName: "\U0001F4A5 Stan Ph\xE1o Nh\u1EC7n"
-  maxHealth: 220
-  currentHealth: 220
+  maxHealth: 70
+  currentHealth: 70
   moveSpeed: 3.4
   attackRange: 12
-  attackDamage: 32
-  attackCooldown: 1.5
+  attackDamage: 30
+  attackCooldown: 1.4
   modelRotationOffset: 0
   gravitySnapSpeed: 20
   groundOffset: 0

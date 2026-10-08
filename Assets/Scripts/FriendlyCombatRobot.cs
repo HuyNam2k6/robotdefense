@@ -96,16 +96,16 @@ public class FriendlyCombatRobot : MonoBehaviour
         {
             case RobotClass.Stan_Artillery:
                 robotName = "💥 Stan Pháo Nhện";
-                maxHealth = 220f;
+                maxHealth = 70f;
                 moveSpeed = 3.4f;
                 attackRange = 12f;
-                attackDamage = 32f;
-                attackCooldown = 1.5f;
+                attackDamage = 30f;
+                attackCooldown = 1.4f;
                 break;
 
             case RobotClass.Mike_Brawler:
                 robotName = "🛡️ Mike Đấu Sĩ";
-                maxHealth = 320f; // Tanker trâu máu
+                maxHealth = 80f; // Tanker hộ pháp
                 moveSpeed = 3.6f;
                 attackRange = 2.6f;
                 attackDamage = 45f;
@@ -114,20 +114,20 @@ public class FriendlyCombatRobot : MonoBehaviour
 
             case RobotClass.George_Assassin:
                 robotName = "⚡ George Sát Thủ";
-                maxHealth = 160f;
-                moveSpeed = 5.4f; // Chạy nhanh
+                maxHealth = 60f;
+                moveSpeed = 5.2f; // Sát thủ lướt nhanh
                 attackRange = 3.0f;
                 attackDamage = 35f;
-                attackCooldown = 0.85f; // Chém liên hoàn
+                attackCooldown = 0.9f;
                 break;
 
             case RobotClass.Leela_Sniper:
-                robotName = "🎯 Leela Bắn Tỉa";
-                maxHealth = 140f;
+                robotName = "🎯 Leela Xạ Thủ";
+                maxHealth = 60f;
                 moveSpeed = 4.0f;
-                attackRange = 18f; // Tầm bắn siêu xa
-                attackDamage = 50f;
-                attackCooldown = 1.8f;
+                attackRange = 16f; // Xạ thủ tầm xa
+                attackDamage = 40f;
+                attackCooldown = 1.6f;
                 break;
         }
         currentHealth = maxHealth;
@@ -556,19 +556,54 @@ public class FriendlyCombatRobot : MonoBehaviour
     }
 
     // ================= THANH MÁU WORLD-SPACE MINI =================
+    public float GetHealthBarHeight()
+    {
+        // 1. Tính toán dựa trên đỉnh đầu thực tế của Renderers
+        Renderer[] rends = GetComponentsInChildren<Renderer>(true);
+        if (rends != null && rends.Length > 0)
+        {
+            float maxTop = float.MinValue;
+            foreach (var r in rends)
+            {
+                if (r == null) continue;
+                if (r.name == "BG" || r.name == "FG") continue;
+                if (r.bounds.max.y > maxTop) maxTop = r.bounds.max.y;
+            }
+            if (maxTop > float.MinValue + 10f)
+            {
+                float computedHeight = (maxTop - transform.position.y) + 0.35f;
+                if (computedHeight > 1.2f) return computedHeight;
+            }
+        }
+
+        // 2. Chiều cao tiêu chuẩn theo từng Class
+        switch (robotClass)
+        {
+            case RobotClass.Mike_Brawler: return 3.8f;
+            case RobotClass.George_Assassin: return 3.6f;
+            case RobotClass.Leela_Sniper: return 3.4f;
+            case RobotClass.Stan_Artillery: return 2.6f;
+            default: return 3.2f;
+        }
+    }
+
     private void CreateWorldSpaceHealthBar()
     {
+        Transform oldBar = transform.Find("HealthBar_Root");
+        if (oldBar != null) Destroy(oldBar.gameObject);
+
+        float barHeight = GetHealthBarHeight();
         GameObject barRoot = new GameObject("HealthBar_Root");
-        barRoot.transform.SetParent(transform);
-        barRoot.transform.localPosition = new Vector3(0f, 2.2f, 0f);
+        barRoot.transform.SetParent(transform, false);
+        barRoot.transform.localPosition = new Vector3(0f, barHeight, 0f);
         hpBarRoot = barRoot.transform;
 
         // Background xám đen
         GameObject bg = GameObject.CreatePrimitive(PrimitiveType.Quad);
         bg.name = "BG";
-        bg.transform.SetParent(hpBarRoot);
+        bg.transform.SetParent(hpBarRoot, false);
         bg.transform.localPosition = Vector3.zero;
-        bg.transform.localScale = new Vector3(1.0f, 0.12f, 1f);
+        bg.transform.localScale = new Vector3(1.1f, 0.14f, 1f);
         Collider colBg = bg.GetComponent<Collider>();
         if (colBg != null) Destroy(colBg);
 
@@ -577,16 +612,16 @@ public class FriendlyCombatRobot : MonoBehaviour
         {
             Shader sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
             Material mBg = new Material(sh);
-            mBg.color = new Color(0.15f, 0.15f, 0.15f, 0.85f);
+            mBg.color = new Color(0.1f, 0.12f, 0.16f, 0.9f);
             rBg.material = mBg;
         }
 
         // Foreground xanh lục
         GameObject fg = GameObject.CreatePrimitive(PrimitiveType.Quad);
         fg.name = "FG";
-        fg.transform.SetParent(hpBarRoot);
+        fg.transform.SetParent(hpBarRoot, false);
         fg.transform.localPosition = new Vector3(0f, 0f, -0.01f);
-        fg.transform.localScale = new Vector3(0.96f, 0.08f, 1f);
+        fg.transform.localScale = new Vector3(1.06f, 0.10f, 1f);
         Collider colFg = fg.GetComponent<Collider>();
         if (colFg != null) Destroy(colFg);
 
@@ -595,7 +630,7 @@ public class FriendlyCombatRobot : MonoBehaviour
         {
             Shader sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
             Material mFg = new Material(sh);
-            mFg.color = new Color(0f, 1f, 0.4f);
+            mFg.color = new Color(0f, 1f, 0.45f);
             rFg.material = mFg;
         }
 
@@ -605,6 +640,13 @@ public class FriendlyCombatRobot : MonoBehaviour
     private void UpdateHealthBarVisual()
     {
         if (hpBarRoot == null) return;
+
+        // Cập nhật độ cao trên đầu robot
+        float targetY = GetHealthBarHeight();
+        if (Mathf.Abs(hpBarRoot.localPosition.y - targetY) > 0.05f)
+        {
+            hpBarRoot.localPosition = new Vector3(0f, targetY, 0f);
+        }
 
         // Xoay mặt thanh máu hướng về Camera
         if (mainCam == null) mainCam = Camera.main;
@@ -617,14 +659,14 @@ public class FriendlyCombatRobot : MonoBehaviour
         if (hpBarForeground != null)
         {
             float hpRatio = Mathf.Clamp01(currentHealth / maxHealth);
-            hpBarForeground.localScale = new Vector3(0.96f * hpRatio, 0.08f, 1f);
-            hpBarForeground.localPosition = new Vector3(-0.48f * (1f - hpRatio), 0f, -0.01f);
+            hpBarForeground.localScale = new Vector3(1.06f * hpRatio, 0.10f, 1f);
+            hpBarForeground.localPosition = new Vector3(-0.53f * (1f - hpRatio), 0f, -0.01f);
 
             // Đổi màu vàng / đỏ khi máu yếu
             Renderer r = hpBarForeground.GetComponent<Renderer>();
             if (r != null && r.material != null)
             {
-                if (hpRatio > 0.5f) r.material.color = Color.Lerp(Color.yellow, new Color(0f, 1f, 0.4f), (hpRatio - 0.5f) * 2f);
+                if (hpRatio > 0.5f) r.material.color = Color.Lerp(Color.yellow, new Color(0f, 1f, 0.45f), (hpRatio - 0.5f) * 2f);
                 else r.material.color = Color.Lerp(Color.red, Color.yellow, hpRatio * 2f);
             }
         }

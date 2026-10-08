@@ -2154,12 +2154,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FriendlyCombatRobot
   robotClass: 2
   robotName: "\u26A1 George S\xE1t Th\u1EE7"
-  maxHealth: 160
-  currentHealth: 160
-  moveSpeed: 5.4
+  maxHealth: 60
+  currentHealth: 60
+  moveSpeed: 5.2
   attackRange: 3
   attackDamage: 35
-  attackCooldown: 0.85
+  attackCooldown: 0.9
   modelRotationOffset: 0
   gravitySnapSpeed: 20
   groundOffset: 0

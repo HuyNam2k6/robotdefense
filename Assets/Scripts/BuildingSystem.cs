@@ -56,7 +56,7 @@ public class BuildingSystem : MonoBehaviour
 
 	void Update()
 	{
-		// Phím tắt nhanh 1 (Pháo) và 2 (Tường)
+		// Phím tắt nhanh 1 (Pháo Tự Hành), 2 (Trụ Sét), 3 (Súng Phun Lửa), 4 (Tường)
 		if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Keypad1))
 		{
 			SelectItem(0);
@@ -64,6 +64,14 @@ public class BuildingSystem : MonoBehaviour
 		else if (Input.GetKeyDown(KeyCode.Alpha2) || Input.GetKeyDown(KeyCode.Keypad2))
 		{
 			SelectItem(1);
+		}
+		else if (Input.GetKeyDown(KeyCode.Alpha3) || Input.GetKeyDown(KeyCode.Keypad3))
+		{
+			SelectItem(2);
+		}
+		else if (Input.GetKeyDown(KeyCode.Alpha4) || Input.GetKeyDown(KeyCode.Keypad4))
+		{
+			SelectItem(3);
 		}
 
 		if (selectedIndex < 0) return;
@@ -262,6 +270,16 @@ public class BuildingSystem : MonoBehaviour
 				{
 					if (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject())
 					{
+						int itemCost = items[selectedIndex].cost;
+						if (itemCost > 0 && GameEconomy.Instance != null)
+						{
+							if (!GameEconomy.Instance.SpendCoins(itemCost))
+							{
+								GameEconomy.Instance.TriggerNotEnoughCoins($"Không đủ vàng để mua {items[selectedIndex].itemName}!");
+								return;
+							}
+						}
+
 						SpawnRealObject(items[selectedIndex].prefab, hit.point, Quaternion.Euler(0f, currentYRotation, 0f));
 
 						if (!continuousPlacement)

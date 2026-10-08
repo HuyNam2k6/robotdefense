@@ -37,9 +37,10 @@ namespace IdleFactoryDefense.Editor
 
         public static void CleanFriendlyDragonRemnants()
         {
-            // 1. Quét và dọn sạch các bản rồng thân thiện nhầm lẫn trong Scene
+            // 1. Quét và dọn sạch các bản rồng thân thiện và rồng thừa trong Scene (chỉ giữ đúng 1 Boss)
             var allObjects = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
             int cleaned = 0;
+            GameObject keptBoss = null;
             foreach (var go in allObjects)
             {
                 if (go == null) continue;
@@ -49,10 +50,22 @@ namespace IdleFactoryDefense.Editor
                     Undo.DestroyObjectImmediate(go);
                     cleaned++;
                 }
+                else if (n.Contains("enemy_mechadragon") || n.Equals("enemy_mechadragon"))
+                {
+                    if (keptBoss == null)
+                    {
+                        keptBoss = go;
+                    }
+                    else
+                    {
+                        Undo.DestroyObjectImmediate(go);
+                        cleaned++;
+                    }
+                }
             }
             if (cleaned > 0)
             {
-                Debug.Log($"<color=#00FF88>🧹 Đã dọn dẹp sạch {cleaned} bản Rồng Cơ Khí thân thiện nhầm lẫn khỏi Scene!</color>");
+                Debug.Log($"<color=#00FF88>🧹 Đã dọn dẹp sạch {cleaned} bản Rồng trùng lặp, chỉ giữ duy nhất 1 Boss Rồng trong Scene!</color>");
                 EditorSceneManager.MarkSceneDirty(EditorSceneManager.GetActiveScene());
             }
 

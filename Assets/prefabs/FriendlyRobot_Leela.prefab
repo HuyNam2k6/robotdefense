@@ -670,13 +670,13 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::FriendlyCombatRobot
   robotClass: 3
-  robotName: "\U0001F3AF Leela B\u1EAFn T\u1EC9a"
-  maxHealth: 140
-  currentHealth: 140
+  robotName: "\U0001F3AF Leela X\u1EA1 Th\u1EE7"
+  maxHealth: 60
+  currentHealth: 60
   moveSpeed: 4
-  attackRange: 18
-  attackDamage: 50
-  attackCooldown: 1.8
+  attackRange: 16
+  attackDamage: 40
+  attackCooldown: 1.6
   modelRotationOffset: 0
   gravitySnapSpeed: 20
   groundOffset: 0

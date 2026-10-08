@@ -191,6 +191,14 @@ public class TopResourceHUD : MonoBehaviour
         Canvas canvas = GetComponentInParent<Canvas>() ?? Object.FindAnyObjectByType<Canvas>();
         if (canvas == null) return;
 
+        // Tăng độ phân giải raster font trên thiết bị di động (tránh mờ nhòe chữ)
+        CanvasScaler scaler = canvas.GetComponent<CanvasScaler>();
+        if (scaler != null)
+        {
+            scaler.dynamicPixelsPerUnit = 2.5f;
+            scaler.referencePixelsPerUnit = 100;
+        }
+
         safeFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (safeFont == null) safeFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
 
@@ -204,7 +212,7 @@ public class TopResourceHUD : MonoBehaviour
         topRect.anchorMax = new Vector2(0.5f, 1f);
         topRect.pivot = new Vector2(0.5f, 1f);
         topRect.anchoredPosition = new Vector2(0f, -38f); // Cách mép trên 38px
-        topRect.sizeDelta = new Vector2(1040f, 68f);
+        topRect.sizeDelta = new Vector2(1040f, 72f);
 
         HorizontalLayoutGroup hlg = topBarPanel.AddComponent<HorizontalLayoutGroup>();
         hlg.spacing = 10f;
@@ -215,7 +223,7 @@ public class TopResourceHUD : MonoBehaviour
         hlg.childForceExpandHeight = false;
 
         // 2. TẠO 5 CAPSULE TÀI NGUYÊN (THEO ĐÚNG HÌNH ẢNH)
-        Vector2 capsuleSize = new Vector2(174f, 58f);
+        Vector2 capsuleSize = new Vector2(174f, 62f);
 
         // Capsule 1: VÀNG (12,450)
         CreateResourceCapsule(topBarPanel.transform, "Capsule_Coins", capsuleSize, coinSprite, out coinText, OnAddCoinsClicked);
@@ -233,7 +241,7 @@ public class TopResourceHUD : MonoBehaviour
         CreateResourceCapsule(topBarPanel.transform, "Capsule_Gems", capsuleSize, gemSprite, out gemText, OnAddGemsClicked);
 
         // 3. NÚT CÀI ĐẶT (BÁNH RĂNG) Ở GÓC PHẢI
-        CreateSettingsButton(topBarPanel.transform, new Vector2(58f, 58f));
+        CreateSettingsButton(topBarPanel.transform, new Vector2(62f, 62f));
 
         // 4. POPUP CÀI ĐẶT NHỎ GỌN
         CreateSettingsPopup(canvas.transform);
@@ -323,12 +331,18 @@ public class TopResourceHUD : MonoBehaviour
 
         countText = txtObj.AddComponent<Text>();
         countText.font = safeFont;
-        countText.fontSize = 17;
+        countText.fontSize = 22;
         countText.fontStyle = FontStyle.Bold;
         countText.alignment = TextAnchor.MiddleRight;
-        countText.color = new Color(0.96f, 0.98f, 1.0f, 1f); // Trắng sáng
+        countText.color = new Color(0.98f, 0.99f, 1.0f, 1f); // Trắng sáng nổi bật
+        countText.horizontalOverflow = HorizontalWrapMode.Overflow;
+        countText.verticalOverflow = VerticalWrapMode.Overflow;
         countText.raycastTarget = false;
         countText.text = "0";
+
+        Shadow shadow = txtObj.AddComponent<Shadow>();
+        shadow.effectColor = new Color(0f, 0f, 0f, 0.9f);
+        shadow.effectDistance = new Vector2(1.5f, -1.5f);
     }
 
     private void CreateSettingsButton(Transform parent, Vector2 size)
@@ -495,27 +509,17 @@ public class TopResourceHUD : MonoBehaviour
     {
         if (coinSprite != null) return;
 
-        // 1. Khung Capsule Bo Góc
-        Texture2D capTex = CreateRoundedBoxTexture(64, 64, 14, new Color(1f, 1f, 1f, 1f));
-        capsuleBgSprite = Sprite.Create(capTex, new Rect(0, 0, 64, 64), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, new Vector4(16, 16, 16, 16));
+        // 1. Khung Capsule Bo Góc Độ Phân Giải Cao (128x128 9-slice)
+        Texture2D capTex = CreateRoundedBoxTexture(128, 128, 28, new Color(1f, 1f, 1f, 1f));
+        capsuleBgSprite = Sprite.Create(capTex, new Rect(0, 0, 128, 128), new Vector2(0.5f, 0.5f), 100, 0, SpriteMeshType.FullRect, new Vector4(32, 32, 32, 32));
 
-        // 2. Icon Vàng (Golden Coin tròn 3D sáng bóng)
-        coinSprite = CreateSpriteFromTexture(CreateCoinTexture(64));
-
-        // 3. Icon Đá / Sắt (Thỏi kim loại xám bạc 3D)
-        stoneSprite = CreateSpriteFromTexture(CreateStoneTexture(64));
-
-        // 4. Icon Gạch / Đồng (3 khối gạch đỏ cam 3D)
-        woodSprite = CreateSpriteFromTexture(CreateBrickTexture(64));
-
-        // 5. Icon Năng lượng (Tia sét ⚡ cyan neon phát sáng)
-        energySprite = CreateSpriteFromTexture(CreateLightningTexture(64));
-
-        // 6. Icon Kim cương (Pha lê tím 💎 đa diện)
-        gemSprite = CreateSpriteFromTexture(CreateGemTexture(64));
-
-        // 7. Icon Bánh răng (Gear ⚙️)
-        gearSprite = CreateSpriteFromTexture(CreateGearTexture(64));
+        // 2-7. Bộ Icon Tài Nguyên 128x128 Siêu Sắc Nét Cho Màn Hình Retina/FHD+
+        coinSprite = CreateSpriteFromTexture(CreateCoinTexture(128));
+        stoneSprite = CreateSpriteFromTexture(CreateStoneTexture(128));
+        woodSprite = CreateSpriteFromTexture(CreateBrickTexture(128));
+        energySprite = CreateSpriteFromTexture(CreateLightningTexture(128));
+        gemSprite = CreateSpriteFromTexture(CreateGemTexture(128));
+        gearSprite = CreateSpriteFromTexture(CreateGearTexture(128));
     }
 
     private static Sprite CreateSpriteFromTexture(Texture2D tex)

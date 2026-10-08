@@ -735,6 +735,8 @@ MonoBehaviour:
   attackRange: 7
   attackDamage: 45
   attackCooldown: 1.6
+  showHealthBar: 1
+  healthBarHeight: 1.6
   modelRotationOffset: 0
   target: {fileID: 0}
   isFlying: 1

@@ -37,14 +37,21 @@
     - *Công thức giá:* Cost = (150 Gạch + 150 Gỗ) * 1.18^Level
 
 - **Hệ thống Nhà Máy & Quân Đội Đồng Minh (Combat Robot Army):**
-  - **Nhà máy sản xuất Robot 3D (Robot Factory):** Xây dựng từ Cửa Hàng (BuildingSystem). Khi người chơi nhấn vào Nhà Máy trên đảo (hoặc từ Cửa Hàng), một **Bảng Chế Tạo Robot to nửa màn hình căn giữa** sẽ xuất hiện, gồm 4 Icon đại diện cho 4 Robot phòng thủ. Trong mỗi icon có nút **[!]** để xem chi tiết thông số (Máu, Sát thương, Tầm xa, Tốc độ, Kỹ năng) giúp người chơi tự do lựa chọn con robot muốn sản xuất. Khi bấm sản xuất, thời gian 15s bắt đầu chạy, kích hoạt toàn bộ animation cơ khí chân thực của nhà máy (cánh tay hàn xì, bánh răng cưa quay, thân máy rung dập, tia lửa hàn điện chớp tắt), sau đúng 15s xuất xưởng đúng con robot đã chọn lên băng chuyền ra đảo chiến đấu.
-  - **4 Chủng Robot Chiến Đấu Đồng Minh (Tự do lựa chọn đúc theo chiến thuật):**
-    1. *Stan (Pháo Nhện 4 chân):* Hỏa lực tầm xa, bắn pháo diện rộng và dẫm đạp đẩy lùi.
-    2. *Mike (Đấu sĩ hộ pháp - Tanker):* Cận chiến trâu máu, cú đấm móc và vung kiếm càn quét tiền tuyến.
-    3. *George (Sát thủ chân kiếm):* Cơ động siêu tốc, lướt chém song kiếm và cú đá xoay liên hoàn.
-    4. *Leela (Xạ thủ bắn tỉa):* Tầm bắn siêu xa, phát bắn laser chuẩn xác và đá tự vệ khi bị áp sát.
-  - **Cơ chế chiến đấu:** Robot tự động tuần tra quanh căn cứ, phát hiện quái vật, tiếp cận và tung chiêu tương ứng. Có thanh máu 3D hiển thị thời gian thực và hoạt ảnh ăn mừng khi chiến thắng.
-  - **Tối ưu Snapdragon 810:** Toàn bộ trọng lực tính bằng Code (Rule 8 - Không dùng Rigidbody), giới hạn quân số tối đa 8 lính, chia sẻ Texture Palette chung để giảm Draw Calls.
+  - **Nhà máy sản xuất Robot 3D (Robot Factory):** Xây dựng từ Cửa Hàng (BuildingSystem). Khi người chơi nhấn vào Nhà Máy trên đảo, xuất hiện **Trung Tâm Chế Tạo Rô Bốt** thiết kế chuẩn Sci-Fi Cyber Mecha to nửa màn hình căn giữa:
+    + Header: Biểu tượng ống ngắm vàng 🎯 + Tiêu đề **TRUNG TÂM CHẾ TẠO RÔ BỐT** + Nút đỏ đóng [X] + Đếm quân số (0/4).
+    + 4 Thẻ Robot ngang (Stan, Mike, George, Leela) mang đầy đủ icon 3D thực tế của từng con.
+    + Mỗi thẻ hiển thị: Badge số vàng (01-04), Tên robot, Mô tả kỹ năng, Thanh tiến trình 0/1, Chi phí sản xuất (Vàng: 0, Gỗ: 0, Kim Cương: 0 - có thể tùy chỉnh linh hoạt), Pill thời gian 15s, Nút bấm to màu xanh lá `[⚡ SẢN XUẤT]`.
+    + Khi bấm sản xuất, thời gian 15s đếm ngược, kích hoạt toàn bộ animation cơ khí chân thực của nhà máy (cánh tay hàn, bánh răng quay, thân máy rung dập, tia lửa điện), sau 15s xuất xưởng robot ra đảo chiến đấu.
+  - **4 Chủng Robot Chiến Đấu Đồng Minh (Thông số chuẩn cân bằng):**
+    1. *Stan Pháo Nhện (01):* Hỏa lực cối tầm xa (**70 HP / 30 DMG** / Tầm đánh 12m).
+    2. *Mike Đấu Sĩ (02):* Tanker hộ pháp giáp thép (**80 HP / 45 DMG** / Tầm đánh 2.6m).
+    3. *George Sát Thủ (03):* Cơ động lướt nhanh song kiếm (**60 HP / 35 DMG** / Tầm đánh 3.0m).
+    4. *Leela Xạ Thủ (04):* Bắn tỉa tầm xa laser (**60 HP / 40 DMG** / Tầm đánh 16m).
+  - **Cơ chế chiến đấu & Thanh Máu (Health Bars & Damage Feedback):**
+    + *Thanh máu Enemy & Boss:* Mọi quái vật và Đại Boss đều có thanh máu nổi (World-Space HealthBar) trên đầu, tự xoay về Camera (Billboard), hiển thị HP thời gian thực.
+    + *Thanh máu Player:* Hiển thị cả thanh máu nổi 3D trên đầu Player lẫn thanh máu HUD cố định trên màn hình điện thoại.
+    + *Số nảy sát thương (Floating Damage Text):* Mỗi đòn đánh trúng Enemy đều gây đúng Dame và làm nảy số sát thương màu vàng/cam (VD: -30, -45); đòn tấn công của Enemy lên Player nảy số đỏ cảnh báo.
+  - **Tối ưu Snapdragon 810:** Toàn bộ trọng lực tính bằng Code (Rule 8 - Không dùng Rigidbody), giới hạn quân số tối đa 4 lính, chia sẻ Texture Palette chung để giảm Draw Calls.
 
 - **Hệ thống Quái Vật & Đại Boss (Enemy Faction & Bosses):**
   - **Quái vật thường (Minions):**

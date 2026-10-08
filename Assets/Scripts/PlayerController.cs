@@ -59,6 +59,10 @@ public class PlayerController : MonoBehaviour
 	private GameObject healthBarObj;
 	private RectTransform healthBarFill;
 	private Image healthBarFillImage;
+	private Text healthBarText;
+	private RectTransform hudHealthBarFill;
+	private Image hudHealthBarFillImage;
+	private Text hudHealthBarText;
 
 	// Biến đếm thời gian đứng yên
 	private float idleTimer = 0f;
@@ -106,9 +110,15 @@ public class PlayerController : MonoBehaviour
 
 		EnsureRespawnPointExists();
 		CreateFloatingHealthBar();
+		CreateHUDHealthBar();
 
 		// Lên lịch ngẫu nhiên lần đầu tiên (từ 5 đến 10 giây)
 		nextIdleActionTime = Random.Range(minIdleTime, maxIdleTime);
+	}
+
+	void OnDestroy()
+	{
+		if (healthBarObj != null) Destroy(healthBarObj);
 	}
 
 	void Update()
@@ -319,9 +329,14 @@ public class PlayerController : MonoBehaviour
 
 	void LateUpdate()
 	{
-		if (healthBarObj != null && mainCam != null)
+		if (healthBarObj != null)
 		{
-			healthBarObj.transform.rotation = mainCam.transform.rotation;
+			healthBarObj.transform.position = transform.position + Vector3.up * 2.25f;
+			if (mainCam == null) mainCam = Camera.main;
+			if (mainCam != null)
+			{
+				healthBarObj.transform.rotation = mainCam.transform.rotation;
+			}
 		}
 	}
 
@@ -345,6 +360,9 @@ public class PlayerController : MonoBehaviour
 
 		currentHealth -= amount;
 		currentHealth = Mathf.Max(0f, currentHealth);
+
+		// Hiện số nảy sát thương màu đỏ cảnh báo
+		FloatingDamageText.Spawn(transform.position + Vector3.up * 1.8f, amount, new Color(1f, 0.25f, 0.25f));
 
 		Debug.Log($"<color=red>[Player]</color> Bị đánh trúng, nhận {amount} sát thương! HP: {currentHealth:F0}/{maxHealth}");
 
@@ -507,11 +525,14 @@ public class PlayerController : MonoBehaviour
 	private void CreateFloatingHealthBar()
 	{
 		if (!showFloatingHealthBar) return;
-		if (healthBarObj != null) return;
+		if (healthBarObj != null)
+		{
+			Destroy(healthBarObj);
+			healthBarObj = null;
+		}
 
 		healthBarObj = new GameObject("[Player_HealthBar]");
-		healthBarObj.transform.SetParent(transform, false);
-		healthBarObj.transform.localPosition = new Vector3(0f, 1.95f, 0f);
+		healthBarObj.transform.position = transform.position + Vector3.up * 2.25f;
 
 		Canvas canvas = healthBarObj.AddComponent<Canvas>();
 		canvas.renderMode = RenderMode.WorldSpace;
@@ -519,7 +540,7 @@ public class PlayerController : MonoBehaviour
 		cs.dynamicPixelsPerUnit = 20;
 
 		RectTransform rt = healthBarObj.GetComponent<RectTransform>();
-		rt.sizeDelta = new Vector2(1.1f, 0.14f);
+		rt.sizeDelta = new Vector2(1.3f, 0.18f);
 		rt.localScale = Vector3.one;
 
 		// Khung nền đen xám viền
@@ -530,36 +551,142 @@ public class PlayerController : MonoBehaviour
 		bgRt.anchorMax = Vector2.one;
 		bgRt.sizeDelta = Vector2.zero;
 		Image bgImg = bg.GetComponent<Image>();
-		bgImg.color = new Color(0.12f, 0.12f, 0.12f, 0.85f);
+		bgImg.color = new Color(0.08f, 0.12f, 0.16f, 0.88f);
 
 		// Thanh fill máu
 		GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(Image));
 		fill.transform.SetParent(healthBarObj.transform, false);
 		healthBarFill = fill.GetComponent<RectTransform>();
-		healthBarFill.anchorMin = new Vector2(0f, 0.1f);
-		healthBarFill.anchorMax = new Vector2(1f, 0.9f);
-		healthBarFill.sizeDelta = new Vector2(-0.02f, 0f);
+		healthBarFill.anchorMin = new Vector2(0.02f, 0.12f);
+		healthBarFill.anchorMax = new Vector2(0.98f, 0.88f);
+		healthBarFill.sizeDelta = Vector2.zero;
 		healthBarFill.pivot = new Vector2(0f, 0.5f);
-		healthBarFill.anchoredPosition = new Vector2(0.01f, 0f);
+		healthBarFill.anchoredPosition = Vector2.zero;
 		healthBarFillImage = fill.GetComponent<Image>();
-		healthBarFillImage.color = new Color(0.2f, 0.9f, 0.3f, 1f);
+		healthBarFillImage.color = new Color(0.2f, 0.95f, 0.35f, 1f);
+
+		// Text hiển thị số HP
+		GameObject textObj = new GameObject("HP_Text", typeof(RectTransform), typeof(Text));
+		textObj.transform.SetParent(healthBarObj.transform, false);
+		RectTransform textRt = textObj.GetComponent<RectTransform>();
+		textRt.anchorMin = Vector2.zero;
+		textRt.anchorMax = Vector2.one;
+		textRt.sizeDelta = Vector2.zero;
+		healthBarText = textObj.GetComponent<Text>();
+		Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+		healthBarText.font = font;
+		healthBarText.fontSize = 11;
+		healthBarText.fontStyle = FontStyle.Bold;
+		healthBarText.alignment = TextAnchor.MiddleCenter;
+		healthBarText.color = Color.white;
+
+		UpdateHealthBar();
+	}
+
+	private void CreateHUDHealthBar()
+	{
+		// Tìm đúng Screen-Space Overlay Canvas (tránh nhầm lẫn WorldSpace Canvas của quái)
+		Canvas canvas = null;
+		Canvas[] allCanvases = FindObjectsByType<Canvas>(FindObjectsSortMode.None);
+		foreach (var c in allCanvases)
+		{
+			if (c.renderMode == RenderMode.ScreenSpaceOverlay || c.name.Contains("Shop_Canvas") || c.name.Contains("Canvas"))
+			{
+				canvas = c;
+				break;
+			}
+		}
+		if (canvas == null && allCanvases.Length > 0) canvas = allCanvases[0];
+		if (canvas == null) return;
+
+		Transform existing = canvas.transform.Find("[HUD_Player_HealthBar]");
+		if (existing != null) Destroy(existing.gameObject);
+
+		GameObject hudBar = new GameObject("[HUD_Player_HealthBar]", typeof(RectTransform));
+		hudBar.transform.SetParent(canvas.transform, false);
+		RectTransform rt = hudBar.GetComponent<RectTransform>();
+		rt.anchorMin = new Vector2(0f, 1f);
+		rt.anchorMax = new Vector2(0f, 1f);
+		rt.pivot = new Vector2(0f, 1f);
+		rt.anchoredPosition = new Vector2(24f, -125f);
+		rt.sizeDelta = new Vector2(250f, 32f);
+
+		// Nền đen viền Cyan Neon công nghệ cao
+		Image bg = hudBar.AddComponent<Image>();
+		bg.color = new Color(0.06f, 0.10f, 0.16f, 0.95f);
+		Outline outline = hudBar.AddComponent<Outline>();
+		outline.effectColor = new Color(0f, 0.85f, 1f, 0.9f);
+		outline.effectDistance = new Vector2(1.5f, -1.5f);
+
+		// Fill máu xanh lá ngọc
+		GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+		fill.transform.SetParent(hudBar.transform, false);
+		hudHealthBarFill = fill.GetComponent<RectTransform>();
+		hudHealthBarFill.anchorMin = new Vector2(0.02f, 0.15f);
+		hudHealthBarFill.anchorMax = new Vector2(0.98f, 0.85f);
+		hudHealthBarFill.pivot = new Vector2(0f, 0.5f);
+		hudHealthBarFill.anchoredPosition = Vector2.zero;
+		hudHealthBarFill.sizeDelta = Vector2.zero;
+		hudHealthBarFillImage = fill.GetComponent<Image>();
+		hudHealthBarFillImage.color = new Color(0.15f, 0.95f, 0.4f, 1f);
+
+		// Text thông số máu
+		GameObject textObj = new GameObject("Text", typeof(RectTransform), typeof(Text));
+		textObj.transform.SetParent(hudBar.transform, false);
+		RectTransform tRt = textObj.GetComponent<RectTransform>();
+		tRt.anchorMin = Vector2.zero;
+		tRt.anchorMax = Vector2.one;
+		tRt.sizeDelta = Vector2.zero;
+		hudHealthBarText = textObj.GetComponent<Text>();
+		Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+		hudHealthBarText.font = font;
+		hudHealthBarText.fontSize = 18;
+		hudHealthBarText.fontStyle = FontStyle.Bold;
+		hudHealthBarText.alignment = TextAnchor.MiddleCenter;
+		hudHealthBarText.color = Color.white;
+		Shadow sHud = textObj.AddComponent<Shadow>();
+		sHud.effectColor = new Color(0f, 0f, 0f, 0.9f);
+		sHud.effectDistance = new Vector2(1.5f, -1.5f);
 
 		UpdateHealthBar();
 	}
 
 	private void UpdateHealthBar()
 	{
-		if (healthBarFill == null) return;
-
 		float pct = maxHealth > 0f ? Mathf.Clamp01(currentHealth / maxHealth) : 0f;
-		healthBarFill.localScale = new Vector3(pct, 1f, 1f);
 
+		// 1. Cập nhật thanh máu nổi trên đầu
+		if (healthBarFill != null)
+		{
+			healthBarFill.localScale = new Vector3(pct, 1f, 1f);
+		}
 		if (healthBarFillImage != null)
 		{
 			if (pct > 0.5f)
 				healthBarFillImage.color = Color.Lerp(new Color(1f, 0.85f, 0.1f), new Color(0.2f, 0.9f, 0.3f), (pct - 0.5f) * 2f);
 			else
 				healthBarFillImage.color = Color.Lerp(new Color(0.9f, 0.15f, 0.15f), new Color(1f, 0.85f, 0.1f), pct * 2f);
+		}
+		if (healthBarText != null)
+		{
+			healthBarText.text = $"{Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}";
+		}
+
+		// 2. Cập nhật thanh máu HUD trên màn hình
+		if (hudHealthBarFill != null)
+		{
+			hudHealthBarFill.localScale = new Vector3(pct, 1f, 1f);
+		}
+		if (hudHealthBarFillImage != null)
+		{
+			if (pct > 0.5f)
+				hudHealthBarFillImage.color = Color.Lerp(new Color(1f, 0.85f, 0.1f), new Color(0.2f, 0.9f, 0.3f), (pct - 0.5f) * 2f);
+			else
+				hudHealthBarFillImage.color = Color.Lerp(new Color(0.9f, 0.15f, 0.15f), new Color(1f, 0.85f, 0.1f), pct * 2f);
+		}
+		if (hudHealthBarText != null)
+		{
+			hudHealthBarText.text = $"❤️ MÁU: {Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}";
 		}
 	}
 }

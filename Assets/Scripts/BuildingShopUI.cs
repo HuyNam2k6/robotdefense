@@ -6,22 +6,53 @@ public class BuildingShopUI : MonoBehaviour
 {
 	public BuildingSystem buildingSystem;
 
-	[Header("--- Nút Icon Giỏ Hàng & Dashboard Ngang ---")]
-	public Button shoppingCartButton; // Icon giỏ hàng 🛒
-	public GameObject dashboardPanel;  // Bảng dashboard nằm ngang
+	[Header("--- Nút Icon Mở Cửa Hàng & Bảng Phòng Thủ ---")]
+	public Button shoppingCartButton;  // Nút mở bảng shop / phòng thủ
+	public GameObject dashboardPanel;   // Bảng điều hành phòng thủ chính
 	public Button closeDashboardButton; // Nút đóng ✕
 
-	// Thuộc tính tương thích ngược
+	// Thuộc tính tương thích ngược với các script khác
 	public Button shopOpenButton { get => shoppingCartButton; set => shoppingCartButton = value; }
 	public GameObject shopPanel { get => dashboardPanel; set => dashboardPanel = value; }
 	public Button closeShopButton { get => closeDashboardButton; set => closeDashboardButton = value; }
+
+	[Header("--- Hệ Thống Tab Thanh Bên Trái (Left Navigation) ---")]
+	public Button tabDefenseButton;   // Tab 0: Phòng Thủ (Mặc định)
+	public Button tabWarehouseButton; // Tab 1: Kho Hàng
+	public Button tabMachineryButton; // Tab 2: Máy Móc
+	public Button tabRobotButton;     // Tab 3: Robot
+	public Button tabSpecialButton;   // Tab 4: Đặc Biệt
+
+	public Image tabDefenseBg;
+	public Image tabWarehouseBg;
+	public Image tabMachineryBg;
+	public Image tabRobotBg;
+	public Image tabSpecialBg;
+
+	[Header("--- Các Trang Nội Dung Tương Ứng Với Tab ---")]
+	public GameObject pageDefense;
+	public GameObject pageWarehouse;
+	public GameObject pageMachinery;
+	public GameObject pageRobot;
+	public GameObject pageSpecial;
+
+	[Header("--- Các Thẻ Vũ Khí Phòng Thủ (Defense Items) ---")]
+	public Button buyPhaotuhanhButton;     // 1. Pháo Tự Hành (1,500)
+	public Button buyThunderButton;         // 2. Trụ Sét Thunder (2,500)
+	public Button buyFlamethrowerButton;    // 3. Súng Phun Lửa (3,200)
+	public Button buyWallItemButton;        // 4. Bức Tường (100)
+	public Button buyStarterPackButton;     // Gói khởi đầu (chuyển vào Kho Hàng)
+
+	[Header("--- Header Bar & Đồng Hồ Đếm Ngược ---")]
+	public Text countdownText;
+	public Button refreshShopButton;
 
 	[Header("--- Thông Tin Tiền Tệ & Tài Nguyên ---")]
 	public Text coinText;
 	public Text stoneText;
 	public Text woodText;
 
-	[Header("--- Mục 1: Robot Đào Mỏ & Cúp Sắt ---")]
+	[Header("--- Mục 1: Robot Đào Mỏ & Cúp Sắt (Tương thích ngược) ---")]
 	public Button buyWorkerButton;
 	public Text buyWorkerText;
 	public Button upgradePickaxeButton;
@@ -54,10 +85,14 @@ public class BuildingShopUI : MonoBehaviour
 
 	private Coroutine warningCoroutine;
 	private float nextLiveUiUpdate = 0f;
+	private float refreshCountdown = 272f; // 04:32 ban đầu
+	private int currentTab = 0; // 0: Phòng thủ, 1: Kho hàng, 2: Máy móc, 3: Robot, 4: Đặc biệt
+
+	private readonly Color activeTabColor = new Color(0.96f, 0.65f, 0.12f, 1f);     // Màu vàng hổ phách nổi bật
+	private readonly Color inactiveTabColor = new Color(0.08f, 0.14f, 0.24f, 0.95f); // Màu xanh thẫm công nghệ
 
 	void Awake()
 	{
-		// Đảm bảo Canvas không bị scale = 0
 		Canvas canvas = GetComponentInParent<Canvas>();
 		if (canvas != null)
 		{
@@ -82,40 +117,37 @@ public class BuildingShopUI : MonoBehaviour
 		if (shoppingCartButton != null)
 			shoppingCartButton.onClick.AddListener(ToggleShopPanel);
 
-		if (closeShopButton != null)
-			closeShopButton.onClick.AddListener(CloseShopPanel);
+		if (closeDashboardButton != null)
+			closeDashboardButton.onClick.AddListener(CloseShopPanel);
 
-		// 1. Robot Đào & Cúp Sắt
-		if (buyWorkerButton != null)
-			buyWorkerButton.onClick.AddListener(OnBuyWorker);
+		// Tab listeners
+		if (tabDefenseButton != null) tabDefenseButton.onClick.AddListener(() => SwitchTab(0));
+		if (tabWarehouseButton != null) tabWarehouseButton.onClick.AddListener(() => SwitchTab(1));
+		if (tabMachineryButton != null) tabMachineryButton.onClick.AddListener(() => SwitchTab(2));
+		if (tabRobotButton != null) tabRobotButton.onClick.AddListener(() => SwitchTab(3));
+		if (tabSpecialButton != null) tabSpecialButton.onClick.AddListener(() => SwitchTab(4));
 
-		if (upgradePickaxeButton != null)
-			upgradePickaxeButton.onClick.AddListener(OnUpgradePickaxe);
+		// Vũ khí phòng thủ
+		if (buyPhaotuhanhButton != null) buyPhaotuhanhButton.onClick.AddListener(OnSelectPhaotuhanh);
+		if (buyThunderButton != null) buyThunderButton.onClick.AddListener(OnSelectThunder);
+		if (buyFlamethrowerButton != null) buyFlamethrowerButton.onClick.AddListener(OnSelectFlamethrower);
+		if (buyWallItemButton != null) buyWallItemButton.onClick.AddListener(OnSelectWall);
+		if (buyStarterPackButton != null) buyStarterPackButton.onClick.AddListener(OnBuyStarterPack);
 
-		// 2. Nhà Máy Sản Xuất & Chế Tạo Robot (15s)
-		if (buildFactoryButton != null)
-			buildFactoryButton.onClick.AddListener(OnBuildFactoryClicked);
+		if (refreshShopButton != null) refreshShopButton.onClick.AddListener(OnRefreshShop);
 
-		if (craftRobotButton != null)
-			craftRobotButton.onClick.AddListener(OnCraftRobotClicked);
-		else if (defenseRobotButton != null && defenseRobotButton != buildFactoryButton)
-			defenseRobotButton.onClick.AddListener(OnCraftRobotClicked);
+		// Backward compatibility listeners
+		if (buyWorkerButton != null) buyWorkerButton.onClick.AddListener(OnBuyWorker);
+		if (upgradePickaxeButton != null) upgradePickaxeButton.onClick.AddListener(OnUpgradePickaxe);
+		if (buildFactoryButton != null) buildFactoryButton.onClick.AddListener(OnBuildFactoryClicked);
+		if (craftRobotButton != null) craftRobotButton.onClick.AddListener(OnCraftRobotClicked);
+		if (wallButton != null) wallButton.onClick.AddListener(OnSelectWall);
+		if (upgradeWallButton != null) upgradeWallButton.onClick.AddListener(OnUpgradeWall);
 
-		// 3. Tường & Nâng Cấp Tường
-		if (wallButton != null)
-			wallButton.onClick.AddListener(OnSelectWall);
+		// Placement HUD
+		if (rotateIconButton != null) rotateIconButton.onClick.AddListener(OnRotate);
+		if (cancelIconButton != null) cancelIconButton.onClick.AddListener(OnCancel);
 
-		if (upgradeWallButton != null)
-			upgradeWallButton.onClick.AddListener(OnUpgradeWall);
-
-		// Điều khiển xoay / hủy
-		if (rotateIconButton != null)
-			rotateIconButton.onClick.AddListener(OnRotate);
-
-		if (cancelIconButton != null)
-			cancelIconButton.onClick.AddListener(OnCancel);
-
-		// Đăng ký event với GameEconomy
 		if (GameEconomy.Instance != null)
 		{
 			GameEconomy.Instance.OnEconomyChanged += UpdateUI;
@@ -125,13 +157,11 @@ public class BuildingShopUI : MonoBehaviour
 		if (notEnoughCoinsBanner != null)
 			notEnoughCoinsBanner.SetActive(false);
 
-		// Mặc định ban đầu: Ẩn dashboard, chỉ hiện icon giỏ hàng 🛒 khi nhấn vào mới mở
+		// Mặc định ban đầu: Ẩn dashboard, chọn tab Phòng Thủ (0)
 		if (dashboardPanel != null)
 			dashboardPanel.SetActive(false);
 
-		if (shoppingCartButton != null)
-			shoppingCartButton.gameObject.SetActive(true);
-
+		SwitchTab(0);
 		UpdateUI();
 	}
 
@@ -146,6 +176,12 @@ public class BuildingShopUI : MonoBehaviour
 
 	void Update()
 	{
+		// Phím tắt B: Bật/Tắt Bảng Phòng Thủ
+		if (Input.GetKeyDown(KeyCode.B))
+		{
+			ToggleShopPanel();
+		}
+
 		if (buildingSystem != null)
 		{
 			bool isPlacing = buildingSystem.IsPlacing;
@@ -155,7 +191,7 @@ public class BuildingShopUI : MonoBehaviour
 				placementHUD.SetActive(isPlacing);
 			}
 
-			// Khi đang kéo đặt công trình: ẩn dashboard và icon giỏ hàng để dễ quan sát mặt đất
+			// Khi đang kéo đặt công trình: ẩn dashboard để dễ quan sát mặt đất
 			if (isPlacing)
 			{
 				if (dashboardPanel != null && dashboardPanel.activeSelf)
@@ -176,15 +212,116 @@ public class BuildingShopUI : MonoBehaviour
 			}
 		}
 
-		// Cập nhật thời gian thực khi đang mở Shop để thấy đồng hồ đếm ngược 15s nhảy từng giây
+		// Cập nhật đồng hồ đếm ngược và live UI khi mở panel
 		if (dashboardPanel != null && dashboardPanel.activeSelf)
 		{
+			UpdateCountdown();
+
 			if (Time.time >= nextLiveUiUpdate)
 			{
 				nextLiveUiUpdate = Time.time + 0.25f;
 				UpdateLiveFactoryUI();
 			}
 		}
+	}
+
+	private void UpdateCountdown()
+	{
+		refreshCountdown -= Time.deltaTime;
+		if (refreshCountdown <= 0f) refreshCountdown = 300f;
+
+		if (countdownText != null)
+		{
+			int minutes = Mathf.FloorToInt(refreshCountdown / 60f);
+			int seconds = Mathf.FloorToInt(refreshCountdown % 60f);
+			countdownText.text = $"⏳ Làm mới sau: <color=#00FFFF><b>{minutes:00}:{seconds:00}</b></color>";
+		}
+	}
+
+	public void SwitchTab(int tabIndex)
+	{
+		currentTab = tabIndex;
+
+		if (pageDefense != null) pageDefense.SetActive(tabIndex == 0);
+		if (pageWarehouse != null) pageWarehouse.SetActive(tabIndex == 1);
+		if (pageMachinery != null) pageMachinery.SetActive(tabIndex == 2);
+		if (pageRobot != null) pageRobot.SetActive(tabIndex == 3);
+		if (pageSpecial != null) pageSpecial.SetActive(tabIndex == 4);
+
+		// Cập nhật màu sắc nút tab
+		if (tabDefenseBg != null) tabDefenseBg.color = tabIndex == 0 ? activeTabColor : inactiveTabColor;
+		if (tabWarehouseBg != null) tabWarehouseBg.color = tabIndex == 1 ? activeTabColor : inactiveTabColor;
+		if (tabMachineryBg != null) tabMachineryBg.color = tabIndex == 2 ? activeTabColor : inactiveTabColor;
+		if (tabRobotBg != null) tabRobotBg.color = tabIndex == 3 ? activeTabColor : inactiveTabColor;
+		if (tabSpecialBg != null) tabSpecialBg.color = tabIndex == 4 ? activeTabColor : inactiveTabColor;
+	}
+
+	// ================= CHỌN VŨ KHÍ PHÒNG THỦ =================
+
+	public void OnSelectPhaotuhanh()
+	{
+		SelectItemWithCostCheck(0, "Pháo Tự Hành");
+	}
+
+	public void OnSelectThunder()
+	{
+		SelectItemWithCostCheck(1, "Trụ Sét");
+	}
+
+	public void OnSelectFlamethrower()
+	{
+		SelectItemWithCostCheck(2, "Súng Phun Lửa");
+	}
+
+	private void SelectItemWithCostCheck(int itemIndex, string displayName)
+	{
+		if (buildingSystem == null || buildingSystem.items == null || itemIndex >= buildingSystem.items.Length)
+		{
+			ShowNotEnoughCoinsWarning($"⚠️ Chưa tìm thấy prefab {displayName}!");
+			return;
+		}
+
+		int cost = buildingSystem.items[itemIndex].cost;
+		if (cost > 0 && GameEconomy.Instance != null && GameEconomy.Instance.coins < cost)
+		{
+			ShowNotEnoughCoinsWarning($"⚠️ Không đủ vàng để mua {displayName}! (Cần {cost}🪙)");
+			return;
+		}
+
+		if (WallSelectionManager.Instance != null)
+		{
+			WallSelectionManager.Instance.DeselectAll();
+		}
+
+		CloseShopPanel();
+		buildingSystem.SelectItem(itemIndex);
+		Debug.Log($"<color=#00FF88>[Phòng Thủ]</color> Đã chọn <b>{displayName}</b>! Nhấp chuột trái lên mặt đất để đặt vị trí.");
+	}
+
+	public void OnBuyStarterPack()
+	{
+		const int packCost = 4990;
+		if (GameEconomy.Instance != null && GameEconomy.Instance.coins < packCost)
+		{
+			ShowNotEnoughCoinsWarning($"⚠️ Không đủ vàng để mua Gói Khởi Đầu! (Cần {packCost}🪙)");
+			return;
+		}
+
+		if (GameEconomy.Instance != null && GameEconomy.Instance.SpendCoins(packCost))
+		{
+			CloseShopPanel();
+			// Bắt đầu đặt Pháo Tự Hành trước
+			if (buildingSystem != null) buildingSystem.SelectItem(0);
+			Debug.Log("<color=#FFD700><b>[Kho Hàng - Gói Khởi Đầu]</b></color> Đã mở Gói Khởi Đầu! Bắt đầu bố trí Pháo Tự Hành.");
+		}
+	}
+
+	public void OnRefreshShop()
+	{
+		refreshCountdown = 300f; // Reset về 05:00
+		UpdateCountdown();
+		StartCoroutine(AnimateButtonBounce(refreshShopButton != null ? refreshShopButton.transform : null));
+		Debug.Log("<color=#00FFFF>[Làm Mới]</color> Đã làm mới danh mục phòng thủ!");
 	}
 
 	private void UpdateLiveFactoryUI()
@@ -224,13 +361,13 @@ public class BuildingShopUI : MonoBehaviour
 
 		// 1. Tiền tệ
 		if (coinText != null)
-			coinText.text = $"🪙 <b>{GameEconomy.Instance.coins}</b> Vàng";
+			coinText.text = $"🪙 <b>{GameEconomy.Instance.coins:N0}</b>";
 
 		if (stoneText != null)
-			stoneText.text = $"🪨 <b>{GameEconomy.Instance.stoneCount}</b> Đá";
+			stoneText.text = $"🪨 <b>{GameEconomy.Instance.stoneCount:N0}</b>";
 
 		if (woodText != null)
-			woodText.text = $"🪵 <b>{GameEconomy.Instance.woodCount}</b> Gỗ";
+			woodText.text = $"🪵 <b>{GameEconomy.Instance.woodCount:N0}</b>";
 
 		// 2. Robot Đào Mỏ
 		if (buyWorkerText != null)
@@ -265,7 +402,7 @@ public class BuildingShopUI : MonoBehaviour
 		// 4. Mua Tường
 		if (wallButtonText != null)
 		{
-			wallButtonText.text = $"🧱 <b>MUA TƯỜNG (KÉO TRÁI/PHẢI)</b>\n<color=#FFD700>🪙 {GameEconomy.Instance.wallSegmentCost} Vàng/Đoạn</color>";
+			wallButtonText.text = $"🧱 <b>MUA TƯỜNG (KÉO DÀI)</b>\n<color=#FFD700>🪙 {GameEconomy.Instance.wallSegmentCost} Vàng/Đoạn</color>";
 		}
 
 		// 5. Nâng Cấp Tường
@@ -289,12 +426,12 @@ public class BuildingShopUI : MonoBehaviour
 
 	public void ToggleShopPanel()
 	{
-		if (shopPanel != null)
+		if (dashboardPanel != null)
 		{
-			shopPanel.SetActive(!shopPanel.activeSelf);
-			if (shopPanel.activeSelf && WallSelectionManager.Instance != null)
+			dashboardPanel.SetActive(!dashboardPanel.activeSelf);
+			if (dashboardPanel.activeSelf && WallSelectionManager.Instance != null)
 			{
-				WallSelectionManager.Instance.DeselectWall();
+				WallSelectionManager.Instance.DeselectAll();
 			}
 			UpdateUI();
 		}
@@ -302,7 +439,7 @@ public class BuildingShopUI : MonoBehaviour
 
 	public void CloseShopPanel()
 	{
-		if (shopPanel != null) shopPanel.SetActive(false);
+		if (dashboardPanel != null) dashboardPanel.SetActive(false);
 	}
 
 	public void OnMiningRobotClicked()
@@ -318,9 +455,9 @@ public class BuildingShopUI : MonoBehaviour
 	{
 		if (btnTransform == null) yield break;
 		Vector3 originalScale = Vector3.one;
-		btnTransform.localScale = originalScale * 0.85f;
+		btnTransform.localScale = originalScale * 0.88f;
 		yield return new WaitForSeconds(0.08f);
-		btnTransform.localScale = originalScale * 1.12f;
+		btnTransform.localScale = originalScale * 1.10f;
 		yield return new WaitForSeconds(0.08f);
 		btnTransform.localScale = originalScale;
 	}
@@ -336,9 +473,6 @@ public class BuildingShopUI : MonoBehaviour
 		}
 	}
 
-	/// <summary>
-	/// Bấm Xây Nhà Máy từ Cửa Hàng: Chuyển sang chế độ Hologram của BuildingSystem
-	/// </summary>
 	public void OnBuildFactoryClicked()
 	{
 		if (buildingSystem != null)
@@ -353,7 +487,7 @@ public class BuildingShopUI : MonoBehaviour
 				}
 			}
 
-			if (factoryIndex < 0) factoryIndex = 2; // fallback
+			if (factoryIndex < 0) factoryIndex = 4; // fallback
 
 			CloseShopPanel();
 			buildingSystem.SelectItem(factoryIndex);
@@ -361,9 +495,6 @@ public class BuildingShopUI : MonoBehaviour
 		}
 	}
 
-	/// <summary>
-	/// Bấm Chế Tạo Robot (15s) từ Cửa Hàng
-	/// </summary>
 	public void OnCraftRobotClicked()
 	{
 		if (RobotFactory.Instance == null)
@@ -414,13 +545,23 @@ public class BuildingShopUI : MonoBehaviour
 
 		if (WallSelectionManager.Instance != null)
 		{
-			WallSelectionManager.Instance.DeselectWall();
+			WallSelectionManager.Instance.DeselectAll();
 		}
 
 		CloseShopPanel();
 		if (buildingSystem != null)
 		{
-			buildingSystem.SelectItem(1); // 1 là Tường trong BuildingSystem
+			// Tìm index của Wall
+			int wallIdx = 3;
+			for (int i = 0; i < buildingSystem.items.Length; i++)
+			{
+				if (buildingSystem.items[i] != null && buildingSystem.items[i].isWall)
+				{
+					wallIdx = i;
+					break;
+				}
+			}
+			buildingSystem.SelectItem(wallIdx);
 		}
 	}
 

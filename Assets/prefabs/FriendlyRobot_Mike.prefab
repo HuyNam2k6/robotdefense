@@ -994,8 +994,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::FriendlyCombatRobot
   robotClass: 1
   robotName: "\U0001F6E1\uFE0F Mike \u0110\u1EA5u S\u0129"
-  maxHealth: 320
-  currentHealth: 320
+  maxHealth: 80
+  currentHealth: 80
   moveSpeed: 3.6
   attackRange: 2.6
   attackDamage: 45
