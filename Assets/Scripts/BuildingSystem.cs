@@ -108,7 +108,7 @@ public class BuildingSystem : MonoBehaviour
 		{
 			if (hasGroundHit)
 			{
-				float segLen = 2.85f; // Bước tường chuẩn khít rịt hoàn toàn, không có kẽ hở!
+				float segLen = 1.425f; // Bước tường nhỏ gọn chuẩn tỉ lệ (nhỏ đi gấp 2 theo yêu cầu)
 
 				// Bắt đầu kéo khi nhấn chuột trái xuống
 				if (Input.GetMouseButtonDown(0))
@@ -310,9 +310,9 @@ public class BuildingSystem : MonoBehaviour
 	/// </summary>
 	private Vector3 GetWallPlacementSnap(Vector3 rawPoint, float segLen, ref Quaternion wallRot)
 	{
-		// 1. Tìm đoạn tường đã có trong bán kính 2.5m để hút dính khít
+		// 1. Tìm đoạn tường đã có trong bán kính 1.3m để hút dính khít
 		WallSegment nearest = null;
-		float minDistSqr = 2.5f * 2.5f;
+		float minDistSqr = 1.3f * 1.3f;
 
 		for (int i = 0; i < WallSegment.AllWalls.Count; i++)
 		{
@@ -392,11 +392,11 @@ public class BuildingSystem : MonoBehaviour
 
 		if (selectedIndex >= 0 && selectedIndex < items.Length && items[selectedIndex].isWall)
 		{
-			realObj.transform.localScale = Vector3.one * 3f;
+			realObj.transform.localScale = Vector3.one * 1.5f;
 
 			WallSegment ws = realObj.GetComponent<WallSegment>();
 			if (ws == null) ws = realObj.AddComponent<WallSegment>();
-			ws.SetBaseScale(Vector3.one * 3f);
+			ws.SetBaseScale(Vector3.one * 1.5f);
 			if (GameEconomy.Instance != null)
 			{
 				ws.ApplyLevel(GameEconomy.Instance.wallLevel);
@@ -442,7 +442,7 @@ public class BuildingSystem : MonoBehaviour
 			p.name = $"[Hologram_Preview_{previewPool.Count}]";
 			if (items[selectedIndex].isWall)
 			{
-				p.transform.localScale = Vector3.one * 3f;
+				p.transform.localScale = Vector3.one * 1.5f;
 			}
 
 			foreach (Collider col in p.GetComponentsInChildren<Collider>()) col.enabled = false;

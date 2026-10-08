@@ -631,8 +631,8 @@ public class WallSelectionManager : MonoBehaviour
             {
                 if (selectedWall != null)
                 {
-                    // Snap lưới tường bước 2.85m - 3.0m và hút khít vào các tường khác
-                    float segLen = 2.85f;
+                    // Snap lưới tường bước 1.425m (đã giảm 2 lần) và hút khít vào các tường khác
+                    float segLen = 1.425f;
                     Vector3 snappedPos = GetSnappedWallPosition(groundPoint, segLen);
 
                     // Khóa độ cao mặt đất cố định cho cả hàng tường (Tránh bậc thang)
@@ -778,8 +778,8 @@ public class WallSelectionManager : MonoBehaviour
                 if (otherWall == null || IsItemBeingMoved(otherWall.transform)) continue;
 
                 float distXZ = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(otherWall.transform.position.x, otherWall.transform.position.z));
-                // Nếu khoảng cách tâm < 1.95m là đang đè trùng lên nhau!
-                if (distXZ < 1.95f)
+                // Nếu khoảng cách tâm < 0.98m là đang đè trùng lên nhau (đã giảm tỷ lệ cho tường nhỏ)
+                if (distXZ < 0.98f)
                 {
                     return false;
                 }
@@ -803,7 +803,7 @@ public class WallSelectionManager : MonoBehaviour
             if (player != null)
             {
                 float distXZ = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(player.transform.position.x, player.transform.position.z));
-                float playerSafetyRadius = (selectedWall != null) ? 2.95f : 2.6f;
+                float playerSafetyRadius = (selectedWall != null) ? 1.5f : 2.6f;
                 if (distXZ < playerSafetyRadius)
                 {
                     return false; // DÍNH PLAYER -> BÁO LỖI (MÀU ĐỎ)!
@@ -812,7 +812,7 @@ public class WallSelectionManager : MonoBehaviour
 
             // Quét kiểm tra va chạm hộp 3D thực tế quanh từng đoạn tường / trụ với Player
             Vector3 boxCenter = pos + Vector3.up * 1.2f;
-            Vector3 halfExtents = (selectedWall != null) ? new Vector3(1.85f, 2.2f, 1.85f) : new Vector3(1.6f, 2.2f, 1.6f);
+            Vector3 halfExtents = (selectedWall != null) ? new Vector3(0.95f, 1.1f, 0.95f) : new Vector3(1.6f, 2.2f, 1.6f);
             Collider[] hitCols = Physics.OverlapBox(boxCenter, halfExtents, item.transform.rotation);
             if (hitCols != null)
             {
@@ -835,7 +835,7 @@ public class WallSelectionManager : MonoBehaviour
                 {
                     if (pObjs[pIdx] == null) continue;
                     float d = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(pObjs[pIdx].transform.position.x, pObjs[pIdx].transform.position.z));
-                    float r = (selectedWall != null) ? 2.95f : 2.6f;
+                    float r = (selectedWall != null) ? 1.5f : 2.6f;
                     if (d < r)
                     {
                         return false; // DÍNH PLAYER -> BÁO LỖI (MÀU ĐỎ)!
@@ -1085,7 +1085,7 @@ public class WallSelectionManager : MonoBehaviour
     private Vector3 GetSnappedWallPosition(Vector3 rawPoint, float segLen)
     {
         WallSegment nearest = null;
-        float minDist = 3.6f;
+        float minDist = 1.8f;
 
         for (int i = 0; i < WallSegment.AllWalls.Count; i++)
         {

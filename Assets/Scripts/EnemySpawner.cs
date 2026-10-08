@@ -329,12 +329,22 @@ public class EnemySpawner : MonoBehaviour
         {
             List<GameObject> list = new List<GameObject>();
 #if UNITY_EDITOR
-            GameObject bug = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Enemy_AlienBug.prefab")
-                          ?? UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabsEnemy/Enemy_AlienBug.prefab");
-            GameObject spider = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Enemy_Spider.prefab")
-                             ?? UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabsEnemy/Enemy_Spider.prefab");
-            if (bug != null) list.Add(bug);
-            if (spider != null) list.Add(spider);
+            // Chỉ lấy duy nhất quái vật từ thư mục Assets/prefabsEnemy theo đúng yêu cầu
+            string[] guids = UnityEditor.AssetDatabase.FindAssets("t:Prefab", new[] { "Assets/prefabsEnemy" });
+            foreach (var guid in guids)
+            {
+                string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
+                if (path.Contains("Enemy_MechaDragon"))
+                {
+                    if (mechaBossPrefab == null)
+                        mechaBossPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                }
+                else if (path.Contains("Enemy_") || path.Contains("Bug") || path.Contains("Spider"))
+                {
+                    GameObject p = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
+                    if (p != null && !list.Contains(p)) list.Add(p);
+                }
+            }
 #endif
             if (list.Count > 0)
             {
@@ -345,8 +355,8 @@ public class EnemySpawner : MonoBehaviour
         if (mechaBossPrefab == null)
         {
 #if UNITY_EDITOR
-            mechaBossPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/Enemy_MechaDragon.prefab")
-                           ?? UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabsEnemy/Enemy_MechaDragon.prefab");
+            // Chỉ lấy duy nhất Boss Mecha từ thư mục Assets/prefabsEnemy theo đúng yêu cầu
+            mechaBossPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabsEnemy/Enemy_MechaDragon.prefab");
 #endif
         }
     }

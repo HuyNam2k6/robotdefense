@@ -120,8 +120,8 @@ public class WallSegment : MonoBehaviour
     public Vector3 GetBaseScale()
     {
         if (baseScale == Vector3.zero) baseScale = transform.localScale;
-        if (baseScale.x <= 1.05f && transform.localScale.x > 1.5f) baseScale = transform.localScale;
-        if (baseScale == Vector3.one || baseScale.x <= 1.05f) baseScale = Vector3.one * 3f;
+        if (baseScale.x <= 1.05f && transform.localScale.x > 1.1f) baseScale = transform.localScale;
+        if (baseScale == Vector3.one || baseScale.x <= 1.05f) baseScale = Vector3.one * 1.5f;
         return baseScale;
     }
 
@@ -537,10 +537,7 @@ public class WallSegment : MonoBehaviour
     {
         if (delay > 0f) yield return new WaitForSeconds(delay);
 
-        if (baseScale == Vector3.zero) baseScale = transform.localScale;
-        Vector3 orig = baseScale;
-        if (orig.x <= 1.05f && transform.localScale.x > 1.5f) orig = transform.localScale;
-        if (orig == Vector3.one) orig = Vector3.one * 3f;
+        Vector3 orig = GetBaseScale();
 
         float elapsed = 0f;
         float duration = 0.24f;
@@ -557,7 +554,7 @@ public class WallSegment : MonoBehaviour
         transform.localScale = orig;
     }
 
-    public List<WallSegment> GetConnectedRow(float maxDistance = 3.8f)
+    public List<WallSegment> GetConnectedRow(float maxDistance = 1.9f)
     {
         List<WallSegment> connected = new List<WallSegment>();
         Queue<WallSegment> queue = new Queue<WallSegment>();
