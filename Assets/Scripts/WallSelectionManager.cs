@@ -30,11 +30,13 @@ public class WallSelectionManager : MonoBehaviour
     public Text titleText;
     public Text subtitleText;
 
-    // Hàng nút trên (Nâng cấp & Đóng)
+    // Hàng nút trên (Nâng cấp, Sửa chữa & Đóng)
     public Button upgradeSingleButton;
     public Text upgradeSingleText;
     public Button upgradeRowButton;
     public Text upgradeRowText;
+    public Button repairButton;
+    public Text repairText;
     public Button closeCardButton;
 
     // Hàng nút dưới (Di chuyển & Xoay)
@@ -432,6 +434,25 @@ public class WallSelectionManager : MonoBehaviour
             {
                 moveRowText.text = $"🚛 <b>DỜI CẢ HÀNG ({connectedRow.Count})</b>";
             }
+
+            if (repairButton != null && repairText != null)
+            {
+                repairButton.gameObject.SetActive(true);
+                int repairCost = selectedWall.GetRepairCost();
+                float curHp = selectedWall.currentHealth;
+                float maxHp = selectedWall.maxHealth;
+                if (curHp >= maxHp)
+                {
+                    repairText.text = $"🔧 <b>SỬA CHỮA</b>\n<color=#00FF88>ĐẦY MÁU ({Mathf.CeilToInt(curHp)}/{Mathf.CeilToInt(maxHp)})</color>";
+                    repairButton.interactable = false;
+                }
+                else
+                {
+                    string costStr = repairCost == 0 ? "0🪙 (MIỄN PHÍ)" : $"{repairCost}🪙";
+                    repairText.text = $"🔧 <b>SỬA CHỮA</b>\n<color=#00FFFF>{costStr}</color>";
+                    repairButton.interactable = true;
+                }
+            }
         }
         // ================= 2. NẾU ĐANG CHỌN Ụ PHÁO =================
         else if (selectedTurret != null)
@@ -476,6 +497,41 @@ public class WallSelectionManager : MonoBehaviour
                 }
                 if (upgradeSingleButton != null) upgradeSingleButton.interactable = false;
             }
+
+            if (repairButton != null && repairText != null)
+            {
+                repairButton.gameObject.SetActive(true);
+                int repairCost = selectedTurret.GetRepairCost();
+                float curHp = selectedTurret.currentHealth;
+                float maxHp = selectedTurret.maxHealth;
+                if (curHp >= maxHp)
+                {
+                    repairText.text = $"🔧 <b>SỬA CHỮA</b>\n<color=#00FF88>ĐẦY MÁU ({Mathf.CeilToInt(curHp)}/{Mathf.CeilToInt(maxHp)})</color>";
+                    repairButton.interactable = false;
+                }
+                else
+                {
+                    string costStr = repairCost == 0 ? "0🪙 (MIỄN PHÍ)" : $"{repairCost}🪙";
+                    repairText.text = $"🔧 <b>SỬA CHỮA</b>\n<color=#00FFFF>{costStr}</color>";
+                    repairButton.interactable = true;
+                }
+            }
+        }
+    }
+
+    private void OnRepairClicked()
+    {
+        if (selectedWall != null)
+        {
+            bool success = selectedWall.Repair();
+            Debug.Log($"[WallSelectionManager] Sửa chữa Tường: success={success}");
+            if (success) RefreshCardUI();
+        }
+        else if (selectedTurret != null)
+        {
+            bool success = selectedTurret.Repair();
+            Debug.Log($"[WallSelectionManager] Sửa chữa Ụ Pháo ({selectedTurret.turretDisplayName}): success={success}");
+            if (success) RefreshCardUI();
         }
     }
 
@@ -1235,7 +1291,7 @@ public class WallSelectionManager : MonoBehaviour
             cardRect.anchorMax = new Vector2(0.5f, 0f);
             cardRect.pivot = new Vector2(0.5f, 0f);
             cardRect.anchoredPosition = new Vector2(0f, 130f);
-            cardRect.sizeDelta = new Vector2(740f, 275f);
+            cardRect.sizeDelta = new Vector2(780f, 275f);
 
             Image cardBg = wallCardPanel.AddComponent<Image>();
             cardBg.color = new Color(0.10f, 0.12f, 0.17f, 0.96f);
@@ -1283,7 +1339,7 @@ public class WallSelectionManager : MonoBehaviour
             subtitleText.supportRichText = true;
             subtitleText.raycastTarget = false;
 
-            // HÀNG NÚT TRÊN (NÂNG CẤP & ĐÓNG)
+            // HÀNG NÚT TRÊN (NÂNG CẤP, SỬA CHỮA & ĐÓNG)
             GameObject topRowObj = new GameObject("ButtonRowTop", typeof(RectTransform));
             topRowObj.layer = LayerMask.NameToLayer("UI");
             topRowObj.transform.SetParent(wallCardPanel.transform, false);
@@ -1292,19 +1348,20 @@ public class WallSelectionManager : MonoBehaviour
             topRowRect.anchorMax = new Vector2(0.5f, 0f);
             topRowRect.pivot = new Vector2(0.5f, 0f);
             topRowRect.anchoredPosition = new Vector2(0f, 96f);
-            topRowRect.sizeDelta = new Vector2(700f, 85f);
+            topRowRect.sizeDelta = new Vector2(750f, 85f);
 
             HorizontalLayoutGroup topHlg = topRowObj.AddComponent<HorizontalLayoutGroup>();
-            topHlg.spacing = 12f;
+            topHlg.spacing = 10f;
             topHlg.childAlignment = TextAnchor.MiddleCenter;
             topHlg.childControlWidth = false;
             topHlg.childControlHeight = false;
             topHlg.childForceExpandWidth = false;
             topHlg.childForceExpandHeight = false;
 
-            upgradeSingleButton = CreateCardActionButton(topRowObj.transform, "Btn_UpgradeSingle", new Vector2(250f, 80f), new Color(0.85f, 0.55f, 0.12f), safeFont, out upgradeSingleText);
-            upgradeRowButton = CreateCardActionButton(topRowObj.transform, "Btn_UpgradeRow", new Vector2(300f, 80f), new Color(0.15f, 0.55f, 0.88f), safeFont, out upgradeRowText);
-            closeCardButton = CreateCardActionButton(topRowObj.transform, "Btn_CloseCard", new Vector2(85f, 80f), new Color(0.55f, 0.2f, 0.2f), safeFont, out Text closeTxt);
+            upgradeSingleButton = CreateCardActionButton(topRowObj.transform, "Btn_UpgradeSingle", new Vector2(210f, 80f), new Color(0.85f, 0.55f, 0.12f), safeFont, out upgradeSingleText);
+            upgradeRowButton = CreateCardActionButton(topRowObj.transform, "Btn_UpgradeRow", new Vector2(240f, 80f), new Color(0.15f, 0.55f, 0.88f), safeFont, out upgradeRowText);
+            repairButton = CreateCardActionButton(topRowObj.transform, "Btn_Repair", new Vector2(200f, 80f), new Color(0.18f, 0.65f, 0.38f), safeFont, out repairText);
+            closeCardButton = CreateCardActionButton(topRowObj.transform, "Btn_CloseCard", new Vector2(65f, 80f), new Color(0.55f, 0.2f, 0.2f), safeFont, out Text closeTxt);
             closeTxt.text = "<b>✕</b>";
             closeTxt.fontSize = 28;
 
@@ -1464,6 +1521,12 @@ public class WallSelectionManager : MonoBehaviour
         {
             upgradeRowButton.onClick.RemoveAllListeners();
             upgradeRowButton.onClick.AddListener(OnUpgradeRowClicked);
+        }
+
+        if (repairButton != null)
+        {
+            repairButton.onClick.RemoveAllListeners();
+            repairButton.onClick.AddListener(OnRepairClicked);
         }
 
         if (closeCardButton != null)

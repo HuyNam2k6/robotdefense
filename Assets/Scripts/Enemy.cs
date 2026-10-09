@@ -128,21 +128,35 @@ public class Enemy : MonoBehaviour
         }
     }
 
+    public float GetHeadTopHeight()
+    {
+        Renderer[] rends = GetComponentsInChildren<Renderer>(true);
+        if (rends != null && rends.Length > 0)
+        {
+            float maxTop = float.MinValue;
+            foreach (var r in rends)
+            {
+                if (r == null || r is ParticleSystemRenderer || r is LineRenderer) continue;
+                string rn = r.name;
+                if (rn.Contains("HealthBar") || rn.Contains("Fill") || rn.Contains("Background") || rn.Contains("HP_Text")) continue;
+                if (r.bounds.max.y > maxTop) maxTop = r.bounds.max.y;
+            }
+            if (maxTop > float.MinValue + 5f)
+            {
+                float h = (maxTop - transform.position.y) + 0.55f;
+                if (h > 1.2f) return h;
+            }
+        }
+
+        if (isFlying || name.ToLower().Contains("dragon")) return 4.8f;
+        if (name.ToLower().Contains("spider") || enemyName.ToLower().Contains("spider")) return 1.8f;
+        return 2.0f;
+    }
+
     void Start()
     {
         mainCamera = Camera.main;
-        if (isFlying || name.ToLower().Contains("dragon"))
-        {
-            healthBarHeight = 3.6f;
-        }
-        else if (name.ToLower().Contains("spider") || enemyName.ToLower().Contains("spider"))
-        {
-            healthBarHeight = 1.6f;
-        }
-        else
-        {
-            healthBarHeight = 1.2f;
-        }
+        healthBarHeight = GetHeadTopHeight();
 
         SnapToGroundImmediately();
         FindTarget();
@@ -391,6 +405,7 @@ public class Enemy : MonoBehaviour
             if (mainCamera != null)
             {
                 healthBarObj.transform.rotation = mainCamera.transform.rotation;
+                healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
             }
         }
     }
@@ -651,21 +666,22 @@ public class Enemy : MonoBehaviour
             healthBarObj = null;
         }
 
+        healthBarHeight = GetHeadTopHeight();
         healthBarObj = new GameObject("[Enemy_HealthBar]");
         healthBarObj.transform.SetParent(transform, false);
-        healthBarObj.transform.localPosition = new Vector3(0f, healthBarHeight, 0f);
+        healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
 
         Canvas canvas = healthBarObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
         CanvasScaler cs = healthBarObj.AddComponent<CanvasScaler>();
-        cs.dynamicPixelsPerUnit = 20;
+        cs.dynamicPixelsPerUnit = 10;
 
         RectTransform rt = healthBarObj.GetComponent<RectTransform>();
         bool isBoss = isFlying || maxHealth >= 500f;
-        float barWidth = isBoss ? 2.6f : 1.3f;
-        float barHeight = isBoss ? 0.32f : 0.16f;
+        float barWidth = isBoss ? 240f : 140f;
+        float barHeight = isBoss ? 28f : 18f;
         rt.sizeDelta = new Vector2(barWidth, barHeight);
-        rt.localScale = Vector3.one;
+        rt.localScale = Vector3.one * 0.012f;
 
         // Khung nền đen xám viền (KHÔNG dùng Outline để tránh nhân bản đỉnh tạo cảm giác 3 thanh máu)
         GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));

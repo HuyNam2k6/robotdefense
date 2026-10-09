@@ -84,9 +84,17 @@ public class EnemySpawner : MonoBehaviour
 
     private void Update()
     {
-        // 1. Đếm giờ và sinh quái vật thường (5s 1 con)
+        // 1. Đếm giờ và sinh quái vật thường (Ngày ít quái, Đêm dồn dập)
         normalTimer += Time.deltaTime;
-        if (normalTimer >= normalEnemyInterval)
+        float currentInterval = normalEnemyInterval;
+        if (DayNightSystem.Instance != null)
+        {
+            currentInterval = DayNightSystem.Instance.isNight 
+                ? DayNightSystem.Instance.nightEnemyInterval 
+                : DayNightSystem.Instance.dayEnemyInterval;
+        }
+
+        if (normalTimer >= currentInterval)
         {
             normalTimer = 0f;
             SpawnNormalEnemy();

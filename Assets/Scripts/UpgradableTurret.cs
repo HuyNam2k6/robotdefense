@@ -47,10 +47,49 @@ public class UpgradableTurret : MonoBehaviour
     public float currentHealth = 250f;
     public bool isDestroyed = false;
 
+    [Header("--- Sửa Chữa Vũ Khí (Repair) ---")]
+    public int repairCost = 0; // Giá sửa chữa vũ khí (hiện tại để 0, không fix cứng)
+
+    public int GetRepairCost()
+    {
+        return repairCost;
+    }
+
+    public bool Repair()
+    {
+        if (isDestroyed) return false;
+        if (currentHealth >= maxHealth) return false;
+
+        int cost = GetRepairCost();
+        if (cost <= 0 || (GameEconomy.Instance != null && GameEconomy.Instance.SpendCoins(cost)))
+        {
+            currentHealth = maxHealth;
+            UpdateHealthBar();
+            TriggerPunchHop();
+            FloatingDamageText.Spawn(transform.position + Vector3.up * 2.5f, 0, Color.green);
+            return true;
+        }
+        else if (GameEconomy.Instance != null)
+        {
+            GameEconomy.Instance.TriggerNotEnoughCoins($"Không đủ vàng để sửa chữa {turretDisplayName}!");
+        }
+        return false;
+    }
+
+    [Header("--- Thanh Máu Nổi (World-Space HealthBar) ---")]
+    public bool showHealthBar = true;
+    public float healthBarHeight = 3.2f;
+    private GameObject healthBarObj;
+    private RectTransform healthBarFill;
+    private UnityEngine.UI.Image healthBarFillImage;
+    private UnityEngine.UI.Text healthBarText;
+    private Camera mainCamera;
+
     public void TakeDamage(float amount)
     {
         if (isDestroyed) return;
         currentHealth -= amount;
+        UpdateHealthBar();
         FloatingDamageText.Spawn(transform.position + Vector3.up * 2.2f, amount, new Color(1f, 0.5f, 0.2f));
         if (currentHealth <= 0f)
         {
@@ -105,7 +144,95 @@ public class UpgradableTurret : MonoBehaviour
     {
         if (baseScale == Vector3.zero) baseScale = transform.localScale;
         EnsureSparkleParticles();
+        CreateFloatingHealthBar();
         ApplyLevel(currentLevel);
+    }
+
+    void LateUpdate()
+    {
+        if (healthBarObj != null)
+        {
+            if (mainCamera == null) mainCamera = Camera.main;
+            if (mainCamera != null)
+            {
+                healthBarObj.transform.rotation = mainCamera.transform.rotation;
+                healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
+            }
+        }
+    }
+
+    private void CreateFloatingHealthBar()
+    {
+        if (!showHealthBar) return;
+
+        Transform existing = transform.Find("[Turret_HealthBar]");
+        if (existing != null) Destroy(existing.gameObject);
+
+        healthBarObj = new GameObject("[Turret_HealthBar]");
+        healthBarObj.transform.SetParent(transform, false);
+        healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
+
+        Canvas canvas = healthBarObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        var cs = healthBarObj.AddComponent<UnityEngine.UI.CanvasScaler>();
+        cs.dynamicPixelsPerUnit = 10;
+
+        RectTransform rt = healthBarObj.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(115f, 16f);
+        rt.localScale = Vector3.one * 0.009f;
+
+        GameObject bg = new GameObject("BG", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+        bg.transform.SetParent(healthBarObj.transform, false);
+        RectTransform bgRt = bg.GetComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero;
+        bgRt.anchorMax = Vector2.one;
+        bgRt.sizeDelta = Vector2.zero;
+        bg.GetComponent<UnityEngine.UI.Image>().color = new Color(0.1f, 0.12f, 0.16f, 0.85f);
+
+        GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+        fill.transform.SetParent(healthBarObj.transform, false);
+        healthBarFill = fill.GetComponent<RectTransform>();
+        healthBarFill.anchorMin = new Vector2(0.02f, 0.12f);
+        healthBarFill.anchorMax = new Vector2(0.98f, 0.88f);
+        healthBarFill.sizeDelta = Vector2.zero;
+        healthBarFill.pivot = new Vector2(0f, 0.5f);
+        healthBarFillImage = fill.GetComponent<UnityEngine.UI.Image>();
+        healthBarFillImage.color = new Color(0.2f, 0.85f, 0.45f, 1f);
+
+        GameObject txt = new GameObject("Text", typeof(RectTransform), typeof(UnityEngine.UI.Text));
+        txt.transform.SetParent(healthBarObj.transform, false);
+        RectTransform txtRt = txt.GetComponent<RectTransform>();
+        txtRt.anchorMin = Vector2.zero;
+        txtRt.anchorMax = Vector2.one;
+        txtRt.sizeDelta = Vector2.zero;
+        healthBarText = txt.GetComponent<UnityEngine.UI.Text>();
+        healthBarText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        healthBarText.fontSize = 11;
+        healthBarText.fontStyle = FontStyle.Bold;
+        healthBarText.alignment = TextAnchor.MiddleCenter;
+        healthBarText.color = Color.white;
+
+        UpdateHealthBar();
+    }
+
+    public void UpdateHealthBar()
+    {
+        if (healthBarFill == null) return;
+        float pct = maxHealth > 0f ? Mathf.Clamp01(currentHealth / maxHealth) : 0f;
+        healthBarFill.localScale = new Vector3(pct, 1f, 1f);
+
+        if (healthBarFillImage != null)
+        {
+            if (pct > 0.5f)
+                healthBarFillImage.color = Color.Lerp(new Color(1f, 0.85f, 0.2f), new Color(0.2f, 0.85f, 0.45f), (pct - 0.5f) * 2f);
+            else
+                healthBarFillImage.color = Color.Lerp(new Color(0.95f, 0.2f, 0.2f), new Color(1f, 0.85f, 0.2f), pct * 2f);
+        }
+
+        if (healthBarText != null)
+        {
+            healthBarText.text = $"{Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}";
+        }
     }
 
     void Update()
@@ -615,6 +742,10 @@ public class UpgradableTurret : MonoBehaviour
                 }
                 break;
         }
+
+        maxHealth = 250f + (currentLevel - 1) * 80f;
+        if (currentHealth > maxHealth) currentHealth = maxHealth;
+        UpdateHealthBar();
 
         ApplyTurretVisuals(currentLevel);
     }
