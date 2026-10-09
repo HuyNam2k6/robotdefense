@@ -233,12 +233,37 @@ public class DayNightSystem : MonoBehaviour
 
     // ================= TỰ ĐỘNG KHỞI TẠO GIAO DIỆN UI (HUD WIDGET) =================
 
+    public static Canvas GetMainScreenCanvas()
+    {
+        Canvas[] allCanvases = Object.FindObjectsByType<Canvas>();
+        foreach (var c in allCanvases)
+        {
+            if (c != null && c.renderMode == RenderMode.ScreenSpaceOverlay) return c;
+        }
+        foreach (var c in allCanvases)
+        {
+            if (c != null && c.renderMode != RenderMode.WorldSpace) return c;
+        }
+        foreach (var c in allCanvases)
+        {
+            if (c != null && (c.name.Contains("Shop_Canvas") || c.name.Contains("Mobile_Canvas"))) return c;
+        }
+        return allCanvases.Length > 0 ? allCanvases[0] : null;
+    }
+
     private void CreateDayNightHUD()
     {
-        if (dayNightHUDPanel != null) return;
-
-        Canvas canvas = FindAnyObjectByType<Canvas>();
+        Canvas canvas = GetMainScreenCanvas();
         if (canvas == null) return;
+
+        if (dayNightHUDPanel != null)
+        {
+            if (dayNightHUDPanel.transform.parent != canvas.transform)
+            {
+                dayNightHUDPanel.transform.SetParent(canvas.transform, false);
+            }
+            return;
+        }
 
         Font safeFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
 

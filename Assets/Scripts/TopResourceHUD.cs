@@ -34,12 +34,30 @@ public class TopResourceHUD : MonoBehaviour
     private static Sprite plusSprite;
     private static Sprite capsuleBgSprite;
 
+    public static Canvas GetMainScreenCanvas()
+    {
+        Canvas[] allCanvases = Object.FindObjectsByType<Canvas>();
+        foreach (var c in allCanvases)
+        {
+            if (c != null && c.renderMode == RenderMode.ScreenSpaceOverlay) return c;
+        }
+        foreach (var c in allCanvases)
+        {
+            if (c != null && c.renderMode != RenderMode.WorldSpace) return c;
+        }
+        foreach (var c in allCanvases)
+        {
+            if (c != null && (c.name.Contains("Shop_Canvas") || c.name.Contains("Mobile_Canvas"))) return c;
+        }
+        return allCanvases.Length > 0 ? allCanvases[0] : null;
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void AutoInit()
     {
         if (Instance == null)
         {
-            Canvas canvas = Object.FindAnyObjectByType<Canvas>();
+            Canvas canvas = GetMainScreenCanvas();
             if (canvas != null && canvas.GetComponentInChildren<TopResourceHUD>() == null)
             {
                 GameObject hudObj = new GameObject("[Top_Resource_HUD]", typeof(RectTransform));
@@ -198,7 +216,11 @@ public class TopResourceHUD : MonoBehaviour
 
     private void CreateTopBarUI()
     {
-        Canvas canvas = GetComponentInParent<Canvas>() ?? Object.FindAnyObjectByType<Canvas>();
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas == null || canvas.renderMode == RenderMode.WorldSpace)
+        {
+            canvas = GetMainScreenCanvas();
+        }
         if (canvas == null) return;
 
         // Tăng độ phân giải raster font trên thiết bị di động (tránh mờ nhòe chữ)

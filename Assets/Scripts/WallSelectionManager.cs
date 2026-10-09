@@ -84,12 +84,30 @@ public class WallSelectionManager : MonoBehaviour
     // MaterialPropertyBlock màu đỏ cảnh báo không phù hợp
     private static MaterialPropertyBlock redWarningPropBlock;
 
+    public static Canvas GetMainScreenCanvas()
+    {
+        Canvas[] allCanvases = Object.FindObjectsByType<Canvas>();
+        foreach (var c in allCanvases)
+        {
+            if (c != null && c.renderMode == RenderMode.ScreenSpaceOverlay) return c;
+        }
+        foreach (var c in allCanvases)
+        {
+            if (c != null && c.renderMode != RenderMode.WorldSpace) return c;
+        }
+        foreach (var c in allCanvases)
+        {
+            if (c != null && (c.name.Contains("Shop_Canvas") || c.name.Contains("Mobile_Canvas"))) return c;
+        }
+        return allCanvases.Length > 0 ? allCanvases[0] : null;
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     private static void AutoInit()
     {
         if (Instance == null)
         {
-            Canvas canvas = FindAnyObjectByType<Canvas>();
+            Canvas canvas = GetMainScreenCanvas();
             if (canvas != null && canvas.GetComponent<WallSelectionManager>() == null)
             {
                 canvas.gameObject.AddComponent<WallSelectionManager>();
@@ -1273,7 +1291,11 @@ public class WallSelectionManager : MonoBehaviour
             return;
         }
 
-        Canvas canvas = GetComponentInParent<Canvas>() ?? FindAnyObjectByType<Canvas>();
+        Canvas canvas = GetComponentInParent<Canvas>();
+        if (canvas == null || canvas.renderMode == RenderMode.WorldSpace)
+        {
+            canvas = GetMainScreenCanvas();
+        }
         if (canvas == null) return;
 
         Font safeFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
