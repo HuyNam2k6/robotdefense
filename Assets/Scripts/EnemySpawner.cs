@@ -259,7 +259,21 @@ public class EnemySpawner : MonoBehaviour
 
         GameObject enemyGo = Instantiate(prefab, spawnPos, spawnRot);
         enemyGo.name = $"{prefab.name}_{Time.frameCount}";
-        enemyGo.transform.localScale = Vector3.one; // RULE 2: Luôn chuẩn Vector3.one
+
+        // Tỷ lệ kích thước chuẩn theo yêu cầu: AlienBug tăng 3 lần (3.0), Nhện giảm 2 lần (0.5)
+        string pName = prefab.name.ToLower();
+        if (pName.Contains("alienbug") || pName.Contains("bug"))
+        {
+            enemyGo.transform.localScale = Vector3.one * 3.0f;
+        }
+        else if (pName.Contains("spider"))
+        {
+            enemyGo.transform.localScale = Vector3.one * 0.5f;
+        }
+        else
+        {
+            enemyGo.transform.localScale = prefab.transform.localScale;
+        }
 
         // RULE 8: Xóa Rigidbody nếu có (quái dùng trọng lực code)
         Rigidbody rb = enemyGo.GetComponent<Rigidbody>();
@@ -270,12 +284,12 @@ public class EnemySpawner : MonoBehaviour
             try { enemyGo.tag = "Enemy"; } catch { }
         }
 
-        Debug.Log($"<color=#FF7777>[Spawner]</color> 👾 Đã sinh quái thường: <b>{enemyGo.name}</b> tại điểm <b>{spawnPoint.name}</b> ({spawnPos}) (Chu kỳ 5s)");
+        Debug.Log($"<color=#FF7777>[Spawner]</color> 👾 Đã sinh quái thường: <b>{enemyGo.name}</b> (Scale {enemyGo.transform.localScale.x}) tại điểm <b>{spawnPoint.name}</b>");
         return enemyGo;
     }
 
     /// <summary>
-    /// Sinh Đại Boss Mecha Cyber Dragon mỗi 4 phút (240 giây) tại điểm spawn do bạn tạo
+    /// Sinh Đại Boss Mecha Cyber Dragon mỗi 1 phút (60 giây) tại điểm spawn do bạn tạo
     /// </summary>
     public GameObject SpawnMechaBoss()
     {
@@ -293,13 +307,13 @@ public class EnemySpawner : MonoBehaviour
             return null;
         }
 
-        // Boss là quái bay (Flying Unit), xuất hiện trên không trung cao hơn điểm spawn 7.0m
-        Vector3 spawnPos = spawnPoint.position + Vector3.up * 7.0f;
+        // Boss là quái bay (Flying Unit), kích thước tăng gấp 2 (Scale 5.0m), xuất hiện trên không trung cao 9.0m
+        Vector3 spawnPos = spawnPoint.position + Vector3.up * 9.0f;
         Quaternion spawnRot = spawnPoint.rotation;
 
         GameObject bossGo = Instantiate(mechaBossPrefab, spawnPos, spawnRot);
         bossGo.name = "Mecha_Cyber_Dragon_BOSS";
-        bossGo.transform.localScale = Vector3.one; // RULE 2: Luôn chuẩn Vector3.one
+        bossGo.transform.localScale = Vector3.one * 5.0f; // Boss Rồng tăng gấp 2 kích thước (Scale 5.0)
 
         Rigidbody rb = bossGo.GetComponent<Rigidbody>();
         if (rb != null) Destroy(rb);

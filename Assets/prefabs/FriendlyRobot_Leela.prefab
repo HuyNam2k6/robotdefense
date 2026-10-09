@@ -685,6 +685,7 @@ MonoBehaviour:
   animator: {fileID: 4990531329388355762}
   attackVFX: {fileID: 0}
   deathVFX: {fileID: 0}
+  isDead: 0
 --- !u!1 &6314798563975827058
 GameObject:
   m_ObjectHideFlags: 0

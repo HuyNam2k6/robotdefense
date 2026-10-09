@@ -80,14 +80,32 @@ public class Enemy : MonoBehaviour
             Destroy(rb);
         }
 
+        // Tự động chuẩn hóa kích thước theo yêu cầu thiết kế mới nhất:
+        // 1. Boss Rồng (MechaDragon): Tăng kích thước lên gấp 2 -> Scale (5.0, 5.0, 5.0)
+        // 2. Bọ ngoài hành tinh (AlienBug): Tăng kích thước lên 3 lần -> Scale (3.0, 3.0, 3.0)
+        // 3. Nhện (Spider): Giảm kích thước đi 2 lần -> Scale (0.5, 0.5, 0.5)
+        string lowerCheck = (name + " " + enemyName).ToLower();
+        if (isFlying || lowerCheck.Contains("dragon"))
+        {
+            transform.localScale = Vector3.one * 5.0f;
+        }
+        else if (lowerCheck.Contains("alienbug") || lowerCheck.Contains("bug"))
+        {
+            transform.localScale = Vector3.one * 3.0f;
+        }
+        else if (lowerCheck.Contains("spider"))
+        {
+            transform.localScale = Vector3.one * 0.5f;
+        }
+
         // Tự động bù góc 180 độ cho Nhện nếu chưa đặt (vì model gốc hướng đầu về -Z)
-        if (modelRotationOffset == 0f && (name.ToLower().Contains("spider") || enemyName.ToLower().Contains("spider")))
+        if (modelRotationOffset == 0f && lowerCheck.Contains("spider"))
         {
             modelRotationOffset = 180f;
         }
 
         // Tự động gắn chặt mắt rồng vào xương đầu (Head) để mắt không bao giờ bay lạc hướng khi tấn công
-        if (isFlying || name.ToLower().Contains("dragon"))
+        if (isFlying || lowerCheck.Contains("dragon"))
         {
             EnsureDragonEyesAttachedToHead();
         }
@@ -148,9 +166,9 @@ public class Enemy : MonoBehaviour
             }
         }
 
-        if (isFlying || name.ToLower().Contains("dragon")) return 4.8f;
-        if (name.ToLower().Contains("spider") || enemyName.ToLower().Contains("spider")) return 1.8f;
-        return 2.0f;
+        if (isFlying || name.ToLower().Contains("dragon")) return 7.5f; // Rồng scale 5.0 -> thanh máu cao 7.5m
+        if (name.ToLower().Contains("spider") || enemyName.ToLower().Contains("spider")) return 1.1f; // Nhện scale 0.5 -> thanh máu hạ xuống 1.1m
+        return 3.5f; // AlienBug scale 3.0 -> thanh máu nâng lên 3.5m
     }
 
     void Start()

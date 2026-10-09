@@ -255,11 +255,8 @@ public class PlayerController : MonoBehaviour
 		curPos.y = newY;
 		transform.position = curPos;
 
-		// ========== 5.1. BẢO VỆ CHỐNG RƠI XUỐNG BIỂN ==========
-		if (!isDead)
-		{
-			EnforceGroundBoundary();
-		}
+		// ========== 5.1. BẢO VỆ CHỐNG RƠI XUỐNG BIỂN (ĐÃ TẮT TỰ ĐỘNG - CHỈ DÙNG NÚT CỨU HỘ TRONG CÀI ĐẶT) ==========
+		// Tắt cơ chế tự động cứu hộ/tử nạn theo yêu cầu người dùng (chỉ giữ lại nút cứu hộ chủ động trong popup Cài đặt)
 
 		// ========== 6. ANIMATOR ==========
 		if (animator != null)

@@ -137,7 +137,7 @@ namespace IdleFactoryDefense.Editor
             {
                 GameObject instance = Object.Instantiate(fbxObj);
                 instance.name = "Enemy_AlienBug";
-                instance.transform.localScale = Vector3.one;
+                instance.transform.localScale = Vector3.one * 3.0f; // AlienBug tăng lên 3 lần
 
                 // Gán Tag và Layer Enemy
                 instance.tag = "Enemy";
@@ -298,7 +298,7 @@ namespace IdleFactoryDefense.Editor
             {
                 GameObject instance = Object.Instantiate(fbxObj);
                 instance.name = "Enemy_Spider";
-                instance.transform.localScale = Vector3.one;
+                instance.transform.localScale = Vector3.one * 0.5f; // Spider giảm đi 2 lần
 
                 instance.tag = "Enemy";
                 int enemyLayer = LayerMask.NameToLayer("Enemy");

@@ -223,7 +223,7 @@ namespace IdleFactoryDefense.Editor
                     PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
                 }
                 instance.name = "Enemy_MechaDragon";
-                instance.transform.localScale = new Vector3(2.5f, 2.5f, 2.5f);
+                instance.transform.localScale = new Vector3(5.0f, 5.0f, 5.0f);
 
                 // THUỘC PHE ENEMY (BOSS)
                 instance.tag = "Enemy";
