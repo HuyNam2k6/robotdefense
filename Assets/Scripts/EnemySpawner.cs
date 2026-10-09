@@ -19,8 +19,8 @@ public class EnemySpawner : MonoBehaviour
     [Tooltip("Thời gian sinh quái vật thường (mặc định 5s 1 con theo yêu cầu)")]
     public float normalEnemyInterval = 5.0f;
 
-    [Tooltip("Thời gian sinh Đại Boss Mecha (mặc định 4 phút = 240s theo yêu cầu)")]
-    public float bossEnemyInterval = 240.0f;
+    [Tooltip("Thời gian sinh Đại Boss Mecha (mặc định 1 phút = 60s theo yêu cầu)")]
+    public float bossEnemyInterval = 60.0f;
 
     [Header("=== CÁC ĐIỂM SPAWN (DO BẠN TẠO TRÊN SCENE) ===")]
     [Tooltip("Kéo các GameObject Điểm Spawn vào đây. Nếu để trống, Spawner sẽ tự quét các GameObject có tên chứa 'EnemySpawnPoint' trên Scene")]
@@ -98,9 +98,15 @@ public class EnemySpawner : MonoBehaviour
         {
             normalTimer = 0f;
             SpawnNormalEnemy();
+
+            // Ban đêm: Số lượng quái tăng gấp 5 lần, thỉnh thoảng sinh thêm 1 con tạo đàn quái đông đúc
+            if (DayNightSystem.Instance != null && DayNightSystem.Instance.isNight && Random.value < 0.35f)
+            {
+                SpawnNormalEnemy();
+            }
         }
 
-        // 2. Đếm giờ và sinh Đại Boss Mecha (4 phút = 240s 1 con)
+        // 2. Đếm giờ và sinh Đại Boss Mecha (1 phút = 60s 1 con)
         bossTimer += Time.deltaTime;
         if (bossTimer >= bossEnemyInterval)
         {
@@ -303,11 +309,15 @@ public class EnemySpawner : MonoBehaviour
             try { bossGo.tag = "Enemy"; } catch { }
         }
 
+        // Tích hợp AI Bộ Kỹ Năng Đỉnh Cao cho Đại Boss Mecha Cyber Dragon
+        MechaDragonBoss bossAI = bossGo.GetComponent<MechaDragonBoss>();
+        if (bossAI == null) bossAI = bossGo.AddComponent<MechaDragonBoss>();
+
         // Thông báo toàn màn hình: Cảnh báo Boss xuất hiện!
         Vector3 noticePos = Camera.main != null ? (Camera.main.transform.position + Camera.main.transform.forward * 4.5f) : (spawnPos + Vector3.up * 4f);
         FloatingDamageText.SpawnResource(noticePos, "⚠️ ĐẠI BOSS MECHA XUẤT HIỆN! ⚠️", new Color(1f, 0.15f, 0.15f, 1f), 0.12f);
 
-        Debug.Log($"<color=red><b>[Spawner] 🚨🚨 CẢNH BÁO: ĐẠI BOSS MECHA CYBER DRAGON ĐÃ XUẤT HIỆN TẠI {spawnPoint.name}! (Chu kỳ 4 phút)</b></color>");
+        Debug.Log($"<color=red><b>[Spawner] 🚨🚨 CẢNH BÁO: ĐẠI BOSS MECHA CYBER DRAGON ĐÃ XUẤT HIỆN TẠI {spawnPoint.name}! (Chu kỳ 1 phút)</b></color>");
         return bossGo;
     }
 
@@ -416,7 +426,7 @@ public class EnemySpawner : MonoBehaviour
         bossCountdownText.fontStyle = FontStyle.Bold;
         bossCountdownText.alignment = TextAnchor.MiddleCenter;
         bossCountdownText.color = new Color(1f, 0.85f, 0.3f, 1f);
-        bossCountdownText.text = "⏱️ Boss Mecha: 04:00";
+        bossCountdownText.text = "⏱️ Boss Mecha: 01:00";
     }
 
     private void UpdateBossTimerHUD()

@@ -589,6 +589,13 @@ public class Enemy : MonoBehaviour
     {
         if (isDead) return;
 
+        var boss = GetComponent<MechaDragonBoss>();
+        if (boss != null && boss.isShieldActive)
+        {
+            amount *= 0.5f;
+            FloatingDamageText.Spawn(transform.position + Vector3.up * 2f, 0, Color.cyan);
+        }
+
         currentHealth -= amount;
         currentHealth = Mathf.Max(0f, currentHealth);
         UpdateHealthBar();
@@ -723,7 +730,7 @@ public class Enemy : MonoBehaviour
         UpdateHealthBar();
     }
 
-    private void UpdateHealthBar()
+    public void UpdateHealthBar()
     {
         if (healthBarFill == null) return;
 

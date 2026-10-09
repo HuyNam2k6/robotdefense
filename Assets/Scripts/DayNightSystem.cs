@@ -34,8 +34,8 @@ public class DayNightSystem : MonoBehaviour
     [Tooltip("Tần suất sinh quái ban ngày (rất ít quái để người chơi nhặt đồ)")]
     public float dayEnemyInterval = 18.0f;
 
-    [Tooltip("Tần suất sinh quái ban đêm (quái dồn dập tấn công)")]
-    public float nightEnemyInterval = 3.5f;
+    [Tooltip("Tần suất sinh quái ban đêm (quái dồn dập tấn công gấp 5 lần: 0.7s/con)")]
+    public float nightEnemyInterval = 0.7f;
 
     [Header("=== ÁNH SÁNG NGÀY / ĐÊM (DEDICATED LIGHT) ===")]
     [Tooltip("Nguồn sáng Directional Light riêng biệt cho Ngày & Đêm (TÁCH BIỆT KHỎI THUNDER)")]

@@ -2,74 +2,67 @@
                     NHẬT KÝ CẬP NHẬT DỰ ÁN ROBOT DEFENSE
 ================================================================================
 Thời gian cập nhật : 09/10/2026
-Trạng thái Git     : Đã commit cục bộ thành công (Mã commit: 645495d) - Đang chờ xác nhận để push
+Trạng thái Git     : Đã commit cục bộ thành công (Mã commit: 998d57d) - Đang chờ xác nhận để push
 Mục tiêu cập nhật  : 
+  - Đặt Boss Mecha Rồng xuất hiện 1 phút / lần (60 giây).
+  - Tích hợp Bộ 5 Đại Kỹ Năng Tối Thượng (Multi-Skill AI) cho Boss Rồng siêu khỏe.
+  - Tăng số lượng quái vật spawn vào ban đêm nhiều gấp 5 lần (0.7s/con).
   - Thanh máu hiển thị trên đầu toàn bộ quái vật, tường và trụ vũ khí.
   - Nút Sửa Chữa (Repair) phục hồi máu vũ khí & tường, không fix cứng giá tiền (0đ).
   - Hệ thống Ngày & Đêm (Day/Night System) với nguồn sáng Light riêng biệt.
-  - Ban ngày ít quái, robot farm tự do; Ban đêm quái dồn dập, robot ở nhà trú ẩn.
 
 --------------------------------------------------------------------------------
-1. THANH MÁU NỔI TRÊN ĐẦU TOÀN BỘ QUÁI VẬT, TƯỜNG VÀ VŨ KHÍ
+1. ĐẠI BOSS MECHA RỒNG XUẤT HIỆN 1 PHÚT / LẦN (60s)
+--------------------------------------------------------------------------------
+* Tập tin: Assets/Scripts/EnemySpawner.cs
+* Cơ chế hoạt động:
+  - Chu kỳ sinh Boss Mecha Cyber Dragon chuyển từ 4 phút (240s) thành 1 phút (60s).
+  - Đồng hồ đếm ngược HUD góc trên màn hình tự động hiển thị: ⏱️ Boss Mecha: 01:00.
+  - Cảnh báo âm thanh/visual popup toàn màn hình kích hoạt mỗi khi Boss rồng xuất hiện.
+
+--------------------------------------------------------------------------------
+2. BỘ 5 ĐẠI KỸ NĂNG TỐI THƯỢNG CHO ĐẠI BOSS MECHA CYBER DRAGON
+--------------------------------------------------------------------------------
+* Tập tin: Assets/Scripts/MechaDragonBoss.cs, Assets/Scripts/Enemy.cs
+* Cơ chế hoạt động:
+  - Chỉ số Boss: Máu nâng cấp lên 3500 HP, Sát thương 60, Thưởng 500 Vàng, Tên "👑 MECHA CYBER DRAGON [ĐẠI BOSS]".
+  - Kỹ năng 1: [🔥 HƠI THỞ PLASMA BÃO TÁP] (Cooldown 8s):
+    + Bắn liên hoàn chùm 7 quả cầu plasma rực lửa hình nón thiêu đốt dồn dập mục tiêu.
+  - Kỹ năng 2: [☄️ MƯA THIÊN THẠCH CYBER] (Cooldown 15s):
+    + Trút bão 8 thiên thạch năng lượng từ trên không giáng xuống đất gây nổ diện rộng AOE quanh căn cứ và mục tiêu.
+  - Kỹ năng 3: [⚡ ĐỊA CHẤN SÓNG XUNG KÍCH EMP] (Cooldown 18s):
+    + Quét vòng tròn sóng xung kích EMP bán kính 12m hất văng và gây 65 sát thương cho mọi người chơi, bot, trụ, tường lân cận.
+  - Kỹ năng 4: [👾 TRIỆU HỒI ĐỆ TỬ CƠ KHÍ] (Cooldown 22s):
+    + Hú gọi 2 quái vật bọ/nhện cơ khí (100% lấy từ Assets/prefabsEnemy/ chuẩn Rule 2) rơi xuống hỗ trợ tác chiến.
+  - Kỹ năng 5: [🛡️ LÁ CHẮN NĂNG LƯỢNG THÉP]:
+    + Tự động kích hoạt khi máu xuống dưới 50%, bao bọc quả cầu năng lượng giảm 50% toàn bộ sát thương nhận vào trong 8 giây.
+  - 100% tuân thủ Rule 2: Toàn bộ đạn và kỹ năng sử dụng Raycast/Lerp, tuyệt đối không dùng Rigidbody/Collider.
+
+--------------------------------------------------------------------------------
+3. TĂNG SỐ LƯỢNG QUÁI VẬT SPAWN VÀO BAN ĐÊM GẤP 5 LẦN
+--------------------------------------------------------------------------------
+* Tập tin: Assets/Scripts/DayNightSystem.cs, Assets/Scripts/EnemySpawner.cs
+* Cơ chế hoạt động:
+  - Chu kỳ sinh quái ban đêm tăng tốc từ 3.5s xuống 0.7s/con (nhanh gấp 5 lần).
+  - Tích hợp cơ chế sinh theo cụm bầy đàn (cluster horde): Thỉnh thoảng spawn kèm 2 con cùng lúc, đẩy mật độ quái ban đêm tăng vọt, tạo chiến trường phòng thủ cực kỳ hoành tráng và thử thách.
+
+--------------------------------------------------------------------------------
+4. THANH MÁU NỔI TRÊN ĐẦU TOÀN BỘ QUÁI VẬT, TƯỜNG VÀ VŨ KHÍ
 --------------------------------------------------------------------------------
 * Tập tin: Assets/Scripts/Enemy.cs, WallSegment.cs, UpgradableTurret.cs
 * Cơ chế hoạt động:
-  - QUÁI VẬT (Alien Bug, Scrap Spider, Mecha Dragon Boss):
-    + Tự động tính toán chiều cao đỉnh đầu thực tế của Model (GetHeadTopHeight).
-    + Ghim thanh máu trực tiếp lên đỉnh đầu quái vật, xoay Billboard theo góc nhìn Camera.
-    + Đổi màu thanh máu động: Xanh lá (>50% HP) -> Vàng cam -> Đỏ đậm (<50% HP).
-    + Tự động ẩn thanh máu khi quái vật bị tiêu diệt.
-  - BỨC TƯỜNG (WallSegment) & TRỤ VŨ KHÍ (UpgradableTurret):
-    + Mỗi bức tường và ụ pháo đều sở hữu 1 thanh máu World-Space HealthBar phía trên.
-    + Hiển thị rõ ràng chỉ số máu số học (VD: 250/250, 150/150).
-    + Giúp người chơi dễ dàng căn máu để đưa ra quyết định phòng thủ hoặc sửa chữa kịp thời.
+  - Quái vật (Alien Bug, Spider, Dragon Boss): Thanh máu nổi ghim đúng đỉnh đầu, billboard xoay theo camera.
+  - Tường & Trụ vũ khí: Xuất hiện thanh máu World-Space trực quan và số máu cụ thể giúp người chơi dễ căn.
 
 --------------------------------------------------------------------------------
-2. NÚT SỬA CHỮA (REPAIR) VŨ KHÍ & TƯỜNG TRÊN GIAO DIỆN CHỌN
+5. NÚT SỬA CHỮA (REPAIR) VŨ KHÍ & TƯỜNG (0Đ ĐỘNG)
 --------------------------------------------------------------------------------
 * Tập tin: WallSelectionManager.cs, WallSegment.cs, UpgradableTurret.cs
 * Cơ chế hoạt động:
-  - Bổ sung nút [🔧 SỬA CHỮA] trên Card giao diện điều khiển của Tường và Trụ Vũ Khí.
-  - CHI PHÍ ĐỘNG (Không Fix Cứng):
-    + Sử dụng phương thức GetRepairCost() trên WallSegment và UpgradableTurret.
-    + Mức giá mặc định hiện tại là 0🪙 (0đ - Miễn phí) theo đúng yêu cầu.
-  - Hiệu ứng hồi máu:
-    + Khi máu đầy 100%: Nút tự động chuyển trạng thái [ĐẦY MÁU] và tạm khóa.
-    + Khi máu bị hao hụt: Nhấn sửa chữa sẽ lập tức hồi 100% HP, kích hoạt hiệu ứng nảy nhẹ và hiển thị số hồi phục xanh lá.
+  - Nút [🔧 SỬA CHỮA] trên card UI, giá động GetRepairCost() = 0đ không fix cứng, hồi đầy máu và hiện [ĐẦY MÁU] khi 100% HP.
 
 --------------------------------------------------------------------------------
-3. HỆ THỐNG NGÀY & ĐÊM (DAY / NIGHT SYSTEM) TÁCH BIỆT ÁNH SÁNG
---------------------------------------------------------------------------------
-* Tập tin: Assets/Scripts/DayNightSystem.cs, EnemySpawner.cs
-* Cơ chế hoạt động:
-  - NGUỒN SÁNG ĐỘC LẬP [DayNight_DirectionalLight]:
-    + Tạo 1 Directional Light MỚI hoàn toàn riêng biệt.
-    + TUYỆT ĐỐI KHÔNG dùng chung với Light của Thunder hay bất kỳ vũ khí/vụ nổ nào.
-    + Ban ngày: Ánh sáng mặt trời vàng ấm (Intensity 1.15f), góc chiếu nghiêng 50°.
-    + Ban đêm: Ánh sáng mặt trăng xanh đêm mát mẻ (Intensity 0.28f), góc chiếu 40°.
-    + Chuyển đổi ánh sáng mượt mà tự nhiên bằng Smooth Lerp.
-  - CHU KỲ & TẦN SUẤT QUÁI:
-    + Ban ngày (80s): Quái vật xuất hiện rất thưa (chu kỳ 18s/con) để người chơi tự do nhặt vật phẩm, cày cuốc.
-    + Ban đêm (60s): Quái vật spawn dồn dập (chu kỳ 3.5s/con) tấn công liên tục.
-  - GIAO DIỆN ĐIỀU KHIỂN & NÚT PHÒNG THỦ:
-    + HUD góc trên bên phải hiển thị rõ trạng thái chu kỳ và đồng hồ đếm ngược.
-    + Ban ngày có nút [🛡️ PHÒNG THỦ]: Người chơi có thể chủ động nhấn vào bất kỳ lúc nào để kích hoạt chế độ ban đêm và phòng thủ ngay lập tức mà không cần chờ hết giờ.
-
---------------------------------------------------------------------------------
-4. ROBOT ĐÀO ĐÁ (MINEBOTFARM) Ở NHÀ VÀO BAN ĐÊM
---------------------------------------------------------------------------------
-* Tập tin: Assets/Scripts/mineBotFarm.cs
-* Cơ chế hoạt động:
-  - Ghi nhớ tọa độ căn cứ / vị trí xuất phát ban đầu (homePosition).
-  - KHI BAN ĐÊM (CHẾ ĐỘ PHÒNG THỦ):
-    + Robot farm TỰ ĐỘNG NGỪNG đi farm, hủy mục tiêu tảng đá đang khai thác.
-    + Tự động di chuyển quay về căn cứ (ở nhà) và đứng yên bảo vệ căn cứ.
-    + Bảng thông báo trên đầu robot hiển thị: [🛡️ Ở NHÀ (PHÒNG THỦ)].
-  - KHI BÌNH MINH LÊN (BAN NGÀY):
-    + Robot tự động tiếp tục xuất phát đi tìm các tảng đá gần nhất để khai thác bình thường.
-
---------------------------------------------------------------------------------
-5. TUÂN THỦ NGHIÊM NGẶT QUY TẮC DỰ ÁN
+6. TUÂN THỦ NGHIÊM NGẶT QUY TẮC DỰ ÁN
 --------------------------------------------------------------------------------
 * 100% sử dụng Raycast và trọng lực code -9.18f (Zero Rigidbody trên Player, Bot, Quái vật, Đạn dược).
 * TUYỆT ĐỐI KHÔNG TỰ Ý GIT PUSH theo đúng chỉ đạo tại AGENTS.md.
