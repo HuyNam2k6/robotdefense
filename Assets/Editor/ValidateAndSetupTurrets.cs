@@ -83,6 +83,7 @@ public static class ValidateAndSetupTurrets
         // 2. Thiết lập trên Prefabs
         SetupPrefabTurret("Assets/prefabsbot/FlamethrowerTurret_Building.prefab", TurretType.FlamethrowerTurret);
         SetupPrefabTurret("Assets/Gun/Missile Turret/Phaotuhanhl.prefab", TurretType.Phaotuhanh);
+        SetupPrefabTurret("Assets/Gun/prefabsGun/Thunder.prefab", TurretType.Thunder);
 
         if (sceneDirty)
         {

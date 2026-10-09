@@ -2,8 +2,10 @@
                     NHẬT KÝ CẬP NHẬT DỰ ÁN ROBOT DEFENSE
 ================================================================================
 Thời gian cập nhật : 09/10/2026
-Trạng thái Git     : Đã commit cục bộ thành công (Mã commit: 998d57d) - Đang chờ xác nhận để push
+Trạng thái Git     : Đã chuẩn bị commit cục bộ - Chờ người dùng xác nhận để push
 Mục tiêu cập nhật  : 
+  - Fix triệt để lỗi NullReferenceException: Enemy.Update () (at Assets/Scripts/Enemy.cs:316).
+  - Khắc phục cảnh báo PhysX: BoxCollider does not support negative scale or size trên Thunder.
   - Đặt Boss Mecha Rồng xuất hiện 1 phút / lần (60 giây).
   - Tích hợp Bộ 5 Đại Kỹ Năng Tối Thượng (Multi-Skill AI) cho Boss Rồng siêu khỏe.
   - Tăng số lượng quái vật spawn vào ban đêm nhiều gấp 5 lần (0.7s/con).
@@ -12,7 +14,40 @@ Mục tiêu cập nhật  :
   - Hệ thống Ngày & Đêm (Day/Night System) với nguồn sáng Light riêng biệt.
 
 --------------------------------------------------------------------------------
-1. ĐẠI BOSS MECHA RỒNG XUẤT HIỆN 1 PHÚT / LẦN (60s)
+1. FIX TRIỆT ĐỂ LỖI NULLREFERENCEEXCEPTION TẠI ENEMY.CS (LINE 316)
+--------------------------------------------------------------------------------
+* Tập tin: Assets/Scripts/Enemy.cs
+* Nguyên nhân gốc rễ (Root Cause):
+  - Trong hàm Enemy.Update(), khối kiểm tra mục tiêu trước đó viết dạng tuần tự:
+      var wall = target.GetComponent<WallSegment>();
+      if (wall != null && ...) target = null;
+      var robot = target.GetComponent<FriendlyCombatRobot>();
+      if (robot != null && ...) target = null;
+      var turret = target.GetComponent<UpgradableTurret>(); // LINE 316
+  - Khi quái đánh sập một Bức Tường (Wall) hoặc tiêu diệt một Robot Đồng Minh (Robot),
+    dòng code trước đó đã gán `target = null;`.
+  - Dòng lệnh tiếp theo (Line 316) ngay lập tức gọi `target.GetComponent<UpgradableTurret>()`
+    lên một biến `target` đã bị null -> Gây NullReferenceException văng liên tục mỗi khung hình!
+* Cách khắc phục:
+  - Tách hàm kiểm tra an toàn `IsTargetAlive(Transform t)` độc lập, không gán đè `target` giữa chừng.
+  - Kiểm tra `IsTargetAlive(target)` an toàn một lần duy nhất trước khi xử lý di chuyển/tấn công.
+  - Bổ sung kiểm tra `currentTarget.gameObject.activeInHierarchy` trong coroutine tấn công có độ trễ `ExecuteAttackWithDelay`.
+
+--------------------------------------------------------------------------------
+2. KHẮC PHỤC CẢNH BÁO BOXCOLLIDER SCALE ÂM TRÊN "THUNDER"
+--------------------------------------------------------------------------------
+* Tập tin: Assets/Scripts/UpgradableTurret.cs, Assets/Gun/prefabsGun/Thunder.prefab, SampleScene.unity
+* Nguyên nhân gốc rễ (Root Cause):
+  - Đối tượng trụ sấm sét Thunder mang BoxCollider có kích thước lệch tâm hoặc bị ảnh hưởng bởi scale không đồng nhất.
+  - PhysX trong Unity yêu cầu BoxCollider bắt buộc phải có kích thước và scale cục bộ dương tuyệt đối.
+* Cách khắc phục:
+  - Chuẩn hóa BoxCollider cho Thunder trong `UpgradableTurret.EnsureColliderExists()`:
+    + Kích thước chuẩn: Size = (2.5, 3.2, 2.5), Center = (0, 1.6, 0).
+  - Tự động khử dấu âm `Mathf.Abs()` trên cả `transform.localScale` và `boxCollider.size` trong `Awake()` và `EnsureColliderExists()`.
+  - Cập nhật kích thước chuẩn cho BoxCollider trên Prefab Thunder và Scene SampleScene.
+
+--------------------------------------------------------------------------------
+3. ĐẠI BOSS MECHA RỒNG XUẤT HIỆN 1 PHÚT / LẦN (60s)
 --------------------------------------------------------------------------------
 * Tập tin: Assets/Scripts/EnemySpawner.cs
 * Cơ chế hoạt động:
@@ -21,7 +56,7 @@ Mục tiêu cập nhật  :
   - Cảnh báo âm thanh/visual popup toàn màn hình kích hoạt mỗi khi Boss rồng xuất hiện.
 
 --------------------------------------------------------------------------------
-2. BỘ 5 ĐẠI KỸ NĂNG TỐI THƯỢNG CHO ĐẠI BOSS MECHA CYBER DRAGON
+4. BỘ 5 ĐẠI KỸ NĂNG TỐI THƯỢNG CHO ĐẠI BOSS MECHA CYBER DRAGON
 --------------------------------------------------------------------------------
 * Tập tin: Assets/Scripts/MechaDragonBoss.cs, Assets/Scripts/Enemy.cs
 * Cơ chế hoạt động:
@@ -39,15 +74,15 @@ Mục tiêu cập nhật  :
   - 100% tuân thủ Rule 2: Toàn bộ đạn và kỹ năng sử dụng Raycast/Lerp, tuyệt đối không dùng Rigidbody/Collider.
 
 --------------------------------------------------------------------------------
-3. TĂNG SỐ LƯỢNG QUÁI VẬT SPAWN VÀO BAN ĐÊM GẤP 5 LẦN
+5. TĂNG SỐ LƯỢNG QUÁI VẬT SPAWN VÀO BAN ĐÊM GẤP 5 LẦN
 --------------------------------------------------------------------------------
 * Tập tin: Assets/Scripts/DayNightSystem.cs, Assets/Scripts/EnemySpawner.cs
 * Cơ chế hoạt động:
   - Chu kỳ sinh quái ban đêm tăng tốc từ 3.5s xuống 0.7s/con (nhanh gấp 5 lần).
-  - Tích hợp cơ chế sinh theo cụm bầy đàn (cluster horde): Thỉnh thoảng spawn kèm 2 con cùng lúc, đẩy mật độ quái ban đêm tăng vọt, tạo chiến trường phòng thủ cực kỳ hoành tráng và thử thách.
+  - Tích hợp cơ chế sinh theo cụm bầy đàn (cluster horde): Thỉnh thoảng spawn kèm 2 con cùng lúc.
 
 --------------------------------------------------------------------------------
-4. THANH MÁU NỔI TRÊN ĐẦU TOÀN BỘ QUÁI VẬT, TƯỜNG VÀ VŨ KHÍ
+6. THANH MÁU NỔI TRÊN ĐẦU TOÀN BỘ QUÁI VẬT, TƯỜNG VÀ VŨ KHÍ
 --------------------------------------------------------------------------------
 * Tập tin: Assets/Scripts/Enemy.cs, WallSegment.cs, UpgradableTurret.cs
 * Cơ chế hoạt động:
@@ -55,14 +90,14 @@ Mục tiêu cập nhật  :
   - Tường & Trụ vũ khí: Xuất hiện thanh máu World-Space trực quan và số máu cụ thể giúp người chơi dễ căn.
 
 --------------------------------------------------------------------------------
-5. NÚT SỬA CHỮA (REPAIR) VŨ KHÍ & TƯỜNG (0Đ ĐỘNG)
+7. NÚT SỬA CHỮA (REPAIR) VŨ KHÍ & TƯỜNG (0Đ ĐỘNG)
 --------------------------------------------------------------------------------
 * Tập tin: WallSelectionManager.cs, WallSegment.cs, UpgradableTurret.cs
 * Cơ chế hoạt động:
   - Nút [🔧 SỬA CHỮA] trên card UI, giá động GetRepairCost() = 0đ không fix cứng, hồi đầy máu và hiện [ĐẦY MÁU] khi 100% HP.
 
 --------------------------------------------------------------------------------
-6. TUÂN THỦ NGHIÊM NGẶT QUY TẮC DỰ ÁN
+8. TUÂN THỦ NGHIÊM NGẶT QUY TẮC DỰ ÁN
 --------------------------------------------------------------------------------
 * 100% sử dụng Raycast và trọng lực code -9.18f (Zero Rigidbody trên Player, Bot, Quái vật, Đạn dược).
 * TUYỆT ĐỐI KHÔNG TỰ Ý GIT PUSH theo đúng chỉ đạo tại AGENTS.md.

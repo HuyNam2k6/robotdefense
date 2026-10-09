@@ -132,6 +132,13 @@ public class UpgradableTurret : MonoBehaviour
 
     void Awake()
     {
+        // Khử triệt để scale âm nếu có do lật xoay đối tượng trong Scene hoặc Prefab
+        Vector3 s = transform.localScale;
+        if (s.x < 0 || s.y < 0 || s.z < 0)
+        {
+            transform.localScale = new Vector3(Mathf.Abs(s.x), Mathf.Abs(s.y), Mathf.Abs(s.z));
+        }
+
         baseScale = transform.localScale;
         propBlock = new MaterialPropertyBlock();
 
@@ -619,6 +626,24 @@ public class UpgradableTurret : MonoBehaviour
             return;
         }
 
+        // 2. Chuẩn hóa đặc biệt cho Thunder (Trụ Sét): Kích thước chuẩn dương, không bị âm hay lệch tâm
+        if (turretType == TurretType.Thunder || name.ToLower().Contains("thunder"))
+        {
+            BoxCollider thunderCol = GetComponent<BoxCollider>();
+            if (thunderCol == null) thunderCol = gameObject.AddComponent<BoxCollider>();
+
+            thunderCol.size = new Vector3(2.5f, 3.2f, 2.5f);
+            thunderCol.center = new Vector3(0f, 1.6f, 0f);
+
+            // Đảm bảo không có scale âm trên root
+            Vector3 sc = transform.localScale;
+            if (sc.x < 0 || sc.y < 0 || sc.z < 0)
+            {
+                transform.localScale = new Vector3(Mathf.Abs(sc.x), Mathf.Abs(sc.y), Mathf.Abs(sc.z));
+            }
+            return;
+        }
+
         Collider existingCol = GetComponentInChildren<Collider>();
         if (existingCol == null)
         {
@@ -636,9 +661,9 @@ public class UpgradableTurret : MonoBehaviour
                 col.center = transform.InverseTransformPoint(b.center);
                 Vector3 worldSize = b.size;
                 col.size = new Vector3(
-                    Mathf.Max(1.6f, worldSize.x / Mathf.Max(0.01f, transform.lossyScale.x)),
-                    Mathf.Max(2.2f, worldSize.y / Mathf.Max(0.01f, transform.lossyScale.y)),
-                    Mathf.Max(1.6f, worldSize.z / Mathf.Max(0.01f, transform.lossyScale.z))
+                    Mathf.Max(1.6f, Mathf.Abs(worldSize.x) / Mathf.Max(0.01f, Mathf.Abs(transform.lossyScale.x))),
+                    Mathf.Max(2.2f, Mathf.Abs(worldSize.y) / Mathf.Max(0.01f, Mathf.Abs(transform.lossyScale.y))),
+                    Mathf.Max(1.6f, Mathf.Abs(worldSize.z) / Mathf.Max(0.01f, Mathf.Abs(transform.lossyScale.z)))
                 );
             }
             else
@@ -646,6 +671,18 @@ public class UpgradableTurret : MonoBehaviour
                 col.center = new Vector3(0f, 1.5f, 0f);
                 col.size = new Vector3(2.5f, 3.2f, 2.5f);
             }
+        }
+
+        // Đảm bảo không bao giờ có BoxCollider nào mang size âm hoặc scale âm
+        BoxCollider bc = GetComponent<BoxCollider>();
+        if (bc != null)
+        {
+            bc.size = new Vector3(Mathf.Abs(bc.size.x), Mathf.Abs(bc.size.y), Mathf.Abs(bc.size.z));
+        }
+        Vector3 curScale = transform.localScale;
+        if (curScale.x < 0 || curScale.y < 0 || curScale.z < 0)
+        {
+            transform.localScale = new Vector3(Mathf.Abs(curScale.x), Mathf.Abs(curScale.y), Mathf.Abs(curScale.z));
         }
     }
 

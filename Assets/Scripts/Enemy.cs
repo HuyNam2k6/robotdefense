@@ -294,31 +294,37 @@ public class Enemy : MonoBehaviour
         target = chosenTarget;
     }
 
+    /// <summary>
+    /// Kiểm tra an toàn xem mục tiêu (tường, robot, trụ súng, người chơi) còn sống và hoạt động hay không
+    /// </summary>
+    private bool IsTargetAlive(Transform t)
+    {
+        if (t == null) return false;
+        if (!t.gameObject.activeInHierarchy) return false;
+
+        var wall = t.GetComponent<WallSegment>();
+        if (wall != null) return !wall.isDestroyed && wall.currentHealth > 0f;
+
+        var robot = t.GetComponent<FriendlyCombatRobot>();
+        if (robot != null) return !robot.isDead && robot.currentHealth > 0f;
+
+        var turret = t.GetComponent<UpgradableTurret>();
+        if (turret != null) return !turret.isDestroyed && turret.currentHealth > 0f;
+
+        var player = t.GetComponent<PlayerController>();
+        if (player != null) return !player.isDead && player.currentHealth > 0f;
+
+        return true;
+    }
+
     void Update()
     {
         if (isDead) return;
 
         // Kiểm tra xem mục tiêu hiện tại còn sống không
-        if (target != null)
+        if (target != null && !IsTargetAlive(target))
         {
-            if (!target.gameObject.activeInHierarchy)
-            {
-                target = null;
-            }
-            else
-            {
-                var wall = target.GetComponent<WallSegment>();
-                if (wall != null && (wall.isDestroyed || wall.currentHealth <= 0f)) target = null;
-
-                var robot = target.GetComponent<FriendlyCombatRobot>();
-                if (robot != null && (robot.isDead || robot.currentHealth <= 0f)) target = null;
-
-                var turret = target.GetComponent<UpgradableTurret>();
-                if (turret != null && (turret.isDestroyed || turret.currentHealth <= 0f)) target = null;
-
-                var player = target.GetComponent<PlayerController>();
-                if (player != null && (player.isDead || player.currentHealth <= 0f)) target = null;
-            }
+            target = null;
         }
 
         // Định kỳ kiểm tra lại mục tiêu nếu đang di chuyển để luôn hướng về mục tiêu gần nhất
@@ -495,7 +501,7 @@ public class Enemy : MonoBehaviour
 
         if (isDead) yield break;
 
-        if (currentTarget != null)
+        if (currentTarget != null && currentTarget.gameObject.activeInHierarchy)
         {
             currentTarget.SendMessage("TakeDamage", attackDamage, SendMessageOptions.DontRequireReceiver);
 
