@@ -8,3 +8,4 @@
 - **Không sử dụng Rigidbody** cho Player, Bot hoặc Enemy nhằm tối ưu hiệu năng CPU (sử dụng trọng lực code `-9.18f` và Raycast để tính toán va chạm, độ cao mặt đất).
 - **Enemy Spawner**: Chỉ nạp và spawn Prefabs quái vật từ thư mục `Assets/prefabsEnemy/`.
 - **Hệ thống tường (Wall)**: Kích thước chuẩn scale `1.5f`, bước lưới `1.425f`.
+- **Hệ thống vũ khí & đạn dược**: Toàn bộ đạn (Bullet, Homing Rocket, đạn Robot) 100% sử dụng Raycast để tính toán va chạm theo đường bay, tuyệt đối KHÔNG sử dụng Collider hay Rigidbody trên GameObject viên đạn.

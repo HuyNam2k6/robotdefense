@@ -1,0 +1,71 @@
+================================================================================
+                    NHẬT KÝ CẬP NHẬT DỰ ÁN ROBOT DEFENSE
+================================================================================
+Thời gian cập nhật : 09/10/2026
+Trạng thái Git     : Đã commit và push thành công lên GitHub (origin/main)
+Mã Commit          : 4e11a5d
+Thông điệp Commit  : feat: enemy tu dong danh muc tieu gan nhat va phao tu hanh phan bo da muc tieu hoac don hoa luc
+
+--------------------------------------------------------------------------------
+1. QUÁI VẬT TỰ ĐỘNG TẤN CÔNG MỤC TIÊU GẦN NHẤT (LINH HOẠT THAY VÌ FIX CỨNG)
+--------------------------------------------------------------------------------
+* Tập tin: Assets/Scripts/Enemy.cs (Hàm FindTarget)
+* Cơ chế hoạt động:
+  - Bỏ cơ chế ưu tiên cố định bậc thang (Tường -> Trụ -> Player).
+  - Quét đồng thời 3 nhóm mục tiêu:
+    + Nhóm 1: Bức tường bảo vệ (WallSegment).
+    + Nhóm 2: Hệ thống phòng thủ & Bot đồng minh (UpgradableTurret, FriendlyCombatRobot, TurretController).
+    + Nhóm 3: Người chơi (PlayerController).
+  - Tính toán khoảng cách thực tế giữa quái vật và 3 nhóm: CÁI NÀO GẦN QUÁI NHẤT THÌ SẼ TỰ ĐỘNG LAO VÀO TẤN CÔNG CÁI ĐẤY.
+  - Khi đang di chuyển, quái vật tự động quét lại mỗi 0.75s để cập nhật mục tiêu gần nhất nếu tình huống thay đổi.
+  - Tích hợp danh sách tĩnh AllEnemies: Cho phép truy xuất quái vật tức thì với 0 bộ nhớ rác (Zero Garbage Collection).
+
+--------------------------------------------------------------------------------
+2. PHÁO TỰ HÀNH (MLRS) TẤN CÔNG ĐA MỤC TIÊU & DỒN HỎA LỰC
+--------------------------------------------------------------------------------
+* Tập tin: Assets/Scripts/RocketLauncherTurret.cs & Assets/Scripts/HomingRocket.cs
+* Cơ chế hoạt động:
+  - KHI CÓ NHIỀU QUÁI VẬT TRONG TẦM BẮN:
+    + Loạt bắn tên lửa (16 đến 48 quả tùy cấp độ nâng cấp) sẽ tự động chia đều, bắn luân phiên nhắm vào tất cả các con quái vật trong tầm.
+    + Tạo thành cơn mưa hỏa lực rải đều đàn quái, dọn sạch quái vật diện rộng.
+  - KHI CHỈ CÓ 1 CON QUÁI VẬT (Hoặc Boss Mecha):
+    + Toàn bộ 100% tên lửa trong loạt bắn sẽ dồn toàn lực tập trung vào duy nhất con quái đó.
+  - CƠ CHẾ BẺ LÁI TỰ ĐỔI MỤC TIÊU (Homing Retargeting):
+    + Nếu con quái mục tiêu bị nổ chết giữa chừng khi tên lửa đang bay trên không, tên lửa sẽ tự động bẻ lái chuyển hướng sang con quái còn sống gần nhất thay vì rơi lãng phí xuống đất.
+
+--------------------------------------------------------------------------------
+3. HỆ THỐNG TƯỜNG THU NHỎ GẤP 2 LẦN (SCALE 1.5)
+--------------------------------------------------------------------------------
+* Tập tin: BuildingSystem.cs, WallSegment.cs, WallSelectionManager.cs
+* Cơ chế hoạt động:
+  - Kích thước tường thu nhỏ từ scale 3.0f xuống chuẩn 1.5f.
+  - Bước lưới đặt tường thu nhỏ từ 2.85m xuống 1.425m.
+  - Cơ chế hút dính từ tính (Magnetic Snapping) và nối góc vuông tự động căn chỉnh hoàn hảo theo tỉ lệ mới.
+  - Khoảng cách an toàn tránh đè nhân vật và kiểm tra chồng chéo được cân đối lại gọn gàng.
+
+--------------------------------------------------------------------------------
+4. BỘ SINH QUÁI (SPAWNER) CHỈ LẤY TỪ THƯ MỤC PREFABS ENEMY
+--------------------------------------------------------------------------------
+* Tập tin: Assets/Scripts/EnemySpawner.cs
+* Cơ chế hoạt động:
+  - Quét và nạp quái vật duy nhất từ thư mục "Assets/prefabsEnemy/":
+    + Quái thường: Enemy_AlienBug, Enemy_Spider (chu kỳ sinh 5 giây/con).
+    + Boss Đại Long: Enemy_MechaDragon (chu kỳ sinh 4 phút/con).
+  - Loại bỏ hoàn toàn liên kết với thư mục Assets/prefabs cũ.
+
+--------------------------------------------------------------------------------
+5. CHUYỂN TOÀN BỘ VŨ KHÍ & ĐẠN SANG 100% RAYCAST (KHÔNG CẦN COLLIDER TRÊN ĐẠN)
+--------------------------------------------------------------------------------
+* Tập tin: Assets/Scripts/Bullet.cs & Assets/Scripts/HomingRocket.cs
+* Cơ chế hoạt động:
+  - Toàn bộ GameObject đạn và tên lửa đã được gỡ bỏ hoàn toàn Collider và Rigidbody.
+  - Quỹ đạo bay và tính toán va chạm 100% sử dụng Physics.Raycast dọc theo đường bay mỗi frame.
+  - Đạn không bị giật lag vật lý, không sinh lực đẩy đẩy lùi Player/Bot, triệt tiêu hoàn toàn hiện tượng xuyên tường (bullet tunneling).
+  - Tối ưu hóa cực đại CPU vật lý PhysX, sẵn sàng chạy mượt mà trên mọi thiết bị di động.
+
+--------------------------------------------------------------------------------
+6. TỐI ƯU HÓA HIỆU NĂNG CPU & QUY TẮC DỰ ÁN
+--------------------------------------------------------------------------------
+* Tuyệt đối không sử dụng Rigidbody cho Player, Bot, Quái vật, Đạn dược (Trọng lực tính bằng code -9.18f).
+* Đã lưu quy tắc bắt buộc xin phép trước khi Git Push vào tệp AGENTS.md.
+================================================================================

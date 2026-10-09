@@ -14,26 +14,12 @@ public class Bullet : MonoBehaviour
 
 	void Awake()
 	{
-		// Đảm bảo tuyệt đối Collider của viên đạn là Trigger để không bao giờ có lực vật lý đẩy lún Player xuống đất
-		Collider col = GetComponent<Collider>();
-		if (col != null)
-		{
-			col.isTrigger = true;
+		// QUY TẮC MỚI: Đạn tuyệt đối KHÔNG DÙNG COLLIDER hay RIGIDBODY
+		Collider[] cols = GetComponentsInChildren<Collider>();
+		foreach (var c in cols) if (c != null) Destroy(c);
 
-			// Vô hiệu hóa va chạm vật lý với tất cả Collider / CharacterController của Player
-			PlayerController player = Object.FindAnyObjectByType<PlayerController>();
-			if (player != null)
-			{
-				Collider[] pCols = player.GetComponentsInChildren<Collider>(true);
-				foreach (var pc in pCols)
-				{
-					if (pc != null && pc != col)
-					{
-						Physics.IgnoreCollision(col, pc, true);
-					}
-				}
-			}
-		}
+		Rigidbody[] rbs = GetComponentsInChildren<Rigidbody>();
+		foreach (var r in rbs) if (r != null) Destroy(r);
 	}
 
 	void Start()
@@ -73,54 +59,28 @@ public class Bullet : MonoBehaviour
 
 		float step = speed * Time.deltaTime;
 
-		// Quét tất cả vật thể trên đường đạn bay để loại trừ Người chơi và Trụ đồng minh
-		RaycastHit[] hits = Physics.SphereCastAll(transform.position, radius, direction, step, hitMask, QueryTriggerInteraction.Ignore);
-		if (hits != null && hits.Length > 0)
+		// 100% Raycast: Quét tia Raycast về phía trước dọc theo đường đạn bay mỗi frame
+		if (Physics.Raycast(transform.position, direction, out RaycastHit hit, step * 1.25f, hitMask, QueryTriggerInteraction.Ignore))
 		{
-			System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
-
-			for (int i = 0; i < hits.Length; i++)
+			Collider hitCol = hit.collider;
+			if (hitCol != null && hitCol.gameObject != gameObject)
 			{
-				Collider hitCol = hits[i].collider;
-				if (hitCol == null || hitCol.gameObject == gameObject) continue;
-
-				// BỎ QUA 100% PLAYER: Đạn đi xuyên qua người chơi hoàn toàn, không chạm, không nổ, không hiệu ứng
-				if (IsPlayer(hitCol)) continue;
-
-				// Bỏ qua đạn khác và các công trình đồng minh
-				if (hitCol.GetComponent<Bullet>() != null) continue;
-				if (hitCol.GetComponentInParent<UpgradableTurret>() != null) continue;
-				if (hitCol.GetComponentInParent<RocketLauncherTurret>() != null) continue;
-				if (hitCol.GetComponentInParent<TurretController>() != null) continue;
-				if (hitCol.GetComponentInParent<WorkerBot>() != null) continue;
-
-				// Đã trúng mục tiêu hợp lệ (Quái vật hoặc Địa hình)
-				hasHit = true;
-				transform.position = hits[i].point;
-				OnHit(hitCol, hits[i].point);
-				return;
+				// BỎ QUA 100% PLAYER và các công trình đồng minh
+				if (!IsPlayer(hitCol) && 
+				    hitCol.GetComponentInParent<UpgradableTurret>() == null && 
+				    hitCol.GetComponentInParent<RocketLauncherTurret>() == null && 
+				    hitCol.GetComponentInParent<TurretController>() == null && 
+				    hitCol.GetComponentInParent<WorkerBot>() == null)
+				{
+					hasHit = true;
+					transform.position = hit.point;
+					OnHit(hitCol, hit.point);
+					return;
+				}
 			}
 		}
 
 		transform.position += direction * step;
-	}
-
-	void OnTriggerEnter(Collider other)
-	{
-		if (hasHit || other == null || other.gameObject == gameObject) return;
-		if (IsPlayer(other)) return; // Xuyên qua Player hoàn toàn!
-		if (other.GetComponent<Bullet>() != null) return;
-		if (other.GetComponentInParent<UpgradableTurret>() != null) return;
-		if (other.GetComponentInParent<TurretController>() != null) return;
-		if (other.GetComponentInParent<RocketLauncherTurret>() != null) return;
-		if (other.GetComponentInParent<WorkerBot>() != null) return;
-
-		// Nếu chạm trúng Quái vật
-		if (other.CompareTag("Enemy") || other.GetComponentInParent<Enemy>() != null)
-		{
-			hasHit = true;
-			OnHit(other, transform.position);
-		}
 	}
 
 	void OnHit(Collider other, Vector3 hitPoint)
