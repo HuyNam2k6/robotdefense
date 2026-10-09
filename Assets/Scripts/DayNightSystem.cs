@@ -52,6 +52,32 @@ public class DayNightSystem : MonoBehaviour
     public Vector3 nightRotationEuler = new Vector3(40f, 145f, 0f);
     public Color nightAmbientColor = new Color(0.12f, 0.15f, 0.24f);
 
+    [Header("=== ẨN / HIỆN GIAO DIỆN (HIERARCHY & INSPECTOR) ===")]
+    [Tooltip("Tích chọn để HIỆN, bỏ tích để ẨN Panel Ngày Đêm trên màn hình.")]
+    public bool showDayNightHUD = false;
+
+    [ContextMenu("👁️ Hiện Panel Ngày Đêm")]
+    public void ShowHUD()
+    {
+        showDayNightHUD = true;
+        if (dayNightHUDPanel != null) dayNightHUDPanel.SetActive(true);
+    }
+
+    [ContextMenu("🙈 Ẩn Panel Ngày Đêm")]
+    public void HideHUD()
+    {
+        showDayNightHUD = false;
+        if (dayNightHUDPanel != null) dayNightHUDPanel.SetActive(false);
+    }
+
+    private void OnValidate()
+    {
+        if (dayNightHUDPanel != null)
+        {
+            dayNightHUDPanel.SetActive(showDayNightHUD);
+        }
+    }
+
     [Header("=== GIAO DIỆN UI (HUD WIDGET) ===")]
     public GameObject dayNightHUDPanel;
     public Text statusTitleText;
@@ -95,7 +121,13 @@ public class DayNightSystem : MonoBehaviour
 
     private void Update()
     {
-        // 1. Đếm ngược thời gian chu kỳ
+        // 1. Đồng bộ trạng thái ẩn / hiện của Panel với showDayNightHUD
+        if (dayNightHUDPanel != null && dayNightHUDPanel.activeSelf != showDayNightHUD)
+        {
+            dayNightHUDPanel.SetActive(showDayNightHUD);
+        }
+
+        // 2. Đếm ngược thời gian chu kỳ
         timeRemaining -= Time.deltaTime;
         if (timeRemaining <= 0f)
         {
@@ -109,10 +141,10 @@ public class DayNightSystem : MonoBehaviour
             }
         }
 
-        // 2. Chuyển đổi ánh sáng mượt mà (Smooth Lerp)
+        // 3. Chuyển đổi ánh sáng mượt mà (Smooth Lerp)
         UpdateLightVisuals(false);
 
-        // 3. Cập nhật UI hiển thị
+        // 4. Cập nhật UI hiển thị
         RefreshHUDDisplay();
     }
 
@@ -256,12 +288,39 @@ public class DayNightSystem : MonoBehaviour
         Canvas canvas = GetMainScreenCanvas();
         if (canvas == null) return;
 
+        // Ưu tiên tìm Panel_DayNightHUD đã có sẵn trong Hierarchy dưới canvas
+        if (dayNightHUDPanel == null)
+        {
+            Transform found = canvas.transform.Find("Panel_DayNightHUD");
+            if (found != null)
+            {
+                dayNightHUDPanel = found.gameObject;
+            }
+        }
+
         if (dayNightHUDPanel != null)
         {
             if (dayNightHUDPanel.transform.parent != canvas.transform)
             {
                 dayNightHUDPanel.transform.SetParent(canvas.transform, false);
             }
+
+            if (statusTitleText == null) statusTitleText = dayNightHUDPanel.transform.Find("StatusTitle")?.GetComponent<Text>();
+            if (timerCountdownText == null) timerCountdownText = dayNightHUDPanel.transform.Find("CountdownTimer")?.GetComponent<Text>();
+            Transform btnTr = dayNightHUDPanel.transform.Find("Btn_DefenseAction");
+            if (btnTr != null)
+            {
+                if (defenseActionButton == null) defenseActionButton = btnTr.GetComponent<Button>();
+                if (actionButtonText == null) actionButtonText = btnTr.Find("BtnText")?.GetComponent<Text>();
+            }
+
+            if (defenseActionButton != null)
+            {
+                defenseActionButton.onClick.RemoveListener(OnDefenseButtonClicked);
+                defenseActionButton.onClick.AddListener(OnDefenseButtonClicked);
+            }
+
+            dayNightHUDPanel.SetActive(showDayNightHUD);
             return;
         }
 
@@ -348,10 +407,17 @@ public class DayNightSystem : MonoBehaviour
         actionButtonText.color = Color.white;
         actionButtonText.supportRichText = true;
         actionButtonText.raycastTarget = false;
+
+        dayNightHUDPanel.SetActive(showDayNightHUD);
     }
 
     private void RefreshHUDDisplay()
     {
+        if (dayNightHUDPanel != null && !dayNightHUDPanel.activeInHierarchy)
+        {
+            return;
+        }
+
         int minutes = Mathf.FloorToInt(Mathf.Max(0f, timeRemaining) / 60f);
         int seconds = Mathf.FloorToInt(Mathf.Max(0f, timeRemaining) % 60f);
 
