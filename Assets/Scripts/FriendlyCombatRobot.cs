@@ -207,7 +207,7 @@ public class FriendlyCombatRobot : MonoBehaviour
         Vector3 myPos = transform.position;
 
         // Quét 1: Quét toàn bộ component Enemy trong Scene
-        Enemy[] allEnemies = FindObjectsByType<Enemy>(FindObjectsSortMode.None);
+        Enemy[] allEnemies = FindObjectsByType<Enemy>();
         for (int i = 0; i < allEnemies.Length; i++)
         {
             if (allEnemies[i] == null || !allEnemies[i].gameObject.activeInHierarchy) continue;
@@ -285,7 +285,7 @@ public class FriendlyCombatRobot : MonoBehaviour
     private Vector3 CalculateSeparation()
     {
         Vector3 sep = Vector3.zero;
-        FriendlyCombatRobot[] allBots = FindObjectsByType<FriendlyCombatRobot>(FindObjectsSortMode.None);
+        FriendlyCombatRobot[] allBots = FindObjectsByType<FriendlyCombatRobot>();
         for (int i = 0; i < allBots.Length; i++)
         {
             if (allBots[i] == this) continue;

@@ -17,6 +17,82 @@ public class RobotFactory : MonoBehaviour
 {
     public static RobotFactory Instance { get; private set; }
 
+    [Header("=== CẤP ĐỘ NHÀ MÁY QUÂN ĐỘI (1 - 4 CẤP) ===")]
+    [Range(1, 4)]
+    [Tooltip("Cấp độ Nhà Máy (1-4). Mỗi cấp mở khóa 1 robot tương ứng: Cấp 1=Stan, 2=Mike, 3=George, 4=Leela")]
+    public int factoryLevel = 1;
+    public const int MaxFactoryLevel = 4;
+
+    public static readonly int[] FactoryUpgradeCoins = new int[] { 60, 150, 300 };
+    public static readonly int[] FactoryUpgradeWood = new int[] { 30, 80, 150 };
+    public static readonly int[] FactoryUpgradeStone = new int[] { 30, 80, 150 };
+
+    public int GetUpgradeCoins() => (factoryLevel >= 1 && factoryLevel < MaxFactoryLevel) ? FactoryUpgradeCoins[factoryLevel - 1] : 0;
+    public int GetUpgradeWood() => (factoryLevel >= 1 && factoryLevel < MaxFactoryLevel) ? FactoryUpgradeWood[factoryLevel - 1] : 0;
+    public int GetUpgradeStone() => (factoryLevel >= 1 && factoryLevel < MaxFactoryLevel) ? FactoryUpgradeStone[factoryLevel - 1] : 0;
+
+    public bool IsRobotUnlocked(int robotIndex)
+    {
+        return factoryLevel >= (robotIndex + 1);
+    }
+
+    /// <summary>
+    /// Nâng cấp Nhà Máy lên cấp kế tiếp (Cấp 1->2->3->4)
+    /// </summary>
+    public bool UpgradeFactory()
+    {
+        if (factoryLevel >= MaxFactoryLevel)
+        {
+            Debug.LogWarning("[RobotFactory] Nhà máy đã đạt cấp tối đa (Cấp 4)!");
+            return false;
+        }
+
+        // KIỂM TRA GIỚI HẠN CẤP ĐỘ MAP CHÍNH (BaseHQ)
+        if (!BaseHQ.CanUpgradeBuildingToLevel(factoryLevel + 1, out string reason))
+        {
+            CenterWarningBanner.ShowUpgradeBlocked("Trại Lính (Nhà Máy)", factoryLevel, factoryLevel + 1);
+            if (GameEconomy.Instance != null) GameEconomy.Instance.TriggerNotEnoughCoins(reason);
+            FloatingDamageText.SpawnResource(transform.position + Vector3.up * 3.5f, reason, new Color(1f, 0.4f, 0.4f), 0.12f);
+            return false;
+        }
+
+        if (GameEconomy.Instance == null) return false;
+
+        int reqCoins = GetUpgradeCoins();
+        int reqWood = GetUpgradeWood();
+        int reqStone = GetUpgradeStone();
+
+        if (GameEconomy.Instance.coins < reqCoins || GameEconomy.Instance.woodCount < reqWood || GameEconomy.Instance.stoneCount < reqStone)
+        {
+            string missing = $"Chưa đủ tài nguyên nâng Nhà Máy Cấp {factoryLevel + 1}!\nCần: ";
+            if (GameEconomy.Instance.coins < reqCoins) missing += $"<color=#FFD700>🪙 {reqCoins} Vàng</color> ";
+            if (GameEconomy.Instance.woodCount < reqWood) missing += $"<color=#DEB887>🪵 {reqWood} Gỗ</color> ";
+            if (GameEconomy.Instance.stoneCount < reqStone) missing += $"<color=#C0C0C0>🪨 {reqStone} Đá</color> ";
+            FloatingDamageText.SpawnResource(transform.position + Vector3.up * 3.5f, missing, new Color(1f, 0.4f, 0.4f), 0.1f);
+            CenterWarningBanner.Show($"⚠️ THIẾU TÀI NGUYÊN NÂNG NHÀ MÁY (CẤP {factoryLevel + 1})!", missing, 3.0f);
+            return false;
+        }
+
+        GameEconomy.Instance.SpendCoins(reqCoins);
+        GameEconomy.Instance.SpendWood(reqWood);
+        GameEconomy.Instance.SpendStone(reqStone);
+
+        factoryLevel++;
+        maxArmySize = 8 + (factoryLevel - 1) * 2;
+
+        string newBotName = factoryLevel switch
+        {
+            2 => "Mike Đấu Sĩ 🛡️",
+            3 => "George Sát Thủ ⚡",
+            4 => "Leela Xạ Thủ 🎯",
+            _ => ""
+        };
+
+        FloatingDamageText.SpawnResource(transform.position + Vector3.up * 4.2f, $"🏭 NHÀ MÁY ĐÃ LÊN CẤP {factoryLevel}!\n🔓 ĐÃ MỞ KHÓA: {newBotName}!", new Color(0.2f, 1f, 0.5f), 0.14f);
+        Debug.Log($"<color=#00FF88><b>[RobotFactory]</b> Nhà máy đã nâng lên Cấp {factoryLevel}! Mở khóa: {newBotName}</color>");
+        return true;
+    }
+
     [Header("--- Cấu Hình Sản Xuất Quân Đội (15s / Con) ---")]
     [Tooltip("Thời gian để đúc và lắp ráp xong 1 Robot: Đúng 15 giây theo yêu cầu")]
     public float productionTime = 15.0f;
@@ -208,6 +284,15 @@ public class RobotFactory : MonoBehaviour
     public bool QueueCraftRobot(int robotIndex)
     {
         CleanupDeadSoldiers();
+
+        // KIỂM TRA MỞ KHÓA THEO CẤP ĐỘ NHÀ MÁY (1-4)
+        if (!IsRobotUnlocked(robotIndex))
+        {
+            string msg = $"🔒 Cần nâng cấp Nhà Máy lên Cấp {robotIndex + 1}! (Hiện tại: Cấp {factoryLevel})";
+            FloatingDamageText.SpawnResource(transform.position + Vector3.up * 3.2f, msg, new Color(1f, 0.4f, 0.4f), 0.12f);
+            Debug.LogWarning($"<color=yellow>[Robot Factory]</color> {msg}");
+            return false;
+        }
 
         int totalExpected = activeArmy.Count + (isProducing ? 1 : 0) + productionQueue.Count;
         if (totalExpected >= maxArmySize)

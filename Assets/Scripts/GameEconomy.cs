@@ -97,6 +97,18 @@ public class GameEconomy : MonoBehaviour
         OnEconomyChanged?.Invoke();
     }
 
+    public bool SpendStone(int amount)
+    {
+        if (amount <= 0) return true;
+        if (stoneCount >= amount)
+        {
+            stoneCount -= amount;
+            OnEconomyChanged?.Invoke();
+            return true;
+        }
+        return false;
+    }
+
     public void AddWood(int amount)
     {
         woodCount += amount;
@@ -280,6 +292,14 @@ public class GameEconomy : MonoBehaviour
         if (wallLevel >= 6)
         {
             Debug.Log("<color=yellow>[Tường]</color> Tường đã đạt cấp tối đa (Cấp 6: Đen Titan)!");
+            return false;
+        }
+
+        // KIỂM TRA GIỚI HẠN CẤP ĐỘ MAP CHÍNH (BaseHQ)
+        if (!BaseHQ.CanUpgradeBuildingToLevel(wallLevel + 1, out string reason))
+        {
+            TriggerNotEnoughCoins(reason);
+            Debug.LogWarning($"<color=yellow>[Nâng Cấp Tường]</color> {reason}");
             return false;
         }
 

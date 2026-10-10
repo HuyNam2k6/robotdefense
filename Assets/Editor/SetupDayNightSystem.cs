@@ -84,7 +84,7 @@ namespace RobotDefense.Editor
 
                 Text statusTxt = titleObj.GetComponent<Text>();
                 statusTxt.font = safeFont;
-                statusTxt.fontSize = 12;
+                statusTxt.fontSize = 18;
                 statusTxt.fontStyle = FontStyle.Bold;
                 statusTxt.alignment = TextAnchor.MiddleLeft;
                 statusTxt.color = new Color(1f, 0.88f, 0.2f, 1f);
@@ -103,7 +103,7 @@ namespace RobotDefense.Editor
 
                 Text timerTxt = timerObj.GetComponent<Text>();
                 timerTxt.font = safeFont;
-                timerTxt.fontSize = 14;
+                timerTxt.fontSize = 18;
                 timerTxt.fontStyle = FontStyle.Bold;
                 timerTxt.alignment = TextAnchor.MiddleLeft;
                 timerTxt.color = Color.white;
@@ -131,7 +131,7 @@ namespace RobotDefense.Editor
 
                 Text bTxt = btnTxtObj.GetComponent<Text>();
                 bTxt.font = safeFont;
-                bTxt.fontSize = 11;
+                bTxt.fontSize = 16;
                 bTxt.fontStyle = FontStyle.Bold;
                 bTxt.alignment = TextAnchor.MiddleCenter;
                 bTxt.color = Color.white;

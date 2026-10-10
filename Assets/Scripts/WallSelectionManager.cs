@@ -24,6 +24,31 @@ public class WallSelectionManager : MonoBehaviour
     [Header("--- Công Trình / Trụ Đang Được Chọn ---")]
     public WallSegment selectedWall;
     public UpgradableTurret selectedTurret;
+    public RobotFactory selectedFactory;
+
+    // Quản lý trạng thái nhấn giữ vào công trình (Vũ khí, Tường, Nhà chính, Nhà máy)
+    private bool isPressHolding = false;
+    private bool isDragStarted = false;
+    private Vector3 pressStartMousePos;
+    private float nextHQWarningTime = 0f;
+
+    private WallSegment pressedWall;
+    private UpgradableTurret pressedTurret;
+    private BaseHQ pressedHQ;
+    private RobotFactory pressedFactory;
+
+    private struct PressRendererInfo
+    {
+        public Renderer renderer;
+        public Color originalBaseColor;
+        public Color originalEmission;
+    }
+    private readonly List<PressRendererInfo> activePressRenderers = new List<PressRendererInfo>();
+    private MaterialPropertyBlock pressBlinkPropBlock;
+
+    // Quản lý Renderers của vật thể đang chọn
+    private readonly List<Renderer> activeSelectedRenderers = new List<Renderer>();
+    private MaterialPropertyBlock selectionPulsePropBlock;
 
     [Header("--- Giao Diện Card Thông Tin & Thao Tác ---")]
     public GameObject wallCardPanel;
@@ -66,10 +91,6 @@ public class WallSelectionManager : MonoBehaviour
     private Transform movePivot;
     private Vector3 movePivotOrigPos;
     private Quaternion movePivotOrigRot;
-
-    // Hỗ trợ nhấn giữ trực tiếp vào công trình để kéo
-    private Vector3 mouseDownScreenPos;
-    private bool isMouseDownOnSelectable = false;
 
     private struct MovingItemBackup
     {
@@ -162,17 +183,15 @@ public class WallSelectionManager : MonoBehaviour
             return;
         }
 
-        // 2. Cập nhật vị trí và animation nhấp nhô của 3D Marker
-        UpdateSelectionMarkerAnimation();
-
-        // 3. Không nhận click chọn nếu đang trong chế độ kéo đặt công trình mới của shop
+        // 2. Không nhận click chọn nếu đang trong chế độ kéo đặt công trình mới của shop
         if (buildingSystem != null && buildingSystem.IsPlacing)
         {
-            if (selectedWall != null || selectedTurret != null) DeselectAll();
+            if (isPressHolding) ClearPressBlinking();
+            if (selectedWall != null || selectedTurret != null || selectedFactory != null) DeselectAll();
             return;
         }
 
-        // 4. Nhận diện click chuột trái / chạm màn hình để chọn hoặc kéo trực tiếp
+        // 3. Nhận diện nhấn giữ, nhấp nháy xanh dương và kéo trực tiếp
         HandleWorldSelectionAndDragDetection();
     }
 
@@ -195,10 +214,11 @@ public class WallSelectionManager : MonoBehaviour
     {
         if (Input.GetMouseButtonDown(0))
         {
-            mouseDownScreenPos = Input.mousePosition;
-            isMouseDownOnSelectable = false;
+            pressStartMousePos = Input.mousePosition;
+            isPressHolding = false;
+            isDragStarted = false;
 
-            // Nếu click hoặc chạm vào bất kỳ phần tử UI nào (nút Nâng Cấp, Card, Joystick...) -> KHÔNG bắn raycast 3D hay Deselect!
+            // Nếu click hoặc chạm vào bất kỳ phần tử UI nào -> KHÔNG xử lý 3D
             if (IsPointerOverUI())
             {
                 return;
@@ -208,40 +228,245 @@ public class WallSelectionManager : MonoBehaviour
             if (cam == null) return;
 
             Ray ray = cam.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(ray, out RaycastHit hit, 250f))
+            if (Physics.Raycast(ray, out RaycastHit hit, 350f))
             {
                 WallSegment clickedWall = hit.collider.GetComponentInParent<WallSegment>();
-                if (clickedWall != null)
-                {
-                    SelectWall(clickedWall);
-                    isMouseDownOnSelectable = true;
-                    return;
-                }
-
                 UpgradableTurret clickedTurret = hit.collider.GetComponentInParent<UpgradableTurret>();
-                if (clickedTurret != null)
+                BaseHQ clickedHQ = hit.collider.GetComponentInParent<BaseHQ>();
+                RobotFactory clickedFactory = hit.collider.GetComponentInParent<RobotFactory>();
+
+                if (clickedWall != null || clickedTurret != null || clickedHQ != null || clickedFactory != null)
                 {
-                    SelectTurret(clickedTurret);
-                    isMouseDownOnSelectable = true;
+                    pressedWall = clickedWall;
+                    pressedTurret = clickedTurret;
+                    pressedHQ = clickedHQ;
+                    pressedFactory = clickedFactory;
+                    isPressHolding = true;
+
+                    Transform targetT = (clickedWall != null) ? clickedWall.transform :
+                                        (clickedTurret != null) ? clickedTurret.transform :
+                                        (clickedHQ != null) ? clickedHQ.transform :
+                                        clickedFactory.transform;
+
+                    CollectPressRenderers(targetT);
                     return;
                 }
             }
 
+            // Click vào khoảng trống mặt đất: Bỏ chọn và đóng tất cả card/menu
             DeselectAll();
+            if (BaseHQ.Instance != null) BaseHQ.Instance.CloseHQInteractionMenu();
         }
-        else if (Input.GetMouseButton(0) && isMouseDownOnSelectable && !isMoveMode)
+        else if (Input.GetMouseButton(0) && isPressHolding)
         {
-            // Nếu người chơi nhấn giữ và kéo chuột vượt quá 14 pixel -> Tự động kích hoạt chế độ di chuyển kéo thả
-            if (Vector3.Distance(Input.mousePosition, mouseDownScreenPos) > 14f)
+            // Trong lúc đang nhấn giữ: Nhấp nháy màu xanh dương rồi trở về màu cũ liên tục
+            UpdatePressBlinking();
+
+            // Kiểm tra kéo chuột / ngón tay vượt quá 14 pixel
+            if (Vector3.Distance(Input.mousePosition, pressStartMousePos) > 14f)
             {
-                isMouseDownOnSelectable = false;
-                StartMoveSingle();
+                // A. RIÊNG NHÀ CHÍNH (BaseHQ): KHÔNG THỂ DI CHUYỂN, BÁO "LÕI KHÔNG THỂ DI CHUYỂN"
+                if (pressedHQ != null)
+                {
+                    isDragStarted = true;
+                    if (Time.time >= nextHQWarningTime)
+                    {
+                        nextHQWarningTime = Time.time + 1.2f;
+                        CenterWarningBanner.Show("⚠️ LÕI KHÔNG THỂ DI CHUYỂN!", "Lõi năng lượng là công trình căn cứ cố định, không thể di dời vị trí!", 2.0f);
+                        FloatingDamageText.SpawnResource(pressedHQ.transform.position + Vector3.up * 4.0f, "⚠️ Lõi không thể di chuyển!", new Color(1f, 0.35f, 0.35f), 0.15f);
+                        Debug.LogWarning("<color=#FF5555>[BaseHQ]</color> Lõi không thể di chuyển!");
+                    }
+                }
+                // B. VŨ KHÍ, TƯỜNG, HOẶC NHÀ MÁY: KÍCH HOẠT CHẾ ĐỘ DI CHUYỂN KÉO THẢ
+                else if (!isMoveMode)
+                {
+                    isDragStarted = true;
+                    if (pressedWall != null)
+                    {
+                        SelectWall(pressedWall);
+                        StartMoveSingle();
+                    }
+                    else if (pressedTurret != null)
+                    {
+                        SelectTurret(pressedTurret);
+                        StartMoveSingle();
+                    }
+                    else if (pressedFactory != null)
+                    {
+                        SelectFactory(pressedFactory);
+                        StartMoveSingle();
+                    }
+                }
             }
         }
         else if (Input.GetMouseButtonUp(0))
         {
-            isMouseDownOnSelectable = false;
+            if (isPressHolding)
+            {
+                isPressHolding = false;
+
+                // Thả tay ra: Dừng ngay nhấp nháy và trả về màu cũ nguyên bản
+                ClearPressBlinking();
+
+                // Nếu không phải đang kéo di chuyển (chỉ nhấn/thả tại chỗ) -> Mở bảng thông tin/nâng cấp
+                if (!isDragStarted)
+                {
+                    if (pressedHQ != null)
+                    {
+                        pressedHQ.OpenHQInteractionMenu();
+                    }
+                    else if (pressedWall != null)
+                    {
+                        SelectWall(pressedWall);
+                    }
+                    else if (pressedTurret != null)
+                    {
+                        SelectTurret(pressedTurret);
+                    }
+                    else if (pressedFactory != null)
+                    {
+                        SelectFactory(pressedFactory);
+                    }
+                }
+
+                pressedWall = null;
+                pressedTurret = null;
+                pressedHQ = null;
+                pressedFactory = null;
+                isDragStarted = false;
+            }
         }
+    }
+
+    // ================= HIỆU ỨNG NHẤP NHÁY XANH DƯƠNG -> MÀU CŨ KHI NHẤN GIỮ =================
+
+    public void CollectPressRenderers(Transform root)
+    {
+        ClearPressBlinking();
+        if (root == null) return;
+
+        Renderer[] rends = root.GetComponentsInChildren<Renderer>(true);
+        foreach (var r in rends)
+        {
+            if (r == null || r is LineRenderer || r is ParticleSystemRenderer) continue;
+            if (r.GetComponent<CanvasRenderer>() != null) continue;
+
+            Color origBase = Color.white;
+            Color origEmission = Color.black;
+
+            if (r.sharedMaterial != null)
+            {
+                if (r.sharedMaterial.HasProperty("_BaseColor"))
+                    origBase = r.sharedMaterial.GetColor("_BaseColor");
+                else if (r.sharedMaterial.HasProperty("_Color"))
+                    origBase = r.sharedMaterial.GetColor("_Color");
+
+                if (r.sharedMaterial.HasProperty("_EmissionColor"))
+                    origEmission = r.sharedMaterial.GetColor("_EmissionColor");
+            }
+
+            activePressRenderers.Add(new PressRendererInfo
+            {
+                renderer = r,
+                originalBaseColor = origBase,
+                originalEmission = origEmission
+            });
+        }
+    }
+
+    public void UpdatePressBlinking()
+    {
+        if (activePressRenderers.Count == 0) return;
+
+        if (pressBlinkPropBlock == null) pressBlinkPropBlock = new MaterialPropertyBlock();
+
+        // Tần số nhấp nháy ~1.8 chu kỳ / giây: Đảo nhịp liên tục giữa màu xanh dương và màu cũ nguyên bản
+        float pulse = (Mathf.Sin(Time.time * 11f) + 1f) * 0.5f;
+
+        Color blueNeon = new Color(0.08f, 0.60f, 1.0f, 1f);     // Xanh dương neon công nghệ
+        Color blueEmission = new Color(0.12f, 0.70f, 1.40f, 1f); // Phát sáng xanh dương HDR
+
+        for (int i = 0; i < activePressRenderers.Count; i++)
+        {
+            var info = activePressRenderers[i];
+            if (info.renderer == null) continue;
+
+            info.renderer.GetPropertyBlock(pressBlinkPropBlock);
+
+            // Chuyển đổi qua lại liên tục giữa Màu Xanh Dương và Màu Cũ ban đầu
+            Color curBase = Color.Lerp(info.originalBaseColor, blueNeon, pulse * 0.85f);
+            Color curEmission = Color.Lerp(info.originalEmission, blueEmission, pulse);
+
+            pressBlinkPropBlock.SetColor("_BaseColor", curBase);
+            pressBlinkPropBlock.SetColor("_Color", curBase);
+            pressBlinkPropBlock.SetColor("_EmissionColor", curEmission);
+
+            info.renderer.SetPropertyBlock(pressBlinkPropBlock);
+        }
+    }
+
+    public void ClearPressBlinking()
+    {
+        for (int i = 0; i < activePressRenderers.Count; i++)
+        {
+            var info = activePressRenderers[i];
+            if (info.renderer != null)
+            {
+                info.renderer.SetPropertyBlock(null);
+            }
+        }
+        activePressRenderers.Clear();
+
+        // Phục hồi lại hoàn toàn visual chuẩn của cấp độ
+        if (pressedWall != null) pressedWall.ApplyLevel(pressedWall.currentLevel);
+        else if (selectedWall != null) selectedWall.ApplyLevel(selectedWall.currentLevel);
+
+        if (pressedTurret != null) pressedTurret.ApplyTurretVisuals(pressedTurret.currentLevel);
+        else if (selectedTurret != null) selectedTurret.ApplyTurretVisuals(selectedTurret.currentLevel);
+
+        if (pressedHQ != null) pressedHQ.ResetHQVisuals();
+        else if (BaseHQ.Instance != null) BaseHQ.Instance.ResetHQVisuals();
+
+        if (pressedFactory != null)
+        {
+            Renderer[] rends = pressedFactory.GetComponentsInChildren<Renderer>(true);
+            foreach (var r in rends) if (r != null) r.SetPropertyBlock(null);
+        }
+    }
+
+    private void CollectSelectedRenderers(Transform root)
+    {
+        ClearSelectedRenderers();
+        if (root == null) return;
+
+        Renderer[] rends = root.GetComponentsInChildren<Renderer>(true);
+        foreach (var r in rends)
+        {
+            if (r == null || r is LineRenderer || r is ParticleSystemRenderer) continue;
+            if (r.GetComponent<CanvasRenderer>() != null) continue;
+            activeSelectedRenderers.Add(r);
+        }
+    }
+
+    private void ClearSelectedRenderers()
+    {
+        for (int i = 0; i < activeSelectedRenderers.Count; i++)
+        {
+            if (activeSelectedRenderers[i] != null)
+            {
+                activeSelectedRenderers[i].SetPropertyBlock(null);
+            }
+        }
+        activeSelectedRenderers.Clear();
+
+        if (selectedWall != null) selectedWall.ApplyLevel(selectedWall.currentLevel);
+        if (selectedTurret != null) selectedTurret.ApplyTurretVisuals(selectedTurret.currentLevel);
+    }
+
+    private void UpdateSelectionPulsingHighlight()
+    {
+        // Hiệu ứng nhấp nháy xanh dương chỉ diễn ra khi người chơi đang nhấn giữ (theo yêu cầu).
+        // Khi người chơi thả tay ra -> trở về màu cũ của công trình.
     }
 
     // ================= CHỌN / BỎ CHỌN VẬT THỂ =================
@@ -251,11 +476,14 @@ public class WallSelectionManager : MonoBehaviour
         if (wall == null || isMoveMode) return;
 
         if (selectedTurret != null) DeselectTurret();
+        if (selectedFactory != null) DeselectFactory();
         if (selectedWall != null && selectedWall != wall) selectedWall.SetSelected(false);
 
         selectedWall = wall;
         selectedWall.SetSelected(true);
         selectedWall.TriggerSelectHop(0f, 0.45f);
+
+        CollectSelectedRenderers(wall.transform);
 
         // Hiệu ứng sóng lan tỏa: Các đoạn tường kết nối trong hàng nảy sóng nhẹ
         List<WallSegment> connectedRow = selectedWall.GetConnectedRow();
@@ -279,11 +507,7 @@ public class WallSelectionManager : MonoBehaviour
             wallCardPanel.SetActive(true);
             wallCardPanel.transform.SetAsLastSibling();
         }
-        if (selectionMarker != null)
-        {
-            selectionMarker.SetActive(true);
-            selectionMarker.transform.position = wall.transform.position + Vector3.up * 2.3f;
-        }
+        if (selectionMarker != null) selectionMarker.SetActive(false);
 
         RefreshCardUI();
     }
@@ -293,10 +517,13 @@ public class WallSelectionManager : MonoBehaviour
         if (turret == null || isMoveMode) return;
 
         if (selectedWall != null) DeselectWall();
+        if (selectedFactory != null) DeselectFactory();
         if (selectedTurret != null && selectedTurret != turret) selectedTurret.SetSelected(false);
 
         selectedTurret = turret;
         selectedTurret.SetSelected(true);
+
+        CollectSelectedRenderers(turret.transform);
 
         if (shopUI != null && shopUI.shopPanel != null && shopUI.shopPanel.activeSelf)
         {
@@ -308,13 +535,36 @@ public class WallSelectionManager : MonoBehaviour
             wallCardPanel.SetActive(true);
             wallCardPanel.transform.SetAsLastSibling();
         }
-        if (selectionMarker != null)
-        {
-            selectionMarker.SetActive(true);
-            selectionMarker.transform.position = selectedTurret.GetMarkerPosition();
-        }
+        if (selectionMarker != null) selectionMarker.SetActive(false);
 
         RefreshCardUI();
+    }
+
+    public void SelectFactory(RobotFactory factory)
+    {
+        if (factory == null || isMoveMode) return;
+
+        if (selectedWall != null) DeselectWall();
+        if (selectedTurret != null) DeselectTurret();
+        if (selectedFactory != null && selectedFactory != factory) DeselectFactory();
+
+        selectedFactory = factory;
+        CollectSelectedRenderers(factory.transform);
+
+        if (shopUI != null && shopUI.shopPanel != null && shopUI.shopPanel.activeSelf)
+        {
+            shopUI.CloseShopPanel();
+        }
+
+        if (wallCardPanel != null)
+        {
+            wallCardPanel.SetActive(true);
+            wallCardPanel.transform.SetAsLastSibling();
+        }
+        if (selectionMarker != null) selectionMarker.SetActive(false);
+
+        RefreshCardUI();
+        Debug.Log("<color=#00FF88>🏭 [WallSelectionManager]</color> Đã chọn Trại Huấn Luyện Quân! Toàn thân nhấp nháy phát sáng & mở bảng điều khiển.");
     }
 
     public void DeselectWall()
@@ -325,7 +575,9 @@ public class WallSelectionManager : MonoBehaviour
             selectedWall = null;
         }
 
-        if (selectedTurret == null)
+        ClearSelectedRenderers();
+
+        if (selectedTurret == null && selectedFactory == null)
         {
             if (wallCardPanel != null) wallCardPanel.SetActive(false);
             if (selectionMarker != null) selectionMarker.SetActive(false);
@@ -340,7 +592,25 @@ public class WallSelectionManager : MonoBehaviour
             selectedTurret = null;
         }
 
-        if (selectedWall == null)
+        ClearSelectedRenderers();
+
+        if (selectedWall == null && selectedFactory == null)
+        {
+            if (wallCardPanel != null) wallCardPanel.SetActive(false);
+            if (selectionMarker != null) selectionMarker.SetActive(false);
+        }
+    }
+
+    public void DeselectFactory()
+    {
+        if (selectedFactory != null)
+        {
+            selectedFactory = null;
+        }
+
+        ClearSelectedRenderers();
+
+        if (selectedWall == null && selectedTurret == null)
         {
             if (wallCardPanel != null) wallCardPanel.SetActive(false);
             if (selectionMarker != null) selectionMarker.SetActive(false);
@@ -350,8 +620,11 @@ public class WallSelectionManager : MonoBehaviour
     public void DeselectAll()
     {
         if (isMoveMode) CancelMove();
+        if (isPressHolding) ClearPressBlinking();
         DeselectWall();
         DeselectTurret();
+        DeselectFactory();
+        if (BaseHQ.Instance != null) BaseHQ.Instance.CloseHQInteractionMenu();
     }
 
     // ================= CẬP NHẬT GIAO DIỆN NÂNG CẤP & THAO TÁC =================
@@ -360,7 +633,7 @@ public class WallSelectionManager : MonoBehaviour
     {
         if (isMoveMode) return;
 
-        if (selectedWall == null && selectedTurret == null)
+        if (selectedWall == null && selectedTurret == null && selectedFactory == null)
         {
             if (wallCardPanel != null && wallCardPanel.activeSelf) wallCardPanel.SetActive(false);
             if (selectionMarker != null && selectionMarker.activeSelf) selectionMarker.SetActive(false);
@@ -400,7 +673,8 @@ public class WallSelectionManager : MonoBehaviour
 
                 if (upgradeSingleText != null)
                 {
-                    upgradeSingleText.text = $"⭐ <b>NÂNG CẤP</b>\n<color=#00FF88>MIỄN PHÍ ({singleCost}🪙)</color>";
+                    string costStr = singleCost == 0 ? "MIỄN PHÍ (0 Vàng)" : $"🪙 {singleCost} Vàng";
+                    upgradeSingleText.text = $"⭐ <b>NÂNG CẤP</b>\n<color=#00FF88>{costStr}</color>";
                 }
 
                 if (upgradeSingleButton != null) upgradeSingleButton.interactable = true;
@@ -438,7 +712,8 @@ public class WallSelectionManager : MonoBehaviour
             {
                 if (upgradeableCount > 0)
                 {
-                    upgradeRowText.text = $"⚡ <b>NÂNG CẢ HÀNG ({upgradeableCount})</b>\n<color=#00FF88>MIỄN PHÍ ({rowTotalCost}🪙)</color>";
+                    string rowCostStr = rowTotalCost == 0 ? "MIỄN PHÍ (0 Vàng)" : $"🪙 {rowTotalCost} Vàng";
+                    upgradeRowText.text = $"⚡ <b>NÂNG CẢ HÀNG ({upgradeableCount})</b>\n<color=#00FF88>{rowCostStr}</color>";
                     if (upgradeRowButton != null) upgradeRowButton.interactable = true;
                 }
                 else
@@ -466,7 +741,7 @@ public class WallSelectionManager : MonoBehaviour
                 }
                 else
                 {
-                    string costStr = repairCost == 0 ? "0🪙 (MIỄN PHÍ)" : $"{repairCost}🪙";
+                    string costStr = repairCost == 0 ? "0 Vàng (MIỄN PHÍ)" : $"🪙 {repairCost} Vàng";
                     repairText.text = $"🔧 <b>SỬA CHỮA</b>\n<color=#00FFFF>{costStr}</color>";
                     repairButton.interactable = true;
                 }
@@ -503,7 +778,8 @@ public class WallSelectionManager : MonoBehaviour
                 int cost = selectedTurret.GetUpgradeCost();
                 if (upgradeSingleText != null)
                 {
-                    upgradeSingleText.text = $"⭐ <b>NÂNG CẤP</b>\n<color=#00FF88>MIỄN PHÍ ({cost}🪙)</color>";
+                    string costStr = cost == 0 ? "MIỄN PHÍ (0 Vàng)" : $"🪙 {cost} Vàng";
+                    upgradeSingleText.text = $"⭐ <b>NÂNG CẤP</b>\n<color=#00FF88>{costStr}</color>";
                 }
                 if (upgradeSingleButton != null) upgradeSingleButton.interactable = true;
             }
@@ -529,10 +805,63 @@ public class WallSelectionManager : MonoBehaviour
                 }
                 else
                 {
-                    string costStr = repairCost == 0 ? "0🪙 (MIỄN PHÍ)" : $"{repairCost}🪙";
+                    string costStr = repairCost == 0 ? "0 Vàng (MIỄN PHÍ)" : $"🪙 {repairCost} Vàng";
                     repairText.text = $"🔧 <b>SỬA CHỮA</b>\n<color=#00FFFF>{costStr}</color>";
                     repairButton.interactable = true;
                 }
+            }
+        }
+        // ================= 3. NẾU ĐANG CHỌN TRẠI HUẤN LUYỆN QUÂN =================
+        else if (selectedFactory != null)
+        {
+            if (upgradeRowButton != null) upgradeRowButton.gameObject.SetActive(false);
+            if (moveRowButton != null) moveRowButton.gameObject.SetActive(false);
+            if (moveSingleText != null) moveSingleText.text = "📦 <b>DI CHUYỂN TRẠI LÍNH</b>";
+
+            int fLvl = selectedFactory.factoryLevel;
+            int maxFLvl = RobotFactory.MaxFactoryLevel;
+
+            if (titleText != null)
+            {
+                titleText.text = (fLvl >= maxFLvl)
+                    ? $"🏭 <b>TRẠI LÍNH (CẤP {fLvl} - MAX TỐI ĐA)</b>"
+                    : $"🏭 <b>TRẠI HUẤN LUYỆN QUÂN (CẤP {fLvl} / {maxFLvl})</b>";
+            }
+
+            int curArmy = selectedFactory.GetCurrentArmyCount();
+            int maxArmy = selectedFactory.maxArmySize;
+
+            if (subtitleText != null)
+            {
+                subtitleText.text = $"Quân số: <color=#00FF88><b>{curArmy}/{maxArmy}</b></color>  |  Mở khóa: Stan, Mike, George, Leela";
+            }
+
+            if (fLvl < maxFLvl)
+            {
+                int c = selectedFactory.GetUpgradeCoins();
+                int w = selectedFactory.GetUpgradeWood();
+                int s = selectedFactory.GetUpgradeStone();
+
+                if (upgradeSingleText != null)
+                {
+                    upgradeSingleText.text = $"⭐ <b>NÂNG CẤP (LÊN CẤP {fLvl + 1})</b>\n<color=#FFD700>🪙 {c} Vàng</color> • <color=#DEB887>🪵 {w} Gỗ</color> • <color=#C0C0C0>🪨 {s} Đá</color>";
+                }
+                if (upgradeSingleButton != null) upgradeSingleButton.interactable = true;
+            }
+            else
+            {
+                if (upgradeSingleText != null)
+                {
+                    upgradeSingleText.text = $"👑 <b>CẤP {maxFLvl} - MAX</b>\n<color=#AAAAAA>(TỐI ĐA)</color>";
+                }
+                if (upgradeSingleButton != null) upgradeSingleButton.interactable = false;
+            }
+
+            if (repairButton != null && repairText != null)
+            {
+                repairButton.gameObject.SetActive(true);
+                repairText.text = "🤖 <b>CHẾ TẠO ROBOT</b>\n<color=#00FFFF>(MỞ BẢNG 15s)</color>";
+                repairButton.interactable = true;
             }
         }
     }
@@ -551,11 +880,15 @@ public class WallSelectionManager : MonoBehaviour
             Debug.Log($"[WallSelectionManager] Sửa chữa Ụ Pháo ({selectedTurret.turretDisplayName}): success={success}");
             if (success) RefreshCardUI();
         }
+        else if (selectedFactory != null)
+        {
+            selectedFactory.TryOpenCraftingPanel();
+        }
     }
 
     private void OnUpgradeSingleClicked()
     {
-        Debug.Log($"<color=#00FFFF>[WallSelectionManager]</color> Nhấn nút Nâng Cấp! selectedWall={selectedWall != null}, selectedTurret={selectedTurret != null}");
+        Debug.Log($"<color=#00FFFF>[WallSelectionManager]</color> Nhấn nút Nâng Cấp! selectedWall={selectedWall != null}, selectedTurret={selectedTurret != null}, selectedFactory={selectedFactory != null}");
         if (selectedWall != null)
         {
             bool success = selectedWall.UpgradeSingle();
@@ -571,6 +904,12 @@ public class WallSelectionManager : MonoBehaviour
                 selectedTurret.ApplyTurretVisuals(selectedTurret.currentLevel);
                 RefreshCardUI();
             }
+        }
+        else if (selectedFactory != null)
+        {
+            bool success = selectedFactory.UpgradeFactory();
+            Debug.Log($"[WallSelectionManager] Nâng cấp Trại Lính: success={success}");
+            if (success) RefreshCardUI();
         }
     }
 
@@ -593,6 +932,10 @@ public class WallSelectionManager : MonoBehaviour
         else if (selectedTurret != null)
         {
             StartMoveMode(selectedTurret.transform, false);
+        }
+        else if (selectedFactory != null)
+        {
+            StartMoveMode(selectedFactory.transform, false);
         }
     }
 
@@ -618,6 +961,7 @@ public class WallSelectionManager : MonoBehaviour
         movePivotOrigRot = pivot.rotation;
 
         activeMovingItems.Clear();
+        CollectPressRenderers(pivot);
 
         if (isRow && selectedWall != null)
         {
@@ -732,6 +1076,15 @@ public class WallSelectionManager : MonoBehaviour
                 else if (selectedTurret != null)
                 {
                     // Snap nhẹ ụ pháo theo lưới 1.0m
+                    float snapX = Mathf.Round(groundPoint.x);
+                    float snapZ = Mathf.Round(groundPoint.z);
+                    float groundY = SampleGroundY(snapX, snapZ, groundPoint.y);
+
+                    movePivot.position = new Vector3(snapX, groundY, snapZ);
+                }
+                else if (selectedFactory != null)
+                {
+                    // Snap nhẹ Trại Huấn Luyện Quân theo lưới 1.0m
                     float snapX = Mathf.Round(groundPoint.x);
                     float snapZ = Mathf.Round(groundPoint.z);
                     float groundY = SampleGroundY(snapX, snapZ, groundPoint.y);
@@ -877,16 +1230,18 @@ public class WallSelectionManager : MonoBehaviour
             if (player != null)
             {
                 float distXZ = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(player.transform.position.x, player.transform.position.z));
-                float playerSafetyRadius = (selectedWall != null) ? 1.5f : 2.6f;
+                float playerSafetyRadius = (selectedWall != null) ? 1.5f : (selectedFactory != null ? 3.0f : 2.6f);
                 if (distXZ < playerSafetyRadius)
                 {
                     return false; // DÍNH PLAYER -> BÁO LỖI (MÀU ĐỎ)!
                 }
             }
 
-            // Quét kiểm tra va chạm hộp 3D thực tế quanh từng đoạn tường / trụ với Player
+            // Quét kiểm tra va chạm hộp 3D thực tế quanh từng đoạn tường / trụ / trại lính với Player
             Vector3 boxCenter = pos + Vector3.up * 1.2f;
-            Vector3 halfExtents = (selectedWall != null) ? new Vector3(0.95f, 1.1f, 0.95f) : new Vector3(1.6f, 2.2f, 1.6f);
+            Vector3 halfExtents = (selectedWall != null) ? new Vector3(0.95f, 1.1f, 0.95f) :
+                                  (selectedFactory != null) ? new Vector3(1.8f, 1.8f, 2.0f) :
+                                  new Vector3(1.6f, 2.2f, 1.6f);
             Collider[] hitCols = Physics.OverlapBox(boxCenter, halfExtents, item.transform.rotation);
             if (hitCols != null)
             {
@@ -909,7 +1264,7 @@ public class WallSelectionManager : MonoBehaviour
                 {
                     if (pObjs[pIdx] == null) continue;
                     float d = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(pObjs[pIdx].transform.position.x, pObjs[pIdx].transform.position.z));
-                    float r = (selectedWall != null) ? 1.5f : 2.6f;
+                    float r = (selectedWall != null) ? 1.5f : (selectedFactory != null ? 3.0f : 2.6f);
                     if (d < r)
                     {
                         return false; // DÍNH PLAYER -> BÁO LỖI (MÀU ĐỎ)!
@@ -926,25 +1281,24 @@ public class WallSelectionManager : MonoBehaviour
     /// </summary>
     private void ApplyMovingVisuals(bool isValid)
     {
-        if (redWarningPropBlock == null)
+        if (!isValid)
         {
-            redWarningPropBlock = new MaterialPropertyBlock();
-            Color warningRed = new Color(1.0f, 0.12f, 0.12f, 0.95f);
-            redWarningPropBlock.SetColor("_BaseColor", warningRed);
-            redWarningPropBlock.SetColor("_Color", warningRed);
-            redWarningPropBlock.SetColor("_EmissionColor", new Color(0.85f, 0.05f, 0.05f, 1f));
-            redWarningPropBlock.SetFloat("_Metallic", 0.1f);
-            redWarningPropBlock.SetFloat("_Smoothness", 0.4f);
-        }
-
-        for (int i = 0; i < activeMovingItems.Count; i++)
-        {
-            var item = activeMovingItems[i];
-            if (item.transform == null) continue;
-
-            if (!isValid)
+            if (redWarningPropBlock == null)
             {
-                // Phủ màu ĐỎ cảnh báo toàn bộ renderers
+                redWarningPropBlock = new MaterialPropertyBlock();
+                Color warningRed = new Color(1.0f, 0.12f, 0.12f, 0.95f);
+                redWarningPropBlock.SetColor("_BaseColor", warningRed);
+                redWarningPropBlock.SetColor("_Color", warningRed);
+                redWarningPropBlock.SetColor("_EmissionColor", new Color(0.85f, 0.05f, 0.05f, 1f));
+                redWarningPropBlock.SetFloat("_Metallic", 0.1f);
+                redWarningPropBlock.SetFloat("_Smoothness", 0.4f);
+            }
+
+            for (int i = 0; i < activeMovingItems.Count; i++)
+            {
+                var item = activeMovingItems[i];
+                if (item.transform == null) continue;
+
                 Renderer[] rends = item.transform.GetComponentsInChildren<Renderer>(true);
                 foreach (var r in rends)
                 {
@@ -952,15 +1306,11 @@ public class WallSelectionManager : MonoBehaviour
                     r.SetPropertyBlock(redWarningPropBlock);
                 }
             }
-            else
-            {
-                // Trả về màu chuẩn của cấp độ
-                WallSegment ws = item.transform.GetComponent<WallSegment>();
-                if (ws != null) ws.ApplyLevel(ws.currentLevel);
-
-                UpgradableTurret ut = item.transform.GetComponent<UpgradableTurret>();
-                if (ut != null) ut.ApplyTurretVisuals(ut.currentLevel);
-            }
+        }
+        else
+        {
+            // Vị trí hợp lệ: Nhấp nháy màu xanh dương rồi trở về màu cũ liên tục đến khi thả tay ra
+            UpdatePressBlinking();
         }
     }
 
@@ -1003,6 +1353,8 @@ public class WallSelectionManager : MonoBehaviour
     {
         if (!isMoveMode) return;
 
+        ClearPressBlinking();
+
         // Bật lại Collider và khôi phục màu sắc ban đầu của cấp độ
         for (int i = 0; i < activeMovingItems.Count; i++)
         {
@@ -1027,6 +1379,15 @@ public class WallSelectionManager : MonoBehaviour
                     ut.ApplyTurretVisuals(ut.currentLevel);
                     ut.TriggerPunchHop();
                 }
+
+                RobotFactory rf = item.transform.GetComponent<RobotFactory>();
+                if (rf != null)
+                {
+                    if (rf.rallyPoint != null)
+                    {
+                        rf.rallyPoint.position = rf.transform.position + rf.transform.forward * 4.5f;
+                    }
+                }
             }
         }
 
@@ -1038,12 +1399,7 @@ public class WallSelectionManager : MonoBehaviour
 
         // Mở lại Card UI tại vị trí mới
         if (wallCardPanel != null) wallCardPanel.SetActive(true);
-        if (selectionMarker != null)
-        {
-            selectionMarker.SetActive(true);
-            if (selectedWall != null) selectionMarker.transform.position = selectedWall.transform.position + Vector3.up * 2.3f;
-            else if (selectedTurret != null) selectionMarker.transform.position = selectedTurret.GetMarkerPosition();
-        }
+        if (selectionMarker != null) selectionMarker.SetActive(false); // Ẩn hoàn toàn cube marker trên đầu theo Yêu Cầu 4
 
         RefreshCardUI();
         Debug.Log("<color=#00FF88>[Di Chuyển]</color> Đã đặt công trình đứng yên tại vị trí mới thành công!");
@@ -1052,6 +1408,8 @@ public class WallSelectionManager : MonoBehaviour
     public void CancelMove()
     {
         if (!isMoveMode) return;
+
+        ClearPressBlinking();
 
         // Tự động quay về vị trí lúc chưa di chuyển
         for (int i = 0; i < activeMovingItems.Count; i++)
@@ -1090,12 +1448,7 @@ public class WallSelectionManager : MonoBehaviour
         if (moveControlPanel != null) moveControlPanel.SetActive(false);
 
         if (wallCardPanel != null) wallCardPanel.SetActive(true);
-        if (selectionMarker != null)
-        {
-            selectionMarker.SetActive(true);
-            if (selectedWall != null) selectionMarker.transform.position = selectedWall.transform.position + Vector3.up * 2.3f;
-            else if (selectedTurret != null) selectionMarker.transform.position = selectedTurret.GetMarkerPosition();
-        }
+        if (selectionMarker != null) selectionMarker.SetActive(false);
 
         RefreshCardUI();
         Debug.Log("<color=yellow>[Di Chuyển]</color> Vị trí không phù hợp! Công trình đã tự động quay về vị trí ban đầu.");
@@ -1110,6 +1463,10 @@ public class WallSelectionManager : MonoBehaviour
         else if (selectedTurret != null)
         {
             selectedTurret.Rotate90Degrees();
+        }
+        else if (selectedFactory != null)
+        {
+            selectedFactory.transform.Rotate(0f, 90f, 0f, Space.World);
         }
     }
 

@@ -636,6 +636,15 @@ public class WallSegment : MonoBehaviour
     {
         if (currentLevel >= 6) return false;
 
+        // KIỂM TRA GIỚI HẠN CẤP ĐỘ MAP CHÍNH (BaseHQ)
+        if (!BaseHQ.CanUpgradeBuildingToLevel(currentLevel + 1, out string reason))
+        {
+            CenterWarningBanner.ShowUpgradeBlocked("Bức Tường", currentLevel, currentLevel + 1);
+            if (GameEconomy.Instance != null) GameEconomy.Instance.TriggerNotEnoughCoins(reason);
+            FloatingDamageText.SpawnResource(transform.position + Vector3.up * 2.5f, reason, new Color(1f, 0.4f, 0.4f), 0.12f);
+            return false;
+        }
+
         int cost = GetUpgradeCost();
         if (cost <= 0 || (GameEconomy.Instance != null && GameEconomy.Instance.SpendCoins(cost)))
         {
@@ -742,6 +751,16 @@ public class WallSegment : MonoBehaviour
         }
 
         if (upgradeable.Count == 0) return false;
+
+        // KIỂM TRA GIỚI HẠN CẤP ĐỘ MAP CHÍNH (BaseHQ)
+        int nextLevel = currentLevel + 1;
+        if (!BaseHQ.CanUpgradeBuildingToLevel(nextLevel, out string reason))
+        {
+            CenterWarningBanner.ShowUpgradeBlocked("Hàng Tường", currentLevel, nextLevel);
+            if (GameEconomy.Instance != null) GameEconomy.Instance.TriggerNotEnoughCoins(reason);
+            FloatingDamageText.SpawnResource(transform.position + Vector3.up * 2.5f, reason, new Color(1f, 0.4f, 0.4f), 0.12f);
+            return false;
+        }
 
         int totalCost = CalculateRowUpgradeCost(upgradeable);
         if (totalCost <= 0 || (GameEconomy.Instance != null && GameEconomy.Instance.SpendCoins(totalCost)))

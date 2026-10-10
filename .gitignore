@@ -70,3 +70,8 @@ crashlytics-build.properties
 /[Aa]ssets/[Ss]treaming[Aa]ssets/aa.meta
 /[Aa]ssets/[Ss]treaming[Aa]ssets/aa/*
 
+# Unity crash recovery scene
+/[Aa]ssets/_Recovery/
+/[Aa]ssets/_Recovery.meta
+
+

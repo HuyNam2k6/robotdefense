@@ -51,7 +51,7 @@ public class Enemy : MonoBehaviour
     public float attackDelay = 0.5f;
 
     private float lastAttackTime = 0f;
-    private bool isDead = false;
+    public bool isDead = false;
     private Collider myCollider;
     private float retargetTimer = 0f;
 
@@ -81,13 +81,15 @@ public class Enemy : MonoBehaviour
         }
 
         // Tự động chuẩn hóa kích thước theo yêu cầu thiết kế mới nhất:
-        // 1. Boss Rồng (MechaDragon): Tăng kích thước lên gấp 2 -> Scale (5.0, 5.0, 5.0)
+        // 1. Boss Rồng (MechaDragon): Giảm 20% độ to (từ 5.0 xuống 4.0) -> Scale (4.0, 4.0, 4.0)
         // 2. Bọ ngoài hành tinh (AlienBug): Tăng kích thước lên 3 lần -> Scale (3.0, 3.0, 3.0)
         // 3. Nhện (Spider): Giảm kích thước đi 2 lần -> Scale (0.5, 0.5, 0.5)
         string lowerCheck = (name + " " + enemyName).ToLower();
-        if (isFlying || lowerCheck.Contains("dragon"))
+        bool isBoss = isFlying || lowerCheck.Contains("dragon") || GetComponent<MechaDragonBoss>() != null;
+
+        if (isBoss)
         {
-            transform.localScale = Vector3.one * 5.0f;
+            transform.localScale = Vector3.one * 4.0f;
         }
         else if (lowerCheck.Contains("alienbug") || lowerCheck.Contains("bug"))
         {
@@ -98,6 +100,9 @@ public class Enemy : MonoBehaviour
             transform.localScale = Vector3.one * 0.5f;
         }
 
+        // Lượng máu (HP): Giữ nguyên đúng chỉ số thiết kế theo từng loại quái từ Prefab (không đồng bộ số máu)
+        currentHealth = maxHealth;
+
         // Tự động bù góc 180 độ cho Nhện nếu chưa đặt (vì model gốc hướng đầu về -Z)
         if (modelRotationOffset == 0f && lowerCheck.Contains("spider"))
         {
@@ -105,7 +110,7 @@ public class Enemy : MonoBehaviour
         }
 
         // Tự động gắn chặt mắt rồng vào xương đầu (Head) để mắt không bao giờ bay lạc hướng khi tấn công
-        if (isFlying || lowerCheck.Contains("dragon"))
+        if (isBoss)
         {
             EnsureDragonEyesAttachedToHead();
         }
@@ -166,9 +171,9 @@ public class Enemy : MonoBehaviour
             }
         }
 
-        if (isFlying || name.ToLower().Contains("dragon")) return 7.5f; // Rồng scale 5.0 -> thanh máu cao 7.5m
-        if (name.ToLower().Contains("spider") || enemyName.ToLower().Contains("spider")) return 1.1f; // Nhện scale 0.5 -> thanh máu hạ xuống 1.1m
-        return 3.5f; // AlienBug scale 3.0 -> thanh máu nâng lên 3.5m
+        if (isFlying || name.ToLower().Contains("dragon")) return 6.0f; // Rồng giảm 20% độ to (scale 4.0) -> thanh máu cao 6.0m
+        if (name.ToLower().Contains("spider") || enemyName.ToLower().Contains("spider")) return 1.1f; // Nhện scale 0.5 -> thanh máu cao 1.1m
+        return 3.2f; // AlienBug scale 3.0 -> thanh máu cao 3.2m
     }
 
     void Start()
@@ -287,38 +292,68 @@ public class Enemy : MonoBehaviour
             closestPlayer = player.transform;
         }
 
-        // ================= SO SÁNH: CÁI NÀO GẦN NHẤT THÌ TẤN CÔNG CÁI ĐẤY =================
+        // 4. Quét tìm NHÀ CHÍNH / CĂN CỨ (BaseHQ)
+        float baseHQDist = float.MaxValue;
+        Transform baseHQTarget = null;
+        if (BaseHQ.Instance != null && BaseHQ.Instance.gameObject.activeInHierarchy && !BaseHQ.Instance.isDestroyed && BaseHQ.Instance.currentHealth > 0f)
+        {
+            baseHQDist = Vector3.Distance(transform.position, BaseHQ.Instance.transform.position);
+            baseHQTarget = BaseHQ.Instance.transform;
+        }
+
+        // ================= SO SÁNH & CHỌN MỤC TIÊU =================
+        // Thứ tự ưu tiên phòng tuyến:
+        // - Nếu có Tường cản đường ở gần (< 10m): Quái cắn phá tường để mở đường
+        // - Nếu có Trụ súng hoặc Lính ở gần (< 8m): Quái tiêu diệt hỏa lực cản đường
+        // - Nếu có Player áp sát (< 6m): Quái tấn công Player
+        // - Mục tiêu tối thượng cốt lõi: Hành quân thẳng về NHÀ CHÍNH (BaseHQ)!
         float minDistance = float.MaxValue;
         Transform chosenTarget = null;
 
-        if (closestWall != null && closestWallDist < minDistance)
+        if (closestWall != null && closestWallDist < 9.5f)
         {
             minDistance = closestWallDist;
             chosenTarget = closestWall;
         }
 
-        if (closestDefense != null && closestDefenseDist < minDistance)
+        if (closestDefense != null && closestDefenseDist < 8.0f && closestDefenseDist < minDistance)
         {
             minDistance = closestDefenseDist;
             chosenTarget = closestDefense;
         }
 
-        if (closestPlayer != null && closestPlayerDist < minDistance)
+        if (closestPlayer != null && closestPlayerDist < 6.0f && closestPlayerDist < minDistance)
         {
             minDistance = closestPlayerDist;
             chosenTarget = closestPlayer;
+        }
+
+        // Nếu không có vật cản gần níu chân -> Mục tiêu số 1 là NHÀ CHÍNH!
+        if (chosenTarget == null && baseHQTarget != null)
+        {
+            chosenTarget = baseHQTarget;
+        }
+        else if (chosenTarget == null)
+        {
+            // Dự phòng nếu chưa có Nhà Chính
+            if (closestWall != null && closestWallDist < minDistance) { minDistance = closestWallDist; chosenTarget = closestWall; }
+            if (closestDefense != null && closestDefenseDist < minDistance) { minDistance = closestDefenseDist; chosenTarget = closestDefense; }
+            if (closestPlayer != null && closestPlayerDist < minDistance) { minDistance = closestPlayerDist; chosenTarget = closestPlayer; }
         }
 
         target = chosenTarget;
     }
 
     /// <summary>
-    /// Kiểm tra an toàn xem mục tiêu (tường, robot, trụ súng, người chơi) còn sống và hoạt động hay không
+    /// Kiểm tra an toàn xem mục tiêu (nhà chính, tường, robot, trụ súng, người chơi) còn sống và hoạt động hay không
     /// </summary>
     private bool IsTargetAlive(Transform t)
     {
         if (t == null) return false;
         if (!t.gameObject.activeInHierarchy) return false;
+
+        var hq = t.GetComponent<BaseHQ>();
+        if (hq != null) return !hq.isDestroyed && hq.currentHealth > 0f;
 
         var wall = t.GetComponent<WallSegment>();
         if (wall != null) return !wall.isDestroyed && wall.currentHealth > 0f;
@@ -430,6 +465,14 @@ public class Enemy : MonoBehaviour
             {
                 healthBarObj.transform.rotation = mainCamera.transform.rotation;
                 healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
+
+                // Đồng bộ kích thước hiển thị của thanh HP tuyệt đối trong World Space:
+                // Khử ảnh hưởng của scale model cha (Bug scale 3x hay Spider scale 0.5x đều có kích thước thanh máu bằng nhau)
+                Vector3 pLossy = transform.lossyScale;
+                float sx = pLossy.x > 0.001f ? (1f / pLossy.x) : 1f;
+                float sy = pLossy.y > 0.001f ? (1f / pLossy.y) : 1f;
+                float sz = pLossy.z > 0.001f ? (1f / pLossy.z) : 1f;
+                healthBarObj.transform.localScale = new Vector3(sx * 0.012f, sy * 0.012f, sz * 0.012f);
             }
         }
     }
@@ -655,10 +698,10 @@ public class Enemy : MonoBehaviour
 
         Debug.Log($"<color=red>[Enemy]</color> {name} đã bị tiêu diệt! +{goldReward}🪙 Vàng");
 
-        // Rơi vàng vào GameEconomy
-        if (GameEconomy.Instance != null && goldReward > 0)
+        // Rơi vàng ra mặt đất thực tế để người chơi đi nhặt gom lại
+        if (goldReward > 0)
         {
-            GameEconomy.Instance.AddCoins(goldReward);
+            DroppedGoldCoin.SpawnCoins(transform.position, goldReward);
         }
 
         // Kích nổ hiệu ứng chết
@@ -712,7 +755,13 @@ public class Enemy : MonoBehaviour
         float barWidth = isBoss ? 240f : 140f;
         float barHeight = isBoss ? 28f : 18f;
         rt.sizeDelta = new Vector2(barWidth, barHeight);
-        rt.localScale = Vector3.one * 0.012f;
+
+        // Khử scale của model cha để thanh máu có kích thước chuẩn đồng nhất
+        Vector3 parentLossy = transform.lossyScale;
+        float sx = parentLossy.x > 0.001f ? (1f / parentLossy.x) : 1f;
+        float sy = parentLossy.y > 0.001f ? (1f / parentLossy.y) : 1f;
+        float sz = parentLossy.z > 0.001f ? (1f / parentLossy.z) : 1f;
+        rt.localScale = new Vector3(sx * 0.012f, sy * 0.012f, sz * 0.012f);
 
         // Khung nền đen xám viền (KHÔNG dùng Outline để tránh nhân bản đỉnh tạo cảm giác 3 thanh máu)
         GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));

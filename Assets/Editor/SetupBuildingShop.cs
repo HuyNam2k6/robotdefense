@@ -22,10 +22,18 @@ namespace IdleFactoryDefense.Editor
 		{
 			if (EditorApplication.isPlayingOrWillChangePlaymode) return;
 
-			// Kiểm tra nếu chưa có Tab Kho Hàng hoặc còn banner ưu đãi ở Page_Defense
+			// Kiểm tra nếu chưa có Tab Kho Hàng, còn banner cũ hoặc font cũ chưa được nâng cấp sắc nét
 			bool missingWarehouseTab = GameObject.Find("Tab_Warehouse") == null;
 			bool hasOldPromoBanner = GameObject.Find("Promo_StarterPack") != null;
-			if (missingWarehouseTab || hasOldPromoBanner)
+
+			Canvas c = Object.FindAnyObjectByType<Canvas>();
+			bool canvasNotPixelPerfect = c != null && !c.pixelPerfect;
+
+			GameObject cardPhao = GameObject.Find("Card_Phaotuhanh");
+			Text phaoTxt = cardPhao != null ? cardPhao.GetComponentInChildren<Text>() : null;
+			bool needsFontUpgrade = phaoTxt != null && phaoTxt.fontSize < 25;
+
+			if (missingWarehouseTab || hasOldPromoBanner || canvasNotPixelPerfect || needsFontUpgrade)
 			{
 				SetupShop();
 			}
@@ -155,15 +163,20 @@ namespace IdleFactoryDefense.Editor
 				canvasObj.layer = uiLayer;
 				canvas = canvasObj.AddComponent<Canvas>();
 				canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+				canvas.pixelPerfect = true; // SẮC NÉT: Khớp từng pixel trên màn hình, không bị mờ nhòe sub-pixel
 				Undo.RegisterCreatedObjectUndo(canvasObj, "Tạo Shop_Canvas");
+			}
+			else
+			{
+				canvas.pixelPerfect = true;
 			}
 
 			CanvasScaler scaler = canvasObj.GetComponent<CanvasScaler>();
 			if (scaler == null) scaler = canvasObj.AddComponent<CanvasScaler>();
 			scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
 			scaler.referenceResolution = new Vector2(1080, 1920);
-			scaler.matchWidthOrHeight = 0.5f;
-			scaler.dynamicPixelsPerUnit = 2.5f; // SẮC NÉT CHỮ TRÊN MÀN HÌNH ĐIỆN THOẠI (KHÔNG BỊ MỜ)
+			scaler.matchWidthOrHeight = 0f; // MATCH WIDTH: Chuẩn màn hình dọc 100% không bao giờ bị cắt viền hay ép méo
+			scaler.dynamicPixelsPerUnit = 1f; // TỶ LỆ 1:1 CHUẨN: Font rasterizer sinh chữ sắc nét tuyệt đối, không nén bilinear
 			scaler.referencePixelsPerUnit = 100;
 
 			if (canvasObj.GetComponent<GraphicRaycaster>() == null)
@@ -213,9 +226,9 @@ namespace IdleFactoryDefense.Editor
 			tbtr.sizeDelta = Vector2.zero;
 
 			Text tbTxt = tbTxtObj.AddComponent<Text>();
-			tbTxt.text = "<size=38>🛡️</size>\n<size=13><b>PHÒNG THỦ</b></size>";
+			tbTxt.text = "<size=44>🛡️</size>\n<size=20><b>PHÒNG THỦ</b></size>";
 			tbTxt.font = safeFont;
-			tbTxt.fontSize = 16;
+			tbTxt.fontSize = 20;
 			tbTxt.alignment = TextAnchor.MiddleCenter;
 			tbTxt.color = new Color(0.95f, 0.85f, 0.25f);
 
@@ -290,7 +303,7 @@ namespace IdleFactoryDefense.Editor
 			hrRect.anchorMax = new Vector2(1f, 1f);
 			hrRect.pivot = new Vector2(0.5f, 1f);
 			hrRect.anchoredPosition = Vector2.zero;
-			hrRect.sizeDelta = new Vector2(0f, 54f);
+			hrRect.sizeDelta = new Vector2(0f, 62f);
 
 			// Tiêu đề: PHÒNG THỦ CĂN CỨ
 			GameObject titleGroup = new GameObject("Title_Group", typeof(RectTransform));
@@ -302,9 +315,9 @@ namespace IdleFactoryDefense.Editor
 			tgRect.sizeDelta = Vector2.zero;
 
 			Text titleTxt = titleGroup.AddComponent<Text>();
-			titleTxt.text = "<size=20><b>🛡️ PHÒNG THỦ CĂN CỨ</b></size>\n<size=12><color=#8EA5C8>Mua và bố trí hỏa lực bảo vệ căn cứ!</color></size>";
+			titleTxt.text = "<size=28><b>🛡️ PHÒNG THỦ CĂN CỨ</b></size>\n<size=17><color=#8EA5C8>Mua và bố trí hỏa lực bảo vệ căn cứ</color></size>";
 			titleTxt.font = safeFont;
-			titleTxt.fontSize = 16;
+			titleTxt.fontSize = 26;
 			titleTxt.alignment = TextAnchor.MiddleLeft;
 			titleTxt.color = Color.white;
 
@@ -320,17 +333,18 @@ namespace IdleFactoryDefense.Editor
 			Text countTxt = countObj.AddComponent<Text>();
 			countTxt.text = "⏳ Làm mới sau:\n<color=#00FFFF><b>04:32</b></color>";
 			countTxt.font = safeFont;
-			countTxt.fontSize = 14;
+			countTxt.fontSize = 19;
+			countTxt.fontStyle = FontStyle.Bold;
 			countTxt.alignment = TextAnchor.MiddleCenter;
-			countTxt.color = new Color(0.8f, 0.9f, 1f);
+			countTxt.color = new Color(0.85f, 0.95f, 1f);
 
 			// Nút "Làm mới 50 💎"
 			GameObject refBtnObj = new GameObject("Btn_Refresh", typeof(RectTransform));
 			refBtnObj.layer = uiLayer;
 			refBtnObj.transform.SetParent(headerObj.transform, false);
 			RectTransform rfRect = refBtnObj.GetComponent<RectTransform>();
-			rfRect.anchorMin = new Vector2(0.73f, 0.12f);
-			rfRect.anchorMax = new Vector2(0.92f, 0.88f);
+			rfRect.anchorMin = new Vector2(0.73f, 0.10f);
+			rfRect.anchorMax = new Vector2(0.92f, 0.90f);
 			rfRect.sizeDelta = Vector2.zero;
 
 			Image rfImg = refBtnObj.AddComponent<Image>();
@@ -345,9 +359,9 @@ namespace IdleFactoryDefense.Editor
 			rftr.anchorMax = Vector2.one;
 			rftr.sizeDelta = Vector2.zero;
 			Text rfTxt = rfTxtObj.AddComponent<Text>();
-			rfTxt.text = "🎬 <b>Làm mới</b>\n<size=12><color=#633800>50 💎</color></size>";
+			rfTxt.text = "🎬 <b>Làm mới</b>\n<size=16><color=#502500>50 💎</color></size>";
 			rfTxt.font = safeFont;
-			rfTxt.fontSize = 14;
+			rfTxt.fontSize = 20;
 			rfTxt.alignment = TextAnchor.MiddleCenter;
 			rfTxt.color = new Color(0.15f, 0.1f, 0.02f);
 
@@ -356,8 +370,8 @@ namespace IdleFactoryDefense.Editor
 			closeBtnObj.layer = uiLayer;
 			closeBtnObj.transform.SetParent(headerObj.transform, false);
 			RectTransform clRect = closeBtnObj.GetComponent<RectTransform>();
-			clRect.anchorMin = new Vector2(0.93f, 0.12f);
-			clRect.anchorMax = new Vector2(1f, 0.88f);
+			clRect.anchorMin = new Vector2(0.93f, 0.10f);
+			clRect.anchorMax = new Vector2(1f, 0.90f);
 			clRect.sizeDelta = Vector2.zero;
 
 			Image clImg = closeBtnObj.AddComponent<Image>();
@@ -374,7 +388,7 @@ namespace IdleFactoryDefense.Editor
 			Text clTxt = clTxtObj.AddComponent<Text>();
 			clTxt.text = "✕";
 			clTxt.font = safeFont;
-			clTxt.fontSize = 22;
+			clTxt.fontSize = 30;
 			clTxt.fontStyle = FontStyle.Bold;
 			clTxt.alignment = TextAnchor.MiddleCenter;
 			clTxt.color = Color.white;
@@ -388,7 +402,7 @@ namespace IdleFactoryDefense.Editor
 			pdRect.anchorMin = Vector2.zero;
 			pdRect.anchorMax = Vector2.one;
 			pdRect.offsetMin = Vector2.zero;
-			pdRect.offsetMax = new Vector2(0f, -60f); // Dưới header
+			pdRect.offsetMax = new Vector2(0f, -68f); // Dưới header cao 62px
 
 			// HÀNG 4 THẺ VŨ KHÍ PHÒNG THỦ (CHIẾM TRỌN DIỆN TÍCH RỘNG RÃI)
 			GameObject cardsRowObj = new GameObject("Cards_Row", typeof(RectTransform));
@@ -596,8 +610,8 @@ namespace IdleFactoryDefense.Editor
 			tabObj.transform.SetParent(parent, false);
 
 			LayoutElement le = tabObj.AddComponent<LayoutElement>();
-			le.minHeight = 76f;
-			le.preferredHeight = 76f;
+			le.minHeight = 82f;
+			le.preferredHeight = 82f;
 
 			Image bg = tabObj.AddComponent<Image>();
 			bg.color = isActive ? new Color(0.96f, 0.65f, 0.12f) : new Color(0.08f, 0.14f, 0.24f, 0.95f);
@@ -617,9 +631,9 @@ namespace IdleFactoryDefense.Editor
 			tr.sizeDelta = Vector2.zero;
 
 			Text t = txtObj.AddComponent<Text>();
-			t.text = $"<size=26>{icon}</size>\n<size=12><b>{title}</b></size>";
+			t.text = $"<size=30>{icon}</size>\n<size=18><b>{title}</b></size>";
 			t.font = font;
-			t.fontSize = 14;
+			t.fontSize = 18;
 			t.alignment = TextAnchor.MiddleCenter;
 			t.color = isActive ? new Color(0.12f, 0.08f, 0.02f) : Color.white;
 
@@ -640,80 +654,88 @@ namespace IdleFactoryDefense.Editor
 			outline.effectDistance = new Vector2(1.5f, -1.5f);
 
 			VerticalLayoutGroup vLayout = cardObj.AddComponent<VerticalLayoutGroup>();
-			vLayout.padding = new RectOffset(12, 12, 14, 14);
-			vLayout.spacing = 10f;
+			vLayout.padding = new RectOffset(10, 10, 12, 12);
+			vLayout.spacing = 8f;
 			vLayout.childAlignment = TextAnchor.UpperCenter;
 			vLayout.childControlWidth = true;
 			vLayout.childControlHeight = false;
 			vLayout.childForceExpandWidth = true;
 			vLayout.childForceExpandHeight = false;
 
-			// Tên vũ khí
+			// Tên vũ khí (Sử dụng BestFit chuẩn để tự cân chỉnh cỡ chữ sắc nét nhất, không tràn lề)
 			GameObject titleObj = new GameObject("Title", typeof(RectTransform));
 			titleObj.layer = layer;
 			titleObj.transform.SetParent(cardObj.transform, false);
 			LayoutElement tle = titleObj.AddComponent<LayoutElement>();
-			tle.minHeight = 28f;
-			tle.preferredHeight = 28f;
+			tle.minHeight = 36f;
+			tle.preferredHeight = 36f;
+
 			Text tText = titleObj.AddComponent<Text>();
-			tText.text = $"<size=17><b>{title}</b></size>";
+			tText.text = $"<b>{title}</b>";
 			tText.font = font;
-			tText.fontSize = 20;
+			tText.fontSize = 26;
+			tText.resizeTextForBestFit = true;
+			tText.resizeTextMinSize = 20;
+			tText.resizeTextMaxSize = 28;
 			tText.alignment = TextAnchor.MiddleCenter;
 			tText.color = Color.white;
-			Shadow sTitle = titleObj.AddComponent<Shadow>();
-			sTitle.effectColor = new Color(0f, 0f, 0f, 0.85f);
-			sTitle.effectDistance = new Vector2(1.5f, -1.5f);
 
-			// Icon ảnh 3D vũ khí (Mở rộng kích thước to rõ hơn)
+			Shadow sTitle = titleObj.AddComponent<Shadow>();
+			sTitle.effectColor = new Color(0f, 0f, 0f, 0.45f);
+			sTitle.effectDistance = new Vector2(0.8f, -0.8f);
+
+			// Icon ảnh 3D vũ khí (Độ nét cao 512x512)
 			GameObject iconObj = new GameObject("Icon", typeof(RectTransform));
 			iconObj.layer = layer;
 			iconObj.transform.SetParent(cardObj.transform, false);
 			LayoutElement ile = iconObj.AddComponent<LayoutElement>();
-			ile.minHeight = 185f;
-			ile.preferredHeight = 185f;
+			ile.minHeight = 180f;
+			ile.preferredHeight = 180f;
 
 			Image iconImg = iconObj.AddComponent<Image>();
 			if (iconSprite != null) iconImg.sprite = iconSprite;
 			iconImg.preserveAspect = true;
 
-			// Mô tả
+			// Mô tả (Chữ to rõ, không bị vỡ hạt)
 			GameObject descObj = new GameObject("Desc", typeof(RectTransform));
 			descObj.layer = layer;
 			descObj.transform.SetParent(cardObj.transform, false);
 			LayoutElement dle = descObj.AddComponent<LayoutElement>();
-			dle.minHeight = 52f;
-			dle.preferredHeight = 52f;
+			dle.minHeight = 68f;
+			dle.preferredHeight = 68f;
+
 			Text dText = descObj.AddComponent<Text>();
 			dText.text = desc;
 			dText.font = font;
-			dText.fontSize = 15;
+			dText.fontSize = 20;
+			dText.lineSpacing = 1.05f;
 			dText.alignment = TextAnchor.MiddleCenter;
-			dText.color = new Color(0.82f, 0.90f, 0.98f);
+			dText.color = new Color(0.92f, 0.96f, 1f);
 
 			// Chip Perk
 			GameObject perkObj = new GameObject("Perk", typeof(RectTransform));
 			perkObj.layer = layer;
 			perkObj.transform.SetParent(cardObj.transform, false);
 			LayoutElement ple = perkObj.AddComponent<LayoutElement>();
-			ple.minHeight = 28f;
-			ple.preferredHeight = 28f;
+			ple.minHeight = 34f;
+			ple.preferredHeight = 34f;
+
 			Text pText = perkObj.AddComponent<Text>();
-			pText.text = $"<color=#67E8F9><b>{perk}</b></color>";
+			pText.text = $"<color=#00E5FF><b>{perk}</b></color>";
 			pText.font = font;
-			pText.fontSize = 15;
+			pText.fontSize = 22;
 			pText.alignment = TextAnchor.MiddleCenter;
 
-			// Nút Mua Xanh Lá
+			// Nút Mua Xanh Lá (Chữ đậm, sắc nét)
 			GameObject btnObj = new GameObject("Btn_Buy", typeof(RectTransform));
 			btnObj.layer = layer;
 			btnObj.transform.SetParent(cardObj.transform, false);
 			LayoutElement ble = btnObj.AddComponent<LayoutElement>();
-			ble.minHeight = 54f;
-			ble.preferredHeight = 54f;
+			ble.minHeight = 60f;
+			ble.preferredHeight = 60f;
 
 			Image bImg = btnObj.AddComponent<Image>();
-			bImg.color = new Color(0.08f, 0.68f, 0.35f);
+			bImg.color = new Color(0.06f, 0.78f, 0.38f);
 
 			Outline bOutline = btnObj.AddComponent<Outline>();
 			bOutline.effectColor = new Color(0.02f, 0.35f, 0.18f);
@@ -728,15 +750,18 @@ namespace IdleFactoryDefense.Editor
 			btr.anchorMin = Vector2.zero;
 			btr.anchorMax = Vector2.one;
 			btr.sizeDelta = Vector2.zero;
+
 			Text bTxt = bTxtObj.AddComponent<Text>();
 			bTxt.text = $"🪙 <b>{price}</b>";
 			bTxt.font = font;
-			bTxt.fontSize = 19;
+			bTxt.fontSize = 26;
+			bTxt.fontStyle = FontStyle.Bold;
 			bTxt.alignment = TextAnchor.MiddleCenter;
 			bTxt.color = Color.white;
+
 			Shadow sPrice = bTxtObj.AddComponent<Shadow>();
-			sPrice.effectColor = new Color(0f, 0f, 0f, 0.9f);
-			sPrice.effectDistance = new Vector2(1.5f, -1.5f);
+			sPrice.effectColor = new Color(0f, 0f, 0f, 0.45f);
+			sPrice.effectDistance = new Vector2(0.8f, -0.8f);
 
 			return btn;
 		}
@@ -748,12 +773,12 @@ namespace IdleFactoryDefense.Editor
 			headerBox.layer = layer;
 			headerBox.transform.SetParent(parent, false);
 			LayoutElement hle = headerBox.AddComponent<LayoutElement>();
-			hle.minHeight = 50f;
-			hle.preferredHeight = 50f;
+			hle.minHeight = 56f;
+			hle.preferredHeight = 56f;
 			Text ht = headerBox.AddComponent<Text>();
-			ht.text = "📦 <b>KHO HÀNG CĂN CỨ & GÓI ƯU ĐÃI</b>\n<size=13><color=#93C5FD>Lưu trữ các gói vật phẩm, trang bị và vũ khí đã sở hữu</color></size>";
+			ht.text = "<size=24>📦 <b>KHO HÀNG CĂN CỨ & GÓI ƯU ĐÃI</b></size>\n<size=17><color=#93C5FD>Lưu trữ các gói vật phẩm, trang bị và vũ khí đã sở hữu</color></size>";
 			ht.font = font;
-			ht.fontSize = 16;
+			ht.fontSize = 22;
 			ht.alignment = TextAnchor.MiddleCenter;
 			ht.color = Color.white;
 
@@ -762,8 +787,8 @@ namespace IdleFactoryDefense.Editor
 			starterCard.layer = layer;
 			starterCard.transform.SetParent(parent, false);
 			LayoutElement sle = starterCard.AddComponent<LayoutElement>();
-			sle.minHeight = 110f;
-			sle.preferredHeight = 110f;
+			sle.minHeight = 115f;
+			sle.preferredHeight = 115f;
 
 			Image scBg = starterCard.AddComponent<Image>();
 			scBg.color = new Color(0.09f, 0.15f, 0.25f, 0.98f);
@@ -795,9 +820,9 @@ namespace IdleFactoryDefense.Editor
 			dr.offsetMax = new Vector2(0f, -8f);
 
 			Text dt = descObj.AddComponent<Text>();
-			dt.text = "<size=17><b>Gói Khởi Đầu Chiến Dịch</b></size> <color=#EF4444><b>(-50%)</b></color>\n<size=13><color=#93C5FD>Bao gồm 1 Pháo Tự Hành + 1 Trụ Sét Thunder</color></size>\n<size=12><color=#FCD34D>✦ Mở gói để nhận ngay hỏa lực bảo vệ căn cứ</color></size>";
+			dt.text = "<size=22><b>Gói Khởi Đầu Chiến Dịch</b></size> <color=#EF4444><b>(-50%)</b></color>\n<size=17><color=#93C5FD>Bao gồm 1 Pháo Tự Hành + 1 Trụ Sét Thunder</color></size>\n<size=16><color=#FCD34D>✦ Mở gói để nhận ngay hỏa lực bảo vệ căn cứ</color></size>";
 			dt.font = font;
-			dt.fontSize = 15;
+			dt.fontSize = 20;
 			dt.alignment = TextAnchor.MiddleLeft;
 			dt.color = Color.white;
 
@@ -822,9 +847,10 @@ namespace IdleFactoryDefense.Editor
 			btr.anchorMax = Vector2.one;
 			btr.sizeDelta = Vector2.zero;
 			Text bt = btObj.AddComponent<Text>();
-			bt.text = "🪙 <b>4,990</b>\n<size=11><color=#633800>MỞ GÓI</color></size>";
+			bt.text = "🪙 <b>4,990</b>\n<size=16><color=#502500>MỞ GÓI</color></size>";
 			bt.font = font;
-			bt.fontSize = 16;
+			bt.fontSize = 22;
+			bt.fontStyle = FontStyle.Bold;
 			bt.alignment = TextAnchor.MiddleCenter;
 			bt.color = new Color(0.15f, 0.1f, 0.02f);
 
@@ -845,8 +871,8 @@ namespace IdleFactoryDefense.Editor
 			box.layer = layer;
 			box.transform.SetParent(parent, false);
 			LayoutElement le = box.AddComponent<LayoutElement>();
-			le.minHeight = 88f;
-			le.preferredHeight = 88f;
+			le.minHeight = 94f;
+			le.preferredHeight = 94f;
 
 			Image bg = box.AddComponent<Image>();
 			bg.color = new Color(0.07f, 0.11f, 0.18f, 0.95f);
@@ -855,7 +881,7 @@ namespace IdleFactoryDefense.Editor
 			ol.effectDistance = new Vector2(1f, -1f);
 
 			VerticalLayoutGroup vl = box.AddComponent<VerticalLayoutGroup>();
-			vl.padding = new RectOffset(16, 16, 10, 10);
+			vl.padding = new RectOffset(16, 16, 12, 12);
 			vl.spacing = 6f;
 			vl.childAlignment = TextAnchor.UpperLeft;
 			vl.childControlWidth = true;
@@ -867,8 +893,8 @@ namespace IdleFactoryDefense.Editor
 			Text tt = to.AddComponent<Text>();
 			tt.text = title;
 			tt.font = font;
-			tt.fontSize = 15;
-			tt.color = new Color(0.85f, 0.95f, 1f);
+			tt.fontSize = 20;
+			tt.color = new Color(0.90f, 0.96f, 1f);
 
 			GameObject descObj = new GameObject("Desc", typeof(RectTransform));
 			descObj.layer = layer;
@@ -876,8 +902,8 @@ namespace IdleFactoryDefense.Editor
 			Text dt = descObj.AddComponent<Text>();
 			dt.text = desc;
 			dt.font = font;
-			dt.fontSize = 13;
-			dt.color = new Color(0.68f, 0.78f, 0.92f);
+			dt.fontSize = 17;
+			dt.color = new Color(0.72f, 0.82f, 0.95f);
 		}
 
 		private static GameObject CreateSubPage(Transform parent, string name, int layer)
@@ -957,7 +983,8 @@ namespace IdleFactoryDefense.Editor
 			Text t = txtObj.AddComponent<Text>();
 			t.text = label;
 			t.font = font;
-			t.fontSize = 17;
+			t.fontSize = 24;
+			t.fontStyle = FontStyle.Bold;
 			t.alignment = TextAnchor.MiddleCenter;
 			t.color = Color.white;
 
@@ -1042,24 +1069,8 @@ namespace IdleFactoryDefense.Editor
 
 		private static void EnsureWeaponIcons(string dir)
 		{
-			string[] files = { "Icon_Phaotuhanh.png", "Icon_Thunder.png", "Icon_Flamethrower.png", "Icon_Wall.png", "Icon_StarterPack.png" };
-			bool needRefresh = false;
-
-			for (int i = 0; i < files.Length; i++)
-			{
-				string path = $"{dir}/{files[i]}";
-				if (!File.Exists(path))
-				{
-					CreateWeaponIcon(path, i);
-					needRefresh = true;
-				}
-			}
-
-			if (needRefresh)
-			{
-				AssetDatabase.SaveAssets();
-				AssetDatabase.Refresh();
-			}
+			// Tự động chụp và tạo toàn bộ hình ảnh 3D thực tế của vũ khí
+			WeaponIconSnapshotGenerator.GenerateAllSnapshots();
 		}
 
 		private static void CreateWeaponIcon(string savePath, int type)

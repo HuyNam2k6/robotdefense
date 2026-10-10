@@ -59,6 +59,10 @@ public class RobotCraftingUI : MonoBehaviour
     public Text infoModalContentText;
     public Button infoModalCloseButton;
 
+    [Header("--- Nút Nâng Cấp Nhà Máy Quân Đội ---")]
+    public Button upgradeFactoryButton;
+    public Text upgradeFactoryText;
+
     // Tham chiếu Nhà máy đang tương tác
     private RobotFactory currentFactory;
 
@@ -325,19 +329,157 @@ public class RobotCraftingUI : MonoBehaviour
         if (infoModalPanel != null) infoModalPanel.SetActive(false);
     }
 
-    private void UpdateLivePanelStatus()
+    private void EnsureUpgradeFactoryButton()
+    {
+        if (upgradeFactoryButton != null || mainCraftingPanel == null) return;
+
+        // Tìm nút có sẵn nếu đã dựng
+        Transform existingBtn = mainCraftingPanel.transform.Find("Upgrade_Factory_Button");
+        if (existingBtn != null)
+        {
+            upgradeFactoryButton = existingBtn.GetComponent<Button>();
+            upgradeFactoryText = existingBtn.GetComponentInChildren<Text>();
+            if (upgradeFactoryButton != null)
+            {
+                upgradeFactoryButton.onClick.RemoveAllListeners();
+                upgradeFactoryButton.onClick.AddListener(OnUpgradeFactoryClicked);
+            }
+            return;
+        }
+
+        // Tự động sinh Nút Nâng Cấp Nhà Máy cực đẹp phía trên thanh Footer
+        Font safeFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+
+        GameObject btnGo = new GameObject("Upgrade_Factory_Button", typeof(RectTransform), typeof(Image), typeof(Button));
+        btnGo.layer = mainCraftingPanel.layer;
+        btnGo.transform.SetParent(mainCraftingPanel.transform, false);
+
+        RectTransform rt = btnGo.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0.5f, 0f);
+        rt.anchorMax = new Vector2(0.5f, 0f);
+        rt.pivot = new Vector2(0.5f, 0f);
+        rt.anchoredPosition = new Vector2(0f, 80f);
+        rt.sizeDelta = new Vector2(640f, 60f);
+
+        Image img = btnGo.GetComponent<Image>();
+        img.color = new Color(0.12f, 0.45f, 0.85f, 0.96f);
+
+        Outline ol = btnGo.AddComponent<Outline>();
+        ol.effectColor = new Color(0f, 0.9f, 1f, 0.8f);
+        ol.effectDistance = new Vector2(1.5f, -1.5f);
+
+        upgradeFactoryButton = btnGo.GetComponent<Button>();
+        upgradeFactoryButton.onClick.AddListener(OnUpgradeFactoryClicked);
+
+        GameObject txtGo = new GameObject("Text", typeof(RectTransform), typeof(Text));
+        txtGo.layer = mainCraftingPanel.layer;
+        txtGo.transform.SetParent(btnGo.transform, false);
+
+        RectTransform tRt = txtGo.GetComponent<RectTransform>();
+        tRt.anchorMin = Vector2.zero;
+        tRt.anchorMax = Vector2.one;
+        tRt.sizeDelta = Vector2.zero;
+
+        upgradeFactoryText = txtGo.GetComponent<Text>();
+        upgradeFactoryText.font = safeFont;
+        upgradeFactoryText.fontSize = 15;
+        upgradeFactoryText.fontStyle = FontStyle.Bold;
+        upgradeFactoryText.alignment = TextAnchor.MiddleCenter;
+        upgradeFactoryText.color = Color.white;
+    }
+
+    public void OnUpgradeFactoryClicked()
     {
         if (currentFactory == null)
             currentFactory = RobotFactory.Instance ?? FindAnyObjectByType<RobotFactory>();
 
         if (currentFactory != null)
         {
+            if (currentFactory.UpgradeFactory())
+            {
+                UpdateLivePanelStatus();
+                if (upgradeFactoryButton != null)
+                {
+                    StartCoroutine(AnimateButtonBounce(upgradeFactoryButton.transform));
+                }
+            }
+        }
+    }
+
+    private void UpdateLivePanelStatus()
+    {
+        if (currentFactory == null)
+            currentFactory = RobotFactory.Instance ?? FindAnyObjectByType<RobotFactory>();
+
+        EnsureUpgradeFactoryButton();
+
+        if (currentFactory != null)
+        {
             int army = currentFactory.GetCurrentArmyCount();
-            int maxArmy = 4; // Tối đa 4 quân số theo thiết kế UI
+            int maxArmy = currentFactory.GetMaxArmySize();
 
             if (armyStatusText != null)
             {
                 armyStatusText.text = $"⚡ <b>Quân số:</b> <color=#00FF88>{army}/{maxArmy}</color>";
+            }
+
+            if (headerTitleText != null)
+            {
+                headerTitleText.text = $"TRUNG TÂM CHẾ TẠO RÔ BỐT\n<color=#FFD700>🏭 NHÀ MÁY CẤP {currentFactory.factoryLevel}/4</color> • <color=#00FFFF>MAP: CẤP {BaseHQ.CurrentMapLevel}</color>";
+            }
+
+            // Cập nhật trạng thái mở khóa cho 4 thẻ Robot
+            if (craftButtons != null)
+            {
+                for (int i = 0; i < craftButtons.Length; i++)
+                {
+                    if (craftButtons[i] == null) continue;
+                    bool isUnlocked = currentFactory.IsRobotUnlocked(i);
+                    Text btnTxt = craftButtons[i].GetComponentInChildren<Text>();
+                    Image btnImg = craftButtons[i].GetComponent<Image>();
+
+                    if (isUnlocked)
+                    {
+                        if (btnTxt != null) btnTxt.text = "⚡ <b>SẢN XUẤT</b>";
+                        if (btnImg != null) btnImg.color = new Color(0.12f, 0.75f, 0.35f, 1f);
+                    }
+                    else
+                    {
+                        if (btnTxt != null) btnTxt.text = $"🔒 <b>CẤP {i + 1}</b>";
+                        if (btnImg != null) btnImg.color = new Color(0.35f, 0.38f, 0.42f, 0.95f);
+                    }
+                }
+            }
+
+            // Cập nhật Nút Nâng Cấp Nhà Máy
+            if (upgradeFactoryButton != null)
+            {
+                if (currentFactory.factoryLevel < RobotFactory.MaxFactoryLevel)
+                {
+                    int nextLvl = currentFactory.factoryLevel + 1;
+                    int c = currentFactory.GetUpgradeCoins();
+                    int w = currentFactory.GetUpgradeWood();
+                    int s = currentFactory.GetUpgradeStone();
+
+                    if (nextLvl > BaseHQ.CurrentMapLevel)
+                    {
+                        if (upgradeFactoryText != null)
+                            upgradeFactoryText.text = $"🔒 <b>NÂNG NHÀ MÁY (CẦN MAP CẤP {nextLvl})</b>\n<color=#FF8888>✦ Nâng cấp Map chính để mở khóa</color>";
+                        upgradeFactoryButton.interactable = false;
+                    }
+                    else
+                    {
+                        if (upgradeFactoryText != null)
+                            upgradeFactoryText.text = $"⭐ <b>NÂNG CẤP NHÀ MÁY (LÊN CẤP {nextLvl})</b>\n<color=#FFD700>🪙 {c} Vàng</color> • <color=#DEB887>🪵 {w} Gỗ</color> • <color=#C0C0C0>🪨 {s} Đá</color>";
+                        upgradeFactoryButton.interactable = true;
+                    }
+                }
+                else
+                {
+                    if (upgradeFactoryText != null)
+                        upgradeFactoryText.text = "👑 <b>NHÀ MÁY ĐÃ ĐẠT CẤP TỐI ĐA (CẤP 4 - MAX)</b>";
+                    upgradeFactoryButton.interactable = false;
+                }
             }
         }
 

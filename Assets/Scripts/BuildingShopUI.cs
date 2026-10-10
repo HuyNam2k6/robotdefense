@@ -101,6 +101,11 @@ public class BuildingShopUI : MonoBehaviour
 			{
 				crt.localScale = Vector3.one;
 			}
+			CanvasScaler scaler = canvas.GetComponent<CanvasScaler>();
+			if (scaler != null)
+			{
+				scaler.dynamicPixelsPerUnit = 3f;
+			}
 		}
 
 		if (shoppingCartButton != null)
@@ -396,7 +401,7 @@ public class BuildingShopUI : MonoBehaviour
 		if (upgradePickaxeText != null)
 		{
 			int pCost = GameEconomy.Instance.GetPickaxeUpgradeCost();
-			upgradePickaxeText.text = $"⛏️ <b>CÚP SẮT (CẤP {GameEconomy.Instance.pickaxeLevel})</b>\n<color=#FFD700>⭐ Nâng Cấp: {pCost}🪙</color>";
+			upgradePickaxeText.text = $"⛏️ <b>CÚP SẮT (CẤP {GameEconomy.Instance.pickaxeLevel})</b>\n<color=#FFD700>⭐ Nâng Cấp: 🪙 {pCost} Vàng</color>";
 		}
 
 		// 4. Mua Tường
@@ -413,7 +418,15 @@ public class BuildingShopUI : MonoBehaviour
 			{
 				int wCost = GameEconomy.Instance.GetWallUpgradeCost();
 				string nextName = GameEconomy.WallLevelNames[wLevel];
-				upgradeWallText.text = $"⭐ <b>NÂNG CẤP TƯỜNG (LÊN CẤP {wLevel + 1})</b>\n<color=#00FFFF>✦ {nextName}</color> • <color=#FFD700>{wCost}🪙</color>";
+
+				if (wLevel + 1 > BaseHQ.CurrentMapLevel)
+				{
+					upgradeWallText.text = $"🔒 <b>NÂNG TƯỜNG (CẦN MAP CẤP {wLevel + 1})</b>\n<color=#FF8888>✦ Cần nâng cấp Map chính trước</color>";
+				}
+				else
+				{
+					upgradeWallText.text = $"⭐ <b>NÂNG CẤP TƯỜNG (LÊN CẤP {wLevel + 1})</b>\n<color=#00FFFF>✦ {nextName}</color> • <color=#FFD700>🪙 {wCost} Vàng</color>";
+				}
 				if (upgradeWallButton != null) upgradeWallButton.interactable = true;
 			}
 			else
@@ -569,6 +582,11 @@ public class BuildingShopUI : MonoBehaviour
 	{
 		if (GameEconomy.Instance != null)
 		{
+			if (GameEconomy.Instance.wallLevel + 1 > BaseHQ.CurrentMapLevel)
+			{
+				CenterWarningBanner.ShowUpgradeBlocked("Bức Tường", GameEconomy.Instance.wallLevel, GameEconomy.Instance.wallLevel + 1);
+				return;
+			}
 			if (GameEconomy.Instance.UpgradeGlobalWall())
 			{
 				CloseShopPanel();

@@ -286,6 +286,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7fe1ccd4bca271b47b5de2a5c101f555, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RobotFactory
+  factoryLevel: 1
   productionTime: 4
   autoProduce: 1
   maxArmySize: 8

@@ -27,15 +27,15 @@
 
 [File] Assets/Models/EnemyBug/source/AlienBug.fbx:
    - Clip: Armature|Idle_Armature (Length: 1.63s)
-   - Clip: Armature|Run_Armature (Length: 0.42s)
    - Clip: Armature|Attack.000_Armature (Length: 0.42s)
    - Clip: Armature|Attack.001_Armature (Length: 0.42s)
+   - Clip: Armature|Run_Armature (Length: 0.42s)
 
 [File] Assets/Models/EnemySpider/source/Spider.fbx:
    - Clip: Armature|neutral (Length: 0.04s)
-   - Clip: Armature|walk (Length: 0.96s)
    - Clip: Armature|attack (Length: 1.88s)
    - Clip: Armature|die (Length: 0.96s)
+   - Clip: Armature|walk (Length: 0.96s)
    - Clip: Armature|wakeup (Length: 0.76s)
    - Clip: Armature|fallasleep (Length: 1.00s)
    - Clip: Armature|sleep (Length: 3.96s)

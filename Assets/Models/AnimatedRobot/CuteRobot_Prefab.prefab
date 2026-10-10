@@ -2088,7 +2088,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1284696488307994513}
   - component: {fileID: 1735012573104991337}
-  - component: {fileID: 1469265632884290293}
   - component: {fileID: 5059217294185287086}
   m_Layer: 0
   m_Name: CuteRobot_Prefab
@@ -2137,31 +2136,6 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!143 &1469265632884290293
-CharacterController:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 5486004686462911824}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Height: 1.6
-  m_Radius: 0.5
-  m_SlopeLimit: 45
-  m_StepOffset: 0.3
-  m_SkinWidth: 0.08
-  m_MinMoveDistance: 0.001
-  m_Center: {x: 0, y: 0.8, z: 0}
 --- !u!114 &5059217294185287086
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2187,9 +2161,10 @@ MonoBehaviour:
   deceleration: 18
   alignWithCamera: 1
   gravity: -25
-  groundStickForce: -6
   terminalVelocity: -40
   jumpHeight: 1.6
+  obstacleCheckDistance: 0.4
+  raycastHeightOffset: 0.6
   enableIdleFidget: 1
   minIdleTime: 5
   maxIdleTime: 10

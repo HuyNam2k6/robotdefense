@@ -49,10 +49,6 @@ public class mineBotFarm : WorkerBot
     private GameObject overheadBadgeObj;
     private UnityEngine.UI.Text overheadText;
 
-    [Header("=== VỊ TRÍ CĂN CỨ (Ở NHÀ BAN ĐÊM) ===")]
-    public Vector3 homePosition;
-    private bool hasHomePosition = false;
-
     private void Awake()
     {
         anim = GetComponentInChildren<Animator>();
@@ -64,12 +60,6 @@ public class mineBotFarm : WorkerBot
 
     private void Start()
     {
-        if (!hasHomePosition)
-        {
-            homePosition = transform.position;
-            hasHomePosition = true;
-        }
-
         stoneMinedCount = 0;
         isMining = false;
 
@@ -82,39 +72,6 @@ public class mineBotFarm : WorkerBot
 
     private void Update()
     {
-        // 0. CHẾ ĐỘ BAN ĐÊM (PHÒNG THỦ): Robot farm KHÔNG tự động đi farm mà ở nhà trú ẩn
-        if (DayNightSystem.Instance != null && DayNightSystem.Instance.isNight)
-        {
-            isMining = false;
-            targetRock = null;
-
-            Vector3 toHome = homePosition - transform.position;
-            toHome.y = 0f;
-            float distToHome = toHome.magnitude;
-
-            if (distToHome > 0.85f)
-            {
-                ExecuteMovementWithAvoidance(toHome.normalized);
-            }
-            else
-            {
-                if (anim != null) anim.SetBool("isMoving", false);
-            }
-
-            ApplyGravityAndGroundClamp();
-
-            EnsureOverheadBadge();
-            if (Camera.main != null && overheadBadgeObj != null)
-            {
-                overheadBadgeObj.transform.rotation = Camera.main.transform.rotation;
-            }
-            if (overheadText != null)
-            {
-                overheadText.text = $"🛡️ Ở NHÀ (PHÒNG THỦ)";
-            }
-            return;
-        }
-
         // 1. Nếu chưa có mục tiêu hoặc mục tiêu bị hủy, tự động tìm kiếm lại
         if (targetRock == null)
         {
@@ -471,7 +428,7 @@ public class mineBotFarm : WorkerBot
         }
 
         // 3. Quét toàn bộ Scene tìm object có tên chứa "rock"
-        var allCols = Object.FindObjectsByType<Collider>(FindObjectsSortMode.None);
+        var allCols = Object.FindObjectsByType<Collider>();
         float closestDist = float.MaxValue;
         Transform bestRock = null;
         foreach (var col in allCols)

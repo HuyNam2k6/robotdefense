@@ -261,6 +261,18 @@
 
 ---
 
+### ❌ Lỗi 19: Nhầm lẫn giữa "Đồng bộ Thanh HP (UI HealthBar)" và "Đồng bộ Lượng HP (Stats maxHealth)"
+- **Mô tả chi tiết:**
+  - Khi người dùng yêu cầu "đồng bộ thanh HP quái", AI đã hiểu nhầm thành đồng bộ chỉ số máu `maxHealth` và ép toàn bộ quái thường về cùng một mức máu (50 HP), làm mất đặc tính riêng của từng loại quái (Alien Bug 40 HP, Spider 65 HP).
+  - Vấn đề thực tế: Do các model quái có scale khác nhau (AlienBug scale 3x, Spider scale 0.5x), thanh máu UI World Space làm con của model bị nhân scale theo model cha, khiến thanh máu của AlienBug bị to gấp 6 lần thanh máu của Spider. Người dùng muốn đồng bộ kích thước hiển thị của THANH MÁU (UI), không phải lượng máu (Stats).
+- **Nguyên nhân gốc rễ:**
+  - Không đọc kỹ ngữ cảnh trực quan (Visual Context). Thanh máu UI bị phụ thuộc vào `transform.lossyScale` của GameObject cha.
+- **Nguyên tắc khắc phục & bắt buộc tuân thủ:**
+  - Tuyệt đối không can thiệp chỉ số máu (`maxHealth`) trừ khi người dùng nói rõ từ "lượng máu / số máu".
+  - Khi làm thanh máu World Space trên các đối tượng có scale khác nhau, bắt buộc phải khử scale của cha (`localScale = Vector3.one / parentLossyScale * standardScale`) trong cả `Create` và `LateUpdate` để thanh máu trên đầu mọi quái vật có kích thước và giao diện hiển thị đồng nhất 100%.
+
+---
+
 ## 📋 2. QUY TRÌNH BẮT BUỘC TRƯỚC KHI CHẠY MỖI PROMPT (PRE-FLIGHT CHECKLIST)
 
 Mỗi khi nhận được 1 prompt mới từ người dùng, AI phải thực hiện tuần tự:

@@ -3,32 +3,43 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+public enum DayCyclePhase
+{
+    Day,        // ☀️ Ban Ngày
+    Afternoon,  // 🌅 Buổi Chiều (Hoàng Hôn - Hiệu ứng Thunder rực rỡ)
+    Night       // 🌙 Ban Đêm (Phòng Thủ)
+}
+
 /// <summary>
-/// DayNightSystem - Hệ Thống Chu Kỳ Ngày & Đêm Tách Biệt Hoàn Toàn:
-/// 1. Ánh sáng: Sử dụng 1 Light Directional MỚI ĐỘC LẬP [DayNight_DirectionalLight], 
-///    tuyệt đối KHÔNG dùng chung với Light của Thunder hay bất kỳ vũ khí/hiệu ứng nào khác.
-/// 2. Ban ngày: Quái vật xuất hiện rất ít (chu kỳ spawn chậm) để người chơi tự do thu thập vật phẩm,
-///    robot đào mỏ (mineBotFarm) tự động đi đào tài nguyên bình thường.
-/// 3. Ban đêm: Kích hoạt chế độ Phòng Thủ, quái vật spawn dồn dập tấn công căn cứ.
-///    Người chơi có thể nhấn nút [🛡️ PHÒNG THỦ] trên UI để chủ động vào đêm ngay lập tức.
-/// 4. Các robot farm (mineBotFarm) sẽ không tự ý đi farm khi trời tối mà sẽ rút về căn cứ ở nhà.
+/// DayNightSystem - Hệ Thống Chu Kỳ Ngày & Đêm & Buổi Chiều (3 Pha Hoàn Chỉnh):
+/// 1. Ánh sáng: Sử dụng 1 Light Directional ĐỘC LẬP [DayNight_DirectionalLight].
+/// 2. Ban ngày: Trời sáng trong xanh, quái ít, robot đi khai thác tài nguyên.
+/// 3. Buổi chiều (Afternoon): Ánh sáng hoàng hôn vàng cam 5000K chiếu xiên góc thấp 8.5 độ giống Thunder,
+///    bóng đổ dài nghệ thuật lung linh khắp hòn đảo.
+/// 4. Ban đêm: Trời tối tím thẫm, quái vật dồn dập tấn công Nhà chính, robot rút về nhà trú ẩn.
 /// </summary>
 public class DayNightSystem : MonoBehaviour
 {
     public static DayNightSystem Instance { get; private set; }
 
-    [Header("=== TRẠNG THÁI CHU KỲ (DAY / NIGHT) ===")]
-    public bool isNight = false;
+    [Header("=== TRẠNG THÁI CHU KỲ (DAY / AFTERNOON / NIGHT) ===")]
+    public DayCyclePhase currentPhase = DayCyclePhase.Day;
+    public bool isNight => currentPhase == DayCyclePhase.Night;
+    public bool isAfternoon => currentPhase == DayCyclePhase.Afternoon;
+    public bool isDay => currentPhase == DayCyclePhase.Day;
     public int currentDay = 1;
 
-    [Tooltip("Thời lượng ban ngày (giây) - đủ dài để nhặt đồ và farm thoải mái")]
-    public float dayDuration = 80.0f;
+    [Tooltip("Thời lượng ban ngày (giây)")]
+    public float dayDuration = 55.0f;
 
-    [Tooltip("Thời lượng ban đêm (giây) - phòng thủ chống quái")]
+    [Tooltip("Thời lượng buổi chiều hoàng hôn (giây)")]
+    public float afternoonDuration = 35.0f;
+
+    [Tooltip("Thời lượng ban đêm phòng thủ (giây)")]
     public float nightDuration = 60.0f;
 
-    [Tooltip("Thời gian còn lại của chu kỳ hiện tại")]
-    public float timeRemaining = 80.0f;
+    [Tooltip("Thời gian còn lại của pha hiện tại")]
+    public float timeRemaining = 55.0f;
 
     [Header("=== TẦN SUẤT QUÁI VẬT SPAWN (INTERVAL) ===")]
     [Tooltip("Tần suất sinh quái ban ngày (rất ít quái để người chơi nhặt đồ)")]
@@ -37,16 +48,23 @@ public class DayNightSystem : MonoBehaviour
     [Tooltip("Tần suất sinh quái ban đêm (quái dồn dập tấn công gấp 5 lần: 0.7s/con)")]
     public float nightEnemyInterval = 0.7f;
 
-    [Header("=== ÁNH SÁNG NGÀY / ĐÊM (DEDICATED LIGHT) ===")]
-    [Tooltip("Nguồn sáng Directional Light riêng biệt cho Ngày & Đêm (TÁCH BIỆT KHỎI THUNDER)")]
+    [Header("=== ÁNH SÁNG NGÀY / CHIỀU / ĐÊM (DEDICATED LIGHT) ===")]
+    [Tooltip("Nguồn sáng Directional Light riêng biệt cho Ngày & Đêm & Buổi Chiều")]
     public Light dayNightLight;
 
-    // Cấu hình màu sắc & độ sáng
+    // A. Cấu hình Ban Ngày
     public Color dayLightColor = new Color(1.0f, 0.96f, 0.88f);
     public float dayIntensity = 1.15f;
     public Vector3 dayRotationEuler = new Vector3(50f, -30f, 0f);
     public Color dayAmbientColor = new Color(0.55f, 0.58f, 0.65f);
 
+    // B. Cấu hình Buổi Chiều (Chuẩn ánh sáng Thunder: Vàng cam ấm áp 5000K, góc chiếu xiên thấp ~8.5 độ, bóng đổ dài)
+    public Color afternoonLightColor = new Color(1.0f, 0.82f, 0.55f);
+    public float afternoonIntensity = 1.95f;
+    public Vector3 afternoonRotationEuler = new Vector3(8.5f, -30f, 0f);
+    public Color afternoonAmbientColor = new Color(0.68f, 0.48f, 0.38f);
+
+    // C. Cấu hình Ban Đêm
     public Color nightLightColor = new Color(0.25f, 0.38f, 0.68f);
     public float nightIntensity = 0.28f;
     public Vector3 nightRotationEuler = new Vector3(40f, 145f, 0f);
@@ -54,7 +72,7 @@ public class DayNightSystem : MonoBehaviour
 
     [Header("=== ẨN / HIỆN GIAO DIỆN (HIERARCHY & INSPECTOR) ===")]
     [Tooltip("Tích chọn để HIỆN, bỏ tích để ẨN Panel Ngày Đêm trên màn hình.")]
-    public bool showDayNightHUD = false;
+    public bool showDayNightHUD = true;
 
     [ContextMenu("👁️ Hiện Panel Ngày Đêm")]
     public void ShowHUD()
@@ -106,8 +124,8 @@ public class DayNightSystem : MonoBehaviour
         Instance = this;
 
         EnsureDedicatedLightExists();
+        currentPhase = DayCyclePhase.Day;
         timeRemaining = dayDuration;
-        isNight = false;
         currentDay = 1;
     }
 
@@ -127,17 +145,21 @@ public class DayNightSystem : MonoBehaviour
             dayNightHUDPanel.SetActive(showDayNightHUD);
         }
 
-        // 2. Đếm ngược thời gian chu kỳ
+        // 2. Đếm ngược thời gian chu kỳ (Ngày -> Chiều -> Đêm)
         timeRemaining -= Time.deltaTime;
         if (timeRemaining <= 0f)
         {
-            if (isNight)
+            switch (currentPhase)
             {
-                TransitionToDay();
-            }
-            else
-            {
-                TransitionToNight();
+                case DayCyclePhase.Day:
+                    TransitionToAfternoon();
+                    break;
+                case DayCyclePhase.Afternoon:
+                    TransitionToNight();
+                    break;
+                case DayCyclePhase.Night:
+                    TransitionToDay();
+                    break;
             }
         }
 
@@ -180,16 +202,38 @@ public class DayNightSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Cập nhật độ sáng, màu sắc và góc chiếu của mặt trời / mặt trăng
+    /// Cập nhật độ sáng, màu sắc và góc chiếu của mặt trời / hoàng hôn / mặt trăng
     /// </summary>
     private void UpdateLightVisuals(bool instant)
     {
         if (dayNightLight == null) return;
 
-        Color targetColor = isNight ? nightLightColor : dayLightColor;
-        float targetIntensity = isNight ? nightIntensity : dayIntensity;
-        Quaternion targetRot = Quaternion.Euler(isNight ? nightRotationEuler : dayRotationEuler);
-        Color targetAmbient = isNight ? nightAmbientColor : dayAmbientColor;
+        Color targetColor;
+        float targetIntensity;
+        Quaternion targetRot;
+        Color targetAmbient;
+
+        switch (currentPhase)
+        {
+            case DayCyclePhase.Afternoon:
+                targetColor = afternoonLightColor;
+                targetIntensity = afternoonIntensity;
+                targetRot = Quaternion.Euler(afternoonRotationEuler);
+                targetAmbient = afternoonAmbientColor;
+                break;
+            case DayCyclePhase.Night:
+                targetColor = nightLightColor;
+                targetIntensity = nightIntensity;
+                targetRot = Quaternion.Euler(nightRotationEuler);
+                targetAmbient = nightAmbientColor;
+                break;
+            default:
+                targetColor = dayLightColor;
+                targetIntensity = dayIntensity;
+                targetRot = Quaternion.Euler(dayRotationEuler);
+                targetAmbient = dayAmbientColor;
+                break;
+        }
 
         if (instant)
         {
@@ -209,19 +253,48 @@ public class DayNightSystem : MonoBehaviour
     }
 
     /// <summary>
+    /// Chuyển sang buổi chiều (Ánh sáng hoàng hôn rực rỡ giống Thunder)
+    /// </summary>
+    public void TransitionToAfternoon()
+    {
+        currentPhase = DayCyclePhase.Afternoon;
+        timeRemaining = afternoonDuration;
+
+        Debug.Log($"<color=#FFA500>[DayNightSystem]</color> 🌅 BUỔI CHIỀU HOÀNG HÔN ĐÃ ĐẾN (NGÀY {currentDay})! Ánh nắng chiều tà rực rỡ chiếu xiên thấp.");
+
+        Transform pTrans = PlayerController.Instance != null ? PlayerController.Instance.transform : (BaseHQ.Instance != null ? BaseHQ.Instance.transform : null);
+        Vector3 bannerPos = pTrans != null ? (pTrans.position + Vector3.up * 3.5f) : Vector3.up * 4f;
+        FloatingDamageText.SpawnResource(bannerPos, $"🌅 BUỔI CHIỀU HOÀNG HÔN (NGÀY {currentDay})!\n⚠️ ÁNH CHIỀU TÀ RỰC RỠ, CHUẨN BỊ PHÒNG THỦ!", new Color(1f, 0.75f, 0.25f, 1f), 0.12f);
+    }
+
+    /// <summary>
     /// Chuyển sang ban ngày
     /// </summary>
     public void TransitionToDay()
     {
-        isNight = false;
+        currentPhase = DayCyclePhase.Day;
         currentDay++;
         timeRemaining = dayDuration;
 
-        Debug.Log($"<color=#FFD700>[DayNightSystem]</color> ☀️ BÌNH MINH ĐÃ ĐẾN (NGÀY {currentDay})! Quái vật rút lui, Robot tiếp tục ra đồng farm.");
-        ShowWorldBanner($"☀️ BÌNH MINH (NGÀY {currentDay})", "Quái vật giảm dần - Thu thập tài nguyên!");
+        Debug.Log($"<color=#FFD700>[DayNightSystem]</color> ☀️ BÌNH MINH ĐÃ ĐẾN (NGÀY {currentDay})! Ánh mặt trời thiêu đốt quái vật, Robot tiếp tục ra đồng farm.");
+        
+        // Tiêu diệt toàn bộ quái vật đêm còn sót lại (chúng bốc cháy và rớt vàng rải rác)
+        Enemy[] remainingEnemies = Object.FindObjectsByType<Enemy>(FindObjectsInactive.Exclude);
+        foreach (var enemy in remainingEnemies)
+        {
+            if (enemy != null && !enemy.isDead)
+            {
+                enemy.Die();
+            }
+        }
+
+        // Hiện chữ thông báo lớn trên đầu Player / Căn cứ
+        Transform pTrans = PlayerController.Instance != null ? PlayerController.Instance.transform : (BaseHQ.Instance != null ? BaseHQ.Instance.transform : null);
+        Vector3 bannerPos = pTrans != null ? (pTrans.position + Vector3.up * 3.5f) : Vector3.up * 4f;
+        FloatingDamageText.SpawnResource(bannerPos, $"☀️ BÌNH MINH NGÀY {currentDay}!\n🏆 ĐÃ SỐNG SÓT! HÃY NHẶT VÀNG & SỬA NHÀ CHÍNH!", new Color(1f, 0.9f, 0.2f, 1f), 0.12f);
 
         // Thông báo các robot farm tiếp tục tìm mỏ đá
-        mineBotFarm[] bots = FindObjectsByType<mineBotFarm>(FindObjectsInactive.Exclude);
+        mineBotFarm[] bots = Object.FindObjectsByType<mineBotFarm>(FindObjectsInactive.Exclude);
         foreach (var bot in bots)
         {
             if (bot != null) bot.FindBestMiningTarget();
@@ -233,11 +306,14 @@ public class DayNightSystem : MonoBehaviour
     /// </summary>
     public void TransitionToNight()
     {
-        isNight = true;
+        currentPhase = DayCyclePhase.Night;
         timeRemaining = nightDuration;
 
-        Debug.Log($"<color=#00FFFF>[DayNightSystem]</color> 🌙 MÀN ĐÊM BUÔNG XUỐNG! Chế độ Phòng Thủ kích hoạt! Toàn bộ Robot rút về căn cứ.");
-        ShowWorldBanner($"🌙 MÀN ĐÊM BUÔNG XUỐNG!", "Chế độ PHÒNG THỦ - Quái vật tấn công dồn dập!");
+        Debug.Log($"<color=#00FFFF>[DayNightSystem]</color> 🌙 MÀN ĐÊM BUÔNG XUỐNG! Chế độ Phòng Thủ kích hoạt! Quái vật tấn công Nhà Chính!");
+        
+        Transform pTrans = PlayerController.Instance != null ? PlayerController.Instance.transform : (BaseHQ.Instance != null ? BaseHQ.Instance.transform : null);
+        Vector3 bannerPos = pTrans != null ? (pTrans.position + Vector3.up * 3.5f) : Vector3.up * 4f;
+        FloatingDamageText.SpawnResource(bannerPos, "🌙 MÀN ĐÊM BUÔNG XUỐNG!\n⚠️ QUÁI VẬT TẤN CÔNG NHÀ CHÍNH!", new Color(1f, 0.25f, 0.25f, 1f), 0.12f);
     }
 
     /// <summary>
@@ -245,7 +321,7 @@ public class DayNightSystem : MonoBehaviour
     /// </summary>
     public void OnDefenseButtonClicked()
     {
-        if (!isNight)
+        if (currentPhase != DayCyclePhase.Night)
         {
             // Vào phòng thủ ngay lập tức
             TransitionToNight();
@@ -421,7 +497,7 @@ public class DayNightSystem : MonoBehaviour
         int minutes = Mathf.FloorToInt(Mathf.Max(0f, timeRemaining) / 60f);
         int seconds = Mathf.FloorToInt(Mathf.Max(0f, timeRemaining) % 60f);
 
-        if (isNight)
+        if (currentPhase == DayCyclePhase.Night)
         {
             if (statusTitleText != null)
             {
@@ -440,6 +516,27 @@ public class DayNightSystem : MonoBehaviour
             if (defenseActionButton != null)
             {
                 defenseActionButton.GetComponent<Image>().color = new Color(0.2f, 0.5f, 0.85f);
+            }
+        }
+        else if (currentPhase == DayCyclePhase.Afternoon)
+        {
+            if (statusTitleText != null)
+            {
+                statusTitleText.text = $"🌅 <b>BUỔI CHIỀU</b>";
+                statusTitleText.color = new Color(1f, 0.72f, 0.15f);
+            }
+            if (timerCountdownText != null)
+            {
+                timerCountdownText.text = $"⏱️ {minutes:D2}:{seconds:D2}";
+                timerCountdownText.color = new Color(1f, 0.82f, 0.35f);
+            }
+            if (actionButtonText != null)
+            {
+                actionButtonText.text = "🛡️ <b>PHÒNG THỦ</b>";
+            }
+            if (defenseActionButton != null)
+            {
+                defenseActionButton.GetComponent<Image>().color = new Color(0.95f, 0.48f, 0.1f);
             }
         }
         else

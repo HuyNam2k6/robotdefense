@@ -84,29 +84,32 @@ public class EnemySpawner : MonoBehaviour
 
     private void Update()
     {
-        // 1. Đếm giờ và sinh quái vật thường (Ngày ít quái, Đêm dồn dập)
-        normalTimer += Time.deltaTime;
-        float currentInterval = normalEnemyInterval;
-        if (DayNightSystem.Instance != null)
+        // 1. Kiểm tra Chu kỳ Ngày / Đêm: Ban ngày ngừng sinh quái để người chơi đi nhặt vàng & sửa nhà
+        if (DayNightSystem.Instance != null && !DayNightSystem.Instance.isNight)
         {
-            currentInterval = DayNightSystem.Instance.isNight 
-                ? DayNightSystem.Instance.nightEnemyInterval 
-                : DayNightSystem.Instance.dayEnemyInterval;
+            normalTimer = 0f;
+            return;
         }
+
+        // 2. Đếm giờ và sinh quái vật thường trong đêm (dồn dập)
+        normalTimer += Time.deltaTime;
+        float currentInterval = DayNightSystem.Instance != null 
+            ? DayNightSystem.Instance.nightEnemyInterval 
+            : normalEnemyInterval;
 
         if (normalTimer >= currentInterval)
         {
             normalTimer = 0f;
             SpawnNormalEnemy();
 
-            // Ban đêm: Số lượng quái tăng gấp 5 lần, thỉnh thoảng sinh thêm 1 con tạo đàn quái đông đúc
-            if (DayNightSystem.Instance != null && DayNightSystem.Instance.isNight && Random.value < 0.35f)
+            // Ban đêm: Thỉnh thoảng sinh thêm 1 con tạo bầy đàn quái đông đúc xông vào căn cứ
+            if (Random.value < 0.35f)
             {
                 SpawnNormalEnemy();
             }
         }
 
-        // 2. Đếm giờ và sinh Đại Boss Mecha (1 phút = 60s 1 con)
+        // 3. Đếm giờ và sinh Đại Boss Mecha (chỉ xuất hiện trong ban đêm)
         bossTimer += Time.deltaTime;
         if (bossTimer >= bossEnemyInterval)
         {
@@ -114,7 +117,7 @@ public class EnemySpawner : MonoBehaviour
             SpawnMechaBoss();
         }
 
-        // 3. Cập nhật HUD đếm ngược Boss nếu có
+        // 4. Cập nhật HUD đếm ngược Boss nếu có
         UpdateBossTimerHUD();
     }
 
@@ -284,7 +287,14 @@ public class EnemySpawner : MonoBehaviour
             try { enemyGo.tag = "Enemy"; } catch { }
         }
 
-        Debug.Log($"<color=#FF7777>[Spawner]</color> 👾 Đã sinh quái thường: <b>{enemyGo.name}</b> (Scale {enemyGo.transform.localScale.x}) tại điểm <b>{spawnPoint.name}</b>");
+        // Cập nhật thanh HP nổi chuẩn đồng nhất
+        Enemy enemyComp = enemyGo.GetComponent<Enemy>();
+        if (enemyComp != null)
+        {
+            enemyComp.UpdateHealthBar();
+        }
+
+        Debug.Log($"<color=#FF7777>[Spawner]</color> 👾 Đã sinh quái thường: <b>{enemyGo.name}</b> (HP: {(enemyComp != null ? enemyComp.maxHealth : 0)}, Scale: {enemyGo.transform.localScale.x}) tại điểm <b>{spawnPoint.name}</b>");
         return enemyGo;
     }
 
@@ -307,13 +317,13 @@ public class EnemySpawner : MonoBehaviour
             return null;
         }
 
-        // Boss là quái bay (Flying Unit), kích thước tăng gấp 2 (Scale 5.0m), xuất hiện trên không trung cao 9.0m
-        Vector3 spawnPos = spawnPoint.position + Vector3.up * 9.0f;
+        // Boss là quái bay (Flying Unit), giảm 20% độ to (Scale 4.0m), xuất hiện trên không trung cao 8.0m
+        Vector3 spawnPos = spawnPoint.position + Vector3.up * 8.0f;
         Quaternion spawnRot = spawnPoint.rotation;
 
         GameObject bossGo = Instantiate(mechaBossPrefab, spawnPos, spawnRot);
         bossGo.name = "Mecha_Cyber_Dragon_BOSS";
-        bossGo.transform.localScale = Vector3.one * 5.0f; // Boss Rồng tăng gấp 2 kích thước (Scale 5.0)
+        bossGo.transform.localScale = Vector3.one * 4.0f; // Boss Rồng giảm 20% độ to (Scale 4.0)
 
         Rigidbody rb = bossGo.GetComponent<Rigidbody>();
         if (rb != null) Destroy(rb);
@@ -417,11 +427,11 @@ public class EnemySpawner : MonoBehaviour
         rt.anchorMin = new Vector2(0f, 1f);
         rt.anchorMax = new Vector2(0f, 1f);
         rt.pivot = new Vector2(0f, 1f);
-        rt.anchoredPosition = new Vector2(24f, -165f); // Ngay dưới thanh máu Player
-        rt.sizeDelta = new Vector2(260f, 26f);
+        rt.anchoredPosition = new Vector2(24f, -170f); // Ngay dưới thanh máu Player
+        rt.sizeDelta = new Vector2(260f, 32f);
 
         Image bg = timerObj.AddComponent<Image>();
-        bg.color = new Color(0.08f, 0.08f, 0.12f, 0.85f);
+        bg.color = new Color(0.08f, 0.08f, 0.12f, 0.90f);
 
         Outline outline = timerObj.AddComponent<Outline>();
         outline.effectColor = new Color(1f, 0.35f, 0.1f, 0.8f);
@@ -436,7 +446,7 @@ public class EnemySpawner : MonoBehaviour
 
         bossCountdownText = txtGo.GetComponent<Text>();
         bossCountdownText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
-        bossCountdownText.fontSize = 13;
+        bossCountdownText.fontSize = 18;
         bossCountdownText.fontStyle = FontStyle.Bold;
         bossCountdownText.alignment = TextAnchor.MiddleCenter;
         bossCountdownText.color = new Color(1f, 0.85f, 0.3f, 1f);

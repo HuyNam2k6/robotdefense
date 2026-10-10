@@ -699,6 +699,15 @@ public class UpgradableTurret : MonoBehaviour
     {
         if (currentLevel >= MaxLevel) return false;
 
+        // KIỂM TRA GIỚI HẠN CẤP ĐỘ MAP CHÍNH (BaseHQ)
+        if (!BaseHQ.CanUpgradeBuildingToLevel(currentLevel + 1, out string reason))
+        {
+            CenterWarningBanner.ShowUpgradeBlocked(turretDisplayName, currentLevel, currentLevel + 1);
+            FloatingDamageText.SpawnResource(transform.position + Vector3.up * 3.2f, reason, new Color(1f, 0.4f, 0.4f), 0.12f);
+            Debug.LogWarning($"<color=yellow>[Nâng Cấp]</color> {reason}");
+            return false;
+        }
+
         int cost = GetUpgradeCost();
         if (cost <= 0 || (GameEconomy.Instance != null && GameEconomy.Instance.SpendCoins(cost)))
         {

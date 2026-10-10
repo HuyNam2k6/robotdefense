@@ -338,7 +338,20 @@ public class MechaDragonBoss : MonoBehaviour
             {
                 GameObject minion = Instantiate(prefab, spawnPos, transform.rotation);
                 minion.name = $"Minion_{prefab.name}_{Time.frameCount}";
-                minion.transform.localScale = Vector3.one;
+
+                // Đảm bảo kích thước chuẩn: AlienBug scale 3.0, Spider scale 0.5
+                string pName = prefab.name.ToLower();
+                if (pName.Contains("alienbug") || pName.Contains("bug"))
+                    minion.transform.localScale = Vector3.one * 3.0f;
+                else if (pName.Contains("spider"))
+                    minion.transform.localScale = Vector3.one * 0.5f;
+
+                // Cập nhật thanh HP nổi chuẩn đồng nhất
+                Enemy minionEnemy = minion.GetComponent<Enemy>();
+                if (minionEnemy != null)
+                {
+                    minionEnemy.UpdateHealthBar();
+                }
 
                 Rigidbody rb = minion.GetComponent<Rigidbody>();
                 if (rb != null) Destroy(rb);

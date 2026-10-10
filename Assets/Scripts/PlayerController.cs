@@ -78,6 +78,8 @@ public class PlayerController : MonoBehaviour
 	// Quét sát thương Raycast định kỳ
 	private float lastRaycastScanTime = 0f;
 
+	public static PlayerController Instance { get; private set; }
+
 	void Awake()
 	{
 		// KHÓA AN TOÀN 1: Nếu trên cùng GameObject có 2 component PlayerController -> Tự hủy bản sao thừa
@@ -88,6 +90,8 @@ public class PlayerController : MonoBehaviour
 			Destroy(this);
 			return;
 		}
+
+		Instance = this;
 
 		// Đảm bảo đối tượng luôn có Tag Player chuẩn xác để hệ thống vũ khí tự động bỏ qua
 		if (!gameObject.CompareTag("Player"))
@@ -719,13 +723,13 @@ public class PlayerController : MonoBehaviour
 		hudHealthBarText = textObj.GetComponent<Text>();
 		Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
 		hudHealthBarText.font = font;
-		hudHealthBarText.fontSize = 18;
+		hudHealthBarText.fontSize = 22;
 		hudHealthBarText.fontStyle = FontStyle.Bold;
 		hudHealthBarText.alignment = TextAnchor.MiddleCenter;
 		hudHealthBarText.color = Color.white;
-		Shadow sHud = textObj.AddComponent<Shadow>();
-		sHud.effectColor = new Color(0f, 0f, 0f, 0.9f);
-		sHud.effectDistance = new Vector2(1.5f, -1.5f);
+		Outline oHud = textObj.AddComponent<Outline>();
+		oHud.effectColor = new Color(0f, 0f, 0f, 0.5f);
+		oHud.effectDistance = new Vector2(0.8f, -0.8f);
 
 		UpdateHealthBar();
 	}

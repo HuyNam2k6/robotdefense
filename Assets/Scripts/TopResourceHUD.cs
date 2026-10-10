@@ -223,16 +223,22 @@ public class TopResourceHUD : MonoBehaviour
         }
         if (canvas == null) return;
 
-        // Tăng độ phân giải raster font trên thiết bị di động (tránh mờ nhòe chữ)
+        // Bật pixelPerfect và tỷ lệ 1:1 chuẩn để font rasterizer luôn siêu nét trên mọi độ phân giải
+        canvas.pixelPerfect = true;
+
         CanvasScaler scaler = canvas.GetComponent<CanvasScaler>();
         if (scaler != null)
         {
-            scaler.dynamicPixelsPerUnit = 2.5f;
+            scaler.dynamicPixelsPerUnit = 1f; // 1:1 chuẩn chống mờ nhòe bilinear
             scaler.referencePixelsPerUnit = 100;
         }
 
         safeFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         if (safeFont == null) safeFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+
+        // Dọn dẹp thanh cũ nếu đã tồn tại để tránh render đè 2 lớp làm tối chữ
+        Transform oldPanel = canvas.transform.Find("Panel_TopResourceHUD");
+        if (oldPanel != null) Destroy(oldPanel.gameObject);
 
         // 1. THANH CHỨA TOP HUD BAR Ở ĐỈNH MÀN HÌNH
         topBarPanel = new GameObject("Panel_TopResourceHUD", typeof(RectTransform));
@@ -255,7 +261,7 @@ public class TopResourceHUD : MonoBehaviour
         hlg.childForceExpandHeight = false;
 
         // 2. TẠO 5 CAPSULE TÀI NGUYÊN (THEO ĐÚNG HÌNH ẢNH)
-        Vector2 capsuleSize = new Vector2(174f, 62f);
+        Vector2 capsuleSize = new Vector2(182f, 64f);
 
         // Capsule 1: VÀNG (12,450)
         CreateResourceCapsule(topBarPanel.transform, "Capsule_Coins", capsuleSize, coinSprite, out coinText, OnAddCoinsClicked);
@@ -273,7 +279,7 @@ public class TopResourceHUD : MonoBehaviour
         CreateResourceCapsule(topBarPanel.transform, "Capsule_Gems", capsuleSize, gemSprite, out gemText, OnAddGemsClicked);
 
         // 3. NÚT CÀI ĐẶT (BÁNH RĂNG) Ở GÓC PHẢI
-        CreateSettingsButton(topBarPanel.transform, new Vector2(62f, 62f));
+        CreateSettingsButton(topBarPanel.transform, new Vector2(64f, 64f));
 
         // 4. POPUP CÀI ĐẶT NHỎ GỌN
         CreateSettingsPopup(canvas.transform);
@@ -291,10 +297,10 @@ public class TopResourceHUD : MonoBehaviour
         Image bg = capsuleObj.AddComponent<Image>();
         bg.sprite = capsuleBgSprite;
         bg.type = Image.Type.Sliced;
-        bg.color = new Color(0.06f, 0.10f, 0.16f, 0.94f); // Xanh đen công nghệ
+        bg.color = new Color(0.06f, 0.10f, 0.16f, 0.96f); // Xanh đen công nghệ
 
         Outline ol = capsuleObj.AddComponent<Outline>();
-        ol.effectColor = new Color(0.12f, 0.38f, 0.62f, 0.85f); // Viền xanh navy cyan
+        ol.effectColor = new Color(0.12f, 0.45f, 0.75f, 0.85f); // Viền xanh navy cyan
         ol.effectDistance = new Vector2(1.5f, -1.5f);
 
         // Icon bên trái
@@ -306,7 +312,7 @@ public class TopResourceHUD : MonoBehaviour
         iconRect.anchorMax = new Vector2(0f, 0.5f);
         iconRect.pivot = new Vector2(0f, 0.5f);
         iconRect.anchoredPosition = new Vector2(8f, 0f);
-        iconRect.sizeDelta = new Vector2(38f, 38f);
+        iconRect.sizeDelta = new Vector2(40f, 40f);
 
         Image iconImg = iconObj.AddComponent<Image>();
         iconImg.sprite = icon;
@@ -321,7 +327,7 @@ public class TopResourceHUD : MonoBehaviour
         plusRect.anchorMax = new Vector2(1f, 0.5f);
         plusRect.pivot = new Vector2(1f, 0.5f);
         plusRect.anchoredPosition = new Vector2(-6f, 0f);
-        plusRect.sizeDelta = new Vector2(26f, 26f);
+        plusRect.sizeDelta = new Vector2(28f, 28f);
 
         Image plusBg = plusObj.AddComponent<Image>();
         plusBg.color = new Color(0.08f, 0.18f, 0.28f, 0.85f);
@@ -345,25 +351,25 @@ public class TopResourceHUD : MonoBehaviour
         Text piText = plusIconObj.AddComponent<Text>();
         piText.font = safeFont;
         piText.text = "+";
-        piText.fontSize = 21;
+        piText.fontSize = 22;
         piText.fontStyle = FontStyle.Bold;
         piText.alignment = TextAnchor.MiddleCenter;
-        piText.color = new Color(0.15f, 0.85f, 1.0f, 1f); // Cyan neon
+        piText.color = new Color(0.0f, 0.92f, 1.0f, 1f); // Cyan neon
         piText.raycastTarget = false;
 
-        // Text số lượng ở giữa
+        // Text số lượng ở giữa (Cỡ chữ 28 đậm, không dùng bóng đổ đen đặc gây lem chữ)
         GameObject txtObj = new GameObject("CountText", typeof(RectTransform));
         txtObj.layer = LayerMask.NameToLayer("UI");
         txtObj.transform.SetParent(capsuleObj.transform, false);
         RectTransform tr = txtObj.GetComponent<RectTransform>();
         tr.anchorMin = new Vector2(0f, 0f);
         tr.anchorMax = new Vector2(1f, 1f);
-        tr.offsetMin = new Vector2(48f, 0f);
-        tr.offsetMax = new Vector2(-34f, 0f);
+        tr.offsetMin = new Vector2(46f, 0f);
+        tr.offsetMax = new Vector2(-36f, 0f);
 
         countText = txtObj.AddComponent<Text>();
         countText.font = safeFont;
-        countText.fontSize = 22;
+        countText.fontSize = 28;
         countText.fontStyle = FontStyle.Bold;
         countText.alignment = TextAnchor.MiddleRight;
         countText.color = new Color(0.98f, 0.99f, 1.0f, 1f); // Trắng sáng nổi bật
@@ -372,9 +378,10 @@ public class TopResourceHUD : MonoBehaviour
         countText.raycastTarget = false;
         countText.text = "0";
 
-        Shadow shadow = txtObj.AddComponent<Shadow>();
-        shadow.effectColor = new Color(0f, 0f, 0f, 0.9f);
-        shadow.effectDistance = new Vector2(1.5f, -1.5f);
+        // Outline mảnh tinh tế để chữ sắc cạnh, không bị lem mực
+        Outline txtOutline = txtObj.AddComponent<Outline>();
+        txtOutline.effectColor = new Color(0f, 0f, 0f, 0.45f);
+        txtOutline.effectDistance = new Vector2(0.8f, -0.8f);
     }
 
     private void CreateSettingsButton(Transform parent, Vector2 size)
