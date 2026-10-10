@@ -1,6 +1,81 @@
 ================================================================================
                     NHẬT KÝ CẬP NHẬT DỰ ÁN ROBOT DEFENSE
 ================================================================================
+Thời gian cập nhật : 10/10/2026
+Mã Commit Git      : 6879d16 (Full: 6879d16fe1882b48c542a667a6aee6f3d246f958)
+Trạng thái Git     : Đã commit cục bộ thành công (TUYỆT ĐỐI CHƯA PUSH THEO QUY TẮC AGENTS.md)
+Mục tiêu cập nhật  :
+  - Hiển thị rõ ràng thông số tài nguyên nâng cấp (🪙 Vàng, 🪵 Gỗ, 🪨 Đá) thay vì ghi số trần khó hiểu (100 50 50).
+  - Hiệu ứng nhấp nháy xanh dương neon liên tục khi nhấn giữ vào Vũ khí, Tường, Nhà máy robot và Nhà chính; thả tay ra trở lại màu nguyên bản.
+  - Khóa di chuyển Nhà Chính (BaseHQ / Lõi), cảnh báo "⚠️ Lõi không thể di chuyển!" khi người chơi cố kéo thả.
+  - Tích hợp Nhà Chính BaseHQ và cơ chế rơi đồng vàng khi tiêu diệt quái vật.
+  - Sửa lỗi biên dịch CS0122 ResetHQVisuals() và dọn sạch cảnh báo CS0414.
+
+--------------------------------------------------------------------------------
+1. HIỂN THỊ RÕ RÀNG THÔNG SỐ TÀI NGUYÊN NÂNG CẤP (VÀNG, GỖ, ĐÁ)
+--------------------------------------------------------------------------------
+* Tập tin: BaseHQ.cs, WallSelectionManager.cs, RobotCraftingUI.cs, RobotFactory.cs, BuildingShopUI.cs
+* Chi tiết tính năng:
+  - Xóa bỏ hoàn toàn định dạng hiển thị số trần không rõ loại như "100 50 50" khiến người chơi bối rối không biết cần tài nguyên gì.
+  - Định dạng chuẩn hóa mới có kèm icon và tên gọi tài nguyên trực quan:
+    + Cấu trúc: 🪙 {c} Vàng • 🪵 {w} Gỗ • 🪨 {s} Đá
+  - Áp dụng đồng bộ trên:
+    + Bảng Nâng Cấp Nhà Chính (BaseHQ Upgrade Button & Info Modal).
+    + Bảng Thao Tác Tường (Wall Upgrade Card) & Trụ Vũ Khí (Turret Upgrade Card).
+    + Nút Nâng Cấp Nhà Máy Robot (Robot Factory Upgrade Button).
+    + Cửa Hàng Xây Dựng (Building Shop UI: nâng cấp cuốc đào, nâng cấp tường).
+  - Tăng chiều rộng nút bấm lên 410px trên Panel_BaseHQ_ActionCard để hiển thị thoáng đãng, không bị co rút hay cụt chữ.
+
+--------------------------------------------------------------------------------
+2. HIỆU ỨNG NHẤP NHÁY XANH DƯƠNG KHI NHẤN GIỮ (PRESS & HOLD BLINKING EFFECT)
+--------------------------------------------------------------------------------
+* Tập tin: WallSelectionManager.cs, BaseHQ.cs
+* Chi tiết tính năng:
+  - Khi người chơi click hoặc nhấn giữ chuột vào bất kỳ công trình hoặc vũ khí nào (Bức tường, Trụ súng, Nhà máy chế tạo Robot, Nhà chính BaseHQ):
+    + Toàn bộ MeshRenderer của công trình/vũ khí sẽ tự động nhấp nháy chuyển màu liên tục giữa màu xanh dương neon (Neon Blue: Color(0.08f, 0.60f, 1.0f)) và màu sắc ban đầu của vật thể.
+    + Tần số nhấp nháy mượt mà nhờ hàm nội suy sin thời gian thực `Mathf.PingPong(Time.time * 6f, 1f)`.
+  - Khi người chơi thả chuột ra (MouseButtonUp):
+    + Lập tức dừng hiệu ứng nhấp nháy.
+    + Khôi phục 100% màu sắc và chất liệu nguyên bản theo cấp độ hiện tại (ResetHQVisuals, ResetSelectionVisuals).
+
+--------------------------------------------------------------------------------
+3. KHÓA DI CHUYỂN NHÀ CHÍNH (BASEHQ) & CẢNH BÁO "LÕI KHÔNG THỂ DI CHUYỂN"
+--------------------------------------------------------------------------------
+* Tập tin: WallSelectionManager.cs, BaseHQ.cs, CenterWarningBanner.cs
+* Chi tiết tính năng:
+  - Nhà chính (Lõi plasma trung tâm căn cứ) là công trình cốt lõi mang tính định vị căn cứ, cố định tuyệt đối không được phép di dời.
+  - Cơ chế nhận diện: Khi người chơi giữ chuột và kéo rê chuột lên Nhà Chính, hệ thống chặn hoàn toàn thao tác di chuyển (isDragging = false).
+  - Hiển thị cảnh báo trực quan:
+    + Biển cảnh báo nổi bật giữa màn hình: "⚠️ Lõi không thể di chuyển!" (CenterWarningBanner).
+    + Chữ sát thương nổi bay lên tại vị trí Nhà chính: "⚠️ Lõi không thể di chuyển!" màu vàng cam (FloatingDamageText).
+
+--------------------------------------------------------------------------------
+4. HỆ THỐNG NHÀ CHÍNH BASEHQ & CƠ CHẾ RƠI ĐỒNG VÀNG
+--------------------------------------------------------------------------------
+* Tập tin: BaseHQ.cs, DroppedGoldCoin.cs, SetupBaseHQAndCoreLoop.cs, BaseHQ_Building.prefab
+* Chi tiết tính năng:
+  - BaseHQ sở hữu thanh máu độc lập, cấp độ nâng cấp từ Lv1 đến Lv5, mô hình lõi năng lượng xoay phát sáng.
+  - Quái vật tự động tìm và tấn công Nhà Chính nếu không có mục tiêu ưu tiên gần hơn.
+  - Khi tiêu diệt quái vật, rơi ra đồng xu vàng vật lý bay hút mượt mà về phía người chơi để nhận tiền thưởng.
+
+--------------------------------------------------------------------------------
+5. SỬA LỖI BIÊN DỊCH VÀ DỌN DẸP SOURCE CODE
+--------------------------------------------------------------------------------
+* Tập tin: BaseHQ.cs, WallSelectionManager.cs, .gitignore
+* Chi tiết khắc phục:
+  - Fix lỗi CS0122: Chuyển phạm vi truy cập hàm `ResetHQVisuals()` từ private sang public để `WallSelectionManager` gọi khôi phục màu sắc an toàn khi nhả tay.
+  - Dọn dẹp cảnh báo CS0414: Loại bỏ biến thừa `isMouseDownOnSelectable`, `mouseDownScreenPos`.
+  - Cập nhật `.gitignore` loại trừ thư mục crash recovery tạm của Unity (`Assets/_Recovery/`).
+
+--------------------------------------------------------------------------------
+6. TUÂN THỦ NGHIÊM NGẶT QUY TẮC DỰ ÁN (AGENTS.MD)
+--------------------------------------------------------------------------------
+* 100% sử dụng Raycast và trọng lực code -9.18f (Zero Rigidbody trên Player, Bot, Quái vật, Đạn dược).
+* Mã commit đã được tạo cục bộ: 6879d16. TUYỆT ĐỐI KHÔNG TỰ Ý GIT PUSH.
+
+================================================================================
+                    LỊCH SỬ CÁC BẢN CẬP NHẬT TRƯỚC ĐÓ
+================================================================================
 Thời gian cập nhật : 09/10/2026
 Trạng thái Git     : Đã chuẩn bị commit cục bộ - Chờ người dùng xác nhận để push
 Mục tiêu cập nhật  : 
