@@ -5,69 +5,82 @@ using UnityEngine.UI;
 
 public enum DayCyclePhase
 {
-    Day,        // ☀️ Ban Ngày
-    Afternoon,  // 🌅 Buổi Chiều (Hoàng Hôn - Hiệu ứng Thunder rực rỡ)
-    Night       // 🌙 Ban Đêm (Phòng Thủ)
+    Morning,    // 🌅 Sáng (Bình Minh Nắng Sớm)
+    Noon,       // ☀️ Trưa (Mặt Trời Lên Đỉnh Rực Rỡ)
+    Afternoon,  // 🌇 Chiều (Hoàng Hôn Ấm Áp)
+    Night       // 🌙 Tối (Ban Đêm Phòng Thủ & Boss)
 }
 
 /// <summary>
-/// DayNightSystem - Hệ Thống Chu Kỳ Ngày & Đêm & Buổi Chiều (3 Pha Hoàn Chỉnh):
-/// 1. Ánh sáng: Sử dụng 1 Light Directional ĐỘC LẬP [DayNight_DirectionalLight].
-/// 2. Ban ngày: Trời sáng trong xanh, quái ít, robot đi khai thác tài nguyên.
-/// 3. Buổi chiều (Afternoon): Ánh sáng hoàng hôn vàng cam 5000K chiếu xiên góc thấp 8.5 độ giống Thunder,
-///    bóng đổ dài nghệ thuật lung linh khắp hòn đảo.
-/// 4. Ban đêm: Trời tối tím thẫm, quái vật dồn dập tấn công Nhà chính, robot rút về nhà trú ẩn.
+/// DayNightSystem - Hệ Thống Chu Kỳ 4 Pha Hoàn Chỉnh: SÁNG - TRƯA - CHIỀU - TỐI.
+/// 1. Ánh sáng: Sử dụng 1 Light Directional ĐỘC LẬP [DayNight_DirectionalLight] cho môi trường ngoài trời.
+/// 2. Sáng (Morning): Bình minh trong trẻo, ánh nắng sớm dịu nhẹ (32 độ).
+/// 3. Trưa (Noon): Mặt trời lên đỉnh đầu rực rỡ rõ nét (72 độ, cường độ 1.30f).
+/// 4. Chiều (Afternoon): Hoàng hôn vàng cam ấm áp lãng mạn, bóng đổ dài (18 độ).
+/// 5. Tối (Night): Ánh trăng xanh huyền bí (0.22f), kích hoạt phòng thủ và triệu hồi Boss!
+/// Hoàn toàn tách biệt khỏi trụ súng (kể cả Thunder) và LightTurret.
 /// </summary>
 public class DayNightSystem : MonoBehaviour
 {
     public static DayNightSystem Instance { get; private set; }
 
-    [Header("=== TRẠNG THÁI CHU KỲ (DAY / AFTERNOON / NIGHT) ===")]
-    public DayCyclePhase currentPhase = DayCyclePhase.Day;
+    [Header("=== TRẠNG THÁI CHU KỲ (SÁNG / TRƯA / CHIỀU / TỐI) ===")]
+    public DayCyclePhase currentPhase = DayCyclePhase.Morning;
     public bool isNight => currentPhase == DayCyclePhase.Night;
+    public bool isDay => currentPhase == DayCyclePhase.Morning || currentPhase == DayCyclePhase.Noon;
+    public bool isMorning => currentPhase == DayCyclePhase.Morning;
+    public bool isNoon => currentPhase == DayCyclePhase.Noon;
     public bool isAfternoon => currentPhase == DayCyclePhase.Afternoon;
-    public bool isDay => currentPhase == DayCyclePhase.Day;
     public int currentDay = 1;
 
-    [Tooltip("Thời lượng ban ngày (giây)")]
-    public float dayDuration = 55.0f;
+    [Tooltip("Thời lượng buổi sáng (giây)")]
+    public float morningDuration = 25.0f;
+
+    [Tooltip("Thời lượng buổi trưa (giây)")]
+    public float noonDuration = 25.0f;
 
     [Tooltip("Thời lượng buổi chiều hoàng hôn (giây)")]
-    public float afternoonDuration = 35.0f;
+    public float afternoonDuration = 20.0f;
 
     [Tooltip("Thời lượng ban đêm phòng thủ (giây)")]
-    public float nightDuration = 60.0f;
+    public float nightDuration = 45.0f;
 
     [Tooltip("Thời gian còn lại của pha hiện tại")]
-    public float timeRemaining = 55.0f;
+    public float timeRemaining = 25.0f;
 
     [Header("=== TẦN SUẤT QUÁI VẬT SPAWN (INTERVAL) ===")]
-    [Tooltip("Tần suất sinh quái ban ngày (rất ít quái để người chơi nhặt đồ)")]
-    public float dayEnemyInterval = 18.0f;
+    [Tooltip("Tần suất sinh quái ban ngày (2.4s/con để nhiều quái ban ngày cho người chơi farm vàng)")]
+    public float dayEnemyInterval = 2.4f;
 
-    [Tooltip("Tần suất sinh quái ban đêm (quái dồn dập tấn công gấp 5 lần: 0.7s/con)")]
-    public float nightEnemyInterval = 0.7f;
+    [Tooltip("Tần suất sinh quái ban đêm (quái dồn dập tấn công: 0.65s/con)")]
+    public float nightEnemyInterval = 0.65f;
 
-    [Header("=== ÁNH SÁNG NGÀY / CHIỀU / ĐÊM (DEDICATED LIGHT) ===")]
-    [Tooltip("Nguồn sáng Directional Light riêng biệt cho Ngày & Đêm & Buổi Chiều")]
+    [Header("=== ÁNH SÁNG 4 PHA NGOÀI TRỜI ĐỘC LẬP (DEDICATED LIGHT) ===")]
+    [Tooltip("Nguồn sáng Directional Light riêng biệt cho chu kỳ Sáng - Trưa - Chiều - Tối")]
     public Light dayNightLight;
 
-    // A. Cấu hình Ban Ngày
-    public Color dayLightColor = new Color(1.0f, 0.96f, 0.88f);
-    public float dayIntensity = 1.15f;
-    public Vector3 dayRotationEuler = new Vector3(50f, -30f, 0f);
-    public Color dayAmbientColor = new Color(0.55f, 0.58f, 0.65f);
+    // 1. Cấu hình Buổi Sáng (Bình Minh nắng sớm dịu nhẹ)
+    public Color morningLightColor = new Color(1.0f, 0.95f, 0.86f);
+    public float morningIntensity = 1.05f;
+    public Vector3 morningRotationEuler = new Vector3(32f, -35f, 0f);
+    public Color morningAmbientColor = new Color(0.55f, 0.58f, 0.62f);
 
-    // B. Cấu hình Buổi Chiều (Chuẩn ánh sáng Thunder: Vàng cam ấm áp 5000K, góc chiếu xiên thấp ~8.5 độ, bóng đổ dài)
-    public Color afternoonLightColor = new Color(1.0f, 0.82f, 0.55f);
-    public float afternoonIntensity = 1.95f;
-    public Vector3 afternoonRotationEuler = new Vector3(8.5f, -30f, 0f);
-    public Color afternoonAmbientColor = new Color(0.68f, 0.48f, 0.38f);
+    // 2. Cấu hình Buổi Trưa (Mặt trời đỉnh điểm rực rỡ, bóng đổ ngắn)
+    public Color noonLightColor = new Color(1.0f, 0.99f, 0.94f);
+    public float noonIntensity = 1.30f;
+    public Vector3 noonRotationEuler = new Vector3(72f, -20f, 0f);
+    public Color noonAmbientColor = new Color(0.65f, 0.65f, 0.68f);
 
-    // C. Cấu hình Ban Đêm
+    // 3. Cấu hình Buổi Chiều (Hoàng hôn vàng cam ấm áp, bóng đổ dài)
+    public Color afternoonLightColor = new Color(1.0f, 0.78f, 0.45f);
+    public float afternoonIntensity = 1.15f;
+    public Vector3 afternoonRotationEuler = new Vector3(18f, -40f, 0f);
+    public Color afternoonAmbientColor = new Color(0.60f, 0.44f, 0.35f);
+
+    // 4. Cấu hình Ban Đêm (Ánh trăng huyền bí xanh tím dịu mát)
     public Color nightLightColor = new Color(0.25f, 0.38f, 0.68f);
-    public float nightIntensity = 0.28f;
-    public Vector3 nightRotationEuler = new Vector3(40f, 145f, 0f);
+    public float nightIntensity = 0.22f;
+    public Vector3 nightRotationEuler = new Vector3(45f, 140f, 0f);
     public Color nightAmbientColor = new Color(0.12f, 0.15f, 0.24f);
 
     [Header("=== ẨN / HIỆN GIAO DIỆN (HIERARCHY & INSPECTOR) ===")]
@@ -124,8 +137,8 @@ public class DayNightSystem : MonoBehaviour
         Instance = this;
 
         EnsureDedicatedLightExists();
-        currentPhase = DayCyclePhase.Day;
-        timeRemaining = dayDuration;
+        currentPhase = DayCyclePhase.Morning;
+        timeRemaining = morningDuration;
         currentDay = 1;
     }
 
@@ -145,20 +158,23 @@ public class DayNightSystem : MonoBehaviour
             dayNightHUDPanel.SetActive(showDayNightHUD);
         }
 
-        // 2. Đếm ngược thời gian chu kỳ (Ngày -> Chiều -> Đêm)
+        // 2. Đếm ngược thời gian chu kỳ 4 pha (Sáng -> Trưa -> Chiều -> Tối)
         timeRemaining -= Time.deltaTime;
         if (timeRemaining <= 0f)
         {
             switch (currentPhase)
             {
-                case DayCyclePhase.Day:
+                case DayCyclePhase.Morning:
+                    TransitionToNoon();
+                    break;
+                case DayCyclePhase.Noon:
                     TransitionToAfternoon();
                     break;
                 case DayCyclePhase.Afternoon:
                     TransitionToNight();
                     break;
                 case DayCyclePhase.Night:
-                    TransitionToDay();
+                    TransitionToMorning();
                     break;
             }
         }
@@ -172,7 +188,7 @@ public class DayNightSystem : MonoBehaviour
 
     /// <summary>
     /// Đảm bảo luôn có 1 nguồn sáng Directional Light riêng biệt cho hệ thống Ngày/Đêm,
-    /// hoàn toàn tách rời khỏi mọi hiệu ứng tia sét Thunder hay vụ nổ vũ khí.
+    /// hoàn toàn tách rời khỏi mọi hiệu ứng tia sét Thunder hay LightTurret.
     /// </summary>
     private void EnsureDedicatedLightExists()
     {
@@ -194,15 +210,15 @@ public class DayNightSystem : MonoBehaviour
             if (dayNightLight == null) dayNightLight = lightObj.AddComponent<Light>();
         }
 
-        // Khởi tạo ánh sáng ban ngày ban đầu
-        dayNightLight.color = dayLightColor;
-        dayNightLight.intensity = dayIntensity;
-        dayNightLight.transform.rotation = Quaternion.Euler(dayRotationEuler);
-        RenderSettings.ambientLight = dayAmbientColor;
+        // Khởi tạo ánh sáng buổi sáng ban đầu
+        dayNightLight.color = morningLightColor;
+        dayNightLight.intensity = morningIntensity;
+        dayNightLight.transform.rotation = Quaternion.Euler(morningRotationEuler);
+        RenderSettings.ambientLight = morningAmbientColor;
     }
 
     /// <summary>
-    /// Cập nhật độ sáng, màu sắc và góc chiếu của mặt trời / hoàng hôn / mặt trăng
+    /// Cập nhật độ sáng, màu sắc và góc chiếu của 4 pha: Sáng - Trưa - Chiều - Tối
     /// </summary>
     private void UpdateLightVisuals(bool instant)
     {
@@ -215,6 +231,18 @@ public class DayNightSystem : MonoBehaviour
 
         switch (currentPhase)
         {
+            case DayCyclePhase.Morning:
+                targetColor = morningLightColor;
+                targetIntensity = morningIntensity;
+                targetRot = Quaternion.Euler(morningRotationEuler);
+                targetAmbient = morningAmbientColor;
+                break;
+            case DayCyclePhase.Noon:
+                targetColor = noonLightColor;
+                targetIntensity = noonIntensity;
+                targetRot = Quaternion.Euler(noonRotationEuler);
+                targetAmbient = noonAmbientColor;
+                break;
             case DayCyclePhase.Afternoon:
                 targetColor = afternoonLightColor;
                 targetIntensity = afternoonIntensity;
@@ -228,10 +256,10 @@ public class DayNightSystem : MonoBehaviour
                 targetAmbient = nightAmbientColor;
                 break;
             default:
-                targetColor = dayLightColor;
-                targetIntensity = dayIntensity;
-                targetRot = Quaternion.Euler(dayRotationEuler);
-                targetAmbient = dayAmbientColor;
+                targetColor = morningLightColor;
+                targetIntensity = morningIntensity;
+                targetRot = Quaternion.Euler(morningRotationEuler);
+                targetAmbient = morningAmbientColor;
                 break;
         }
 
@@ -253,51 +281,72 @@ public class DayNightSystem : MonoBehaviour
     }
 
     /// <summary>
-    /// Chuyển sang buổi chiều (Ánh sáng hoàng hôn rực rỡ giống Thunder)
+    /// Chuyển sang buổi trưa: Nắng rực rỡ đỉnh đầu
+    /// </summary>
+    public void TransitionToNoon()
+    {
+        currentPhase = DayCyclePhase.Noon;
+        timeRemaining = noonDuration;
+
+        Debug.Log($"<color=#FFEE55>[DayNightSystem]</color> ☀️ BUỔI TRƯA (NGÀY {currentDay})! Mặt trời lên đỉnh đầu rực rỡ.");
+
+        Transform pTrans = PlayerController.Instance != null ? PlayerController.Instance.transform : (BaseHQ.Instance != null ? BaseHQ.Instance.transform : null);
+        Vector3 bannerPos = pTrans != null ? (pTrans.position + Vector3.up * 3.5f) : Vector3.up * 4f;
+        FloatingDamageText.SpawnResource(bannerPos, $"☀️ BUỔI TRƯA (NGÀY {currentDay})!\nÁNH NẮNG RỰC RỠ, TÍCH CỰC KHAI THÁC!", new Color(1f, 0.95f, 0.3f, 1f), 0.12f);
+    }
+
+    /// <summary>
+    /// Chuyển sang buổi chiều: Hoàng hôn vàng cam ấm áp
     /// </summary>
     public void TransitionToAfternoon()
     {
         currentPhase = DayCyclePhase.Afternoon;
         timeRemaining = afternoonDuration;
 
-        Debug.Log($"<color=#FFA500>[DayNightSystem]</color> 🌅 BUỔI CHIỀU HOÀNG HÔN ĐÃ ĐẾN (NGÀY {currentDay})! Ánh nắng chiều tà rực rỡ chiếu xiên thấp.");
+        Debug.Log($"<color=#FFA500>[DayNightSystem]</color> 🌇 BUỔI CHIỀU HOÀNG HÔN ĐÃ ĐẾN (NGÀY {currentDay})! Ánh nắng chiều tà ấm áp chiếu xiên thấp.");
 
         Transform pTrans = PlayerController.Instance != null ? PlayerController.Instance.transform : (BaseHQ.Instance != null ? BaseHQ.Instance.transform : null);
         Vector3 bannerPos = pTrans != null ? (pTrans.position + Vector3.up * 3.5f) : Vector3.up * 4f;
-        FloatingDamageText.SpawnResource(bannerPos, $"🌅 BUỔI CHIỀU HOÀNG HÔN (NGÀY {currentDay})!\n⚠️ ÁNH CHIỀU TÀ RỰC RỠ, CHUẨN BỊ PHÒNG THỦ!", new Color(1f, 0.75f, 0.25f, 1f), 0.12f);
+        FloatingDamageText.SpawnResource(bannerPos, $"🌇 BUỔI CHIỀU HOÀNG HÔN (NGÀY {currentDay})!\n⚠️ ÁNH CHIỀU TÀ, CHUẨN BỊ PHÒNG TUYẾN!", new Color(1f, 0.75f, 0.25f, 1f), 0.12f);
     }
 
     /// <summary>
-    /// Chuyển sang ban ngày
+    /// Chuyển sang buổi sáng (Bình minh bắt đầu ngày mới)
     /// </summary>
-    public void TransitionToDay()
+    public void TransitionToMorning()
     {
-        currentPhase = DayCyclePhase.Day;
+        currentPhase = DayCyclePhase.Morning;
         currentDay++;
-        timeRemaining = dayDuration;
+        timeRemaining = morningDuration;
 
-        Debug.Log($"<color=#FFD700>[DayNightSystem]</color> ☀️ BÌNH MINH ĐÃ ĐẾN (NGÀY {currentDay})! Ánh mặt trời thiêu đốt quái vật, Robot tiếp tục ra đồng farm.");
+        Debug.Log($"<color=#FFD700>[DayNightSystem]</color> 🌅 BÌNH MINH ĐÃ ĐẾN (NGÀY {currentDay})! Ánh mặt trời dịu nhẹ trong lành, Robot tiếp tục ra đồng farm.");
         
-        // Tiêu diệt toàn bộ quái vật đêm còn sót lại (chúng bốc cháy và rớt vàng rải rác)
+        // Cập nhật lại chỉ số quái ban ngày (giảm lực công, tăng tốc độ)
         Enemy[] remainingEnemies = Object.FindObjectsByType<Enemy>(FindObjectsInactive.Exclude);
         foreach (var enemy in remainingEnemies)
         {
             if (enemy != null && !enemy.isDead)
             {
-                enemy.Die();
+                enemy.ApplyDayNightModifiers();
             }
         }
 
         // Hiện chữ thông báo lớn trên đầu Player / Căn cứ
         Transform pTrans = PlayerController.Instance != null ? PlayerController.Instance.transform : (BaseHQ.Instance != null ? BaseHQ.Instance.transform : null);
         Vector3 bannerPos = pTrans != null ? (pTrans.position + Vector3.up * 3.5f) : Vector3.up * 4f;
-        FloatingDamageText.SpawnResource(bannerPos, $"☀️ BÌNH MINH NGÀY {currentDay}!\n🏆 ĐÃ SỐNG SÓT! HÃY NHẶT VÀNG & SỬA NHÀ CHÍNH!", new Color(1f, 0.9f, 0.2f, 1f), 0.12f);
+        FloatingDamageText.SpawnResource(bannerPos, $"🌅 BÌNH MINH NGÀY {currentDay}!\n🏆 ĐÃ SỐNG SÓT! HÃY NHẶT VÀNG & SỬA NHÀ CHÍNH!", new Color(1f, 0.9f, 0.2f, 1f), 0.12f);
 
         // Thông báo các robot farm tiếp tục tìm mỏ đá
         mineBotFarm[] bots = Object.FindObjectsByType<mineBotFarm>(FindObjectsInactive.Exclude);
         foreach (var bot in bots)
         {
             if (bot != null) bot.FindBestMiningTarget();
+        }
+
+        // Thông báo cho Spawner biết bình minh đã đến
+        if (EnemySpawner.Instance != null)
+        {
+            EnemySpawner.Instance.OnDayStarted(currentDay);
         }
     }
 
@@ -309,11 +358,27 @@ public class DayNightSystem : MonoBehaviour
         currentPhase = DayCyclePhase.Night;
         timeRemaining = nightDuration;
 
-        Debug.Log($"<color=#00FFFF>[DayNightSystem]</color> 🌙 MÀN ĐÊM BUÔNG XUỐNG! Chế độ Phòng Thủ kích hoạt! Quái vật tấn công Nhà Chính!");
+        Debug.Log($"<color=#00FFFF>[DayNightSystem]</color> 🌙 MÀN ĐÊM BUÔNG XUỐNG! Chế độ Phòng Thủ kích hoạt! Quái vật & Đại Boss tấn công!");
+
+        // Cập nhật chỉ số quái vật hung hãn và mạnh hơn trong đêm
+        Enemy[] remainingEnemies = Object.FindObjectsByType<Enemy>(FindObjectsInactive.Exclude);
+        foreach (var enemy in remainingEnemies)
+        {
+            if (enemy != null && !enemy.isDead)
+            {
+                enemy.ApplyDayNightModifiers();
+            }
+        }
         
         Transform pTrans = PlayerController.Instance != null ? PlayerController.Instance.transform : (BaseHQ.Instance != null ? BaseHQ.Instance.transform : null);
         Vector3 bannerPos = pTrans != null ? (pTrans.position + Vector3.up * 3.5f) : Vector3.up * 4f;
-        FloatingDamageText.SpawnResource(bannerPos, "🌙 MÀN ĐÊM BUÔNG XUỐNG!\n⚠️ QUÁI VẬT TẤN CÔNG NHÀ CHÍNH!", new Color(1f, 0.25f, 0.25f, 1f), 0.12f);
+        FloatingDamageText.SpawnResource(bannerPos, "🌙 MÀN ĐÊM BUÔNG XUỐNG!\n⚠️ QUÁI VẬT & ĐẠI BOSS TẤN CÔNG!", new Color(1f, 0.25f, 0.25f, 1f), 0.12f);
+
+        // Kích hoạt lịch sinh Boss đêm cho EnemySpawner (Mỗi đêm 1 Boss)
+        if (EnemySpawner.Instance != null)
+        {
+            EnemySpawner.Instance.OnNightStarted(currentDay);
+        }
     }
 
     /// <summary>
@@ -329,7 +394,7 @@ public class DayNightSystem : MonoBehaviour
         else
         {
             // Nếu đang trong đêm và muốn chuyển sang ngày sớm
-            TransitionToDay();
+            TransitionToMorning();
         }
         RefreshHUDDisplay();
     }
@@ -522,7 +587,7 @@ public class DayNightSystem : MonoBehaviour
         {
             if (statusTitleText != null)
             {
-                statusTitleText.text = $"🌅 <b>BUỔI CHIỀU</b>";
+                statusTitleText.text = $"🌇 <b>BUỔI CHIỀU</b>";
                 statusTitleText.color = new Color(1f, 0.72f, 0.15f);
             }
             if (timerCountdownText != null)
@@ -539,12 +604,33 @@ public class DayNightSystem : MonoBehaviour
                 defenseActionButton.GetComponent<Image>().color = new Color(0.95f, 0.48f, 0.1f);
             }
         }
-        else
+        else if (currentPhase == DayCyclePhase.Noon)
         {
             if (statusTitleText != null)
             {
-                statusTitleText.text = $"☀️ <b>NGÀY {currentDay}</b>";
-                statusTitleText.color = new Color(1f, 0.88f, 0.2f);
+                statusTitleText.text = $"☀️ <b>BUỔI TRƯA</b>";
+                statusTitleText.color = new Color(1f, 0.95f, 0.25f);
+            }
+            if (timerCountdownText != null)
+            {
+                timerCountdownText.text = $"⏱️ {minutes:D2}:{seconds:D2}";
+                timerCountdownText.color = new Color(1f, 0.92f, 0.4f);
+            }
+            if (actionButtonText != null)
+            {
+                actionButtonText.text = "🛡️ <b>PHÒNG THỦ</b>";
+            }
+            if (defenseActionButton != null)
+            {
+                defenseActionButton.GetComponent<Image>().color = new Color(0.88f, 0.55f, 0.15f);
+            }
+        }
+        else // Morning
+        {
+            if (statusTitleText != null)
+            {
+                statusTitleText.text = $"🌅 <b>NGÀY {currentDay} (SÁNG)</b>";
+                statusTitleText.color = new Color(1f, 0.88f, 0.45f);
             }
             if (timerCountdownText != null)
             {

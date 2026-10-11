@@ -1,10 +1,11 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 public class ExplosionEffect : MonoBehaviour
 {
     [Header("--- Kích thước & Sát thương vụ nổ ---")]
     public float explosionRadius = 1.2f; // Thu nhỏ lại gọn gàng vừa vặn
-    public float damage = 20f;
+    public float damage = 8f; // Cân bằng giảm sát thương pháo tự hành theo yêu cầu
     public LayerMask enemyLayer = ~0;
     public string enemyTag = "Enemy";
 
@@ -43,7 +44,7 @@ public class ExplosionEffect : MonoBehaviour
         flashLight.range = explosionRadius * 3f;
         flashLight.intensity = 4f;
 
-        // 2. Quả cầu lửa nở bùng thu nhỏ gấp 4 lần
+        // 2. Quả cầu lửa nở bùng thu nhỏ gọn gàng
         fireball = GameObject.CreatePrimitive(PrimitiveType.Sphere);
         fireball.name = "FireballCore";
         fireball.transform.SetParent(transform);
@@ -57,8 +58,7 @@ public class ExplosionEffect : MonoBehaviour
             DestroyImmediate(c);
         }
 
-        Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit");
-        if (unlitShader == null) unlitShader = Shader.Find("Sprites/Default");
+        Shader unlitShader = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Sprites/Default") ?? Shader.Find("Unlit/Color");
         fireballMat = new Material(unlitShader);
         fireballMat.color = new Color(1f, 0.45f, 0f, 1f);
         
@@ -71,8 +71,25 @@ public class ExplosionEffect : MonoBehaviour
         Renderer r = fireball.GetComponent<Renderer>();
         if (r != null) r.material = fireballMat;
 
-        // 3. Sát thương diện rộng (chỉ áp dụng lên Quái vật, tuyệt đối loại trừ Người chơi)
-        Collider[] hitColliders = Physics.OverlapSphere(transform.position, explosionRadius * 1.5f, enemyLayer);
+        // 3. Sát thương diện rộng không dùng collider (Duyệt Enemy.AllEnemies)
+        float blastDist = explosionRadius * 1.6f;
+        var damagedEnemies = new HashSet<Enemy>();
+
+        for (int i = 0; i < Enemy.AllEnemies.Count; i++)
+        {
+            Enemy e = Enemy.AllEnemies[i];
+            if (e != null && e.gameObject.activeInHierarchy && !e.isDead && e.currentHealth > 0f)
+            {
+                if (Vector3.Distance(transform.position, e.transform.position) <= blastDist)
+                {
+                    e.TakeDamage(damage);
+                    damagedEnemies.Add(e);
+                }
+            }
+        }
+
+        // Dự phòng quét Collider nếu có đối tượng khác mang Tag Enemy
+        Collider[] hitColliders = Physics.OverlapSphere(transform.position, blastDist, enemyLayer);
         foreach (var hitCollider in hitColliders)
         {
             if (IsPlayer(hitCollider)) continue; // Bỏ qua 100% Player!
@@ -80,11 +97,12 @@ public class ExplosionEffect : MonoBehaviour
             if (hitCollider.CompareTag(enemyTag) || hitCollider.GetComponentInParent<Enemy>() != null)
             {
                 Enemy enemy = hitCollider.GetComponent<Enemy>() ?? hitCollider.GetComponentInParent<Enemy>();
-                if (enemy != null)
+                if (enemy != null && !damagedEnemies.Contains(enemy))
                 {
                     enemy.TakeDamage(damage);
+                    damagedEnemies.Add(enemy);
                 }
-                else
+                else if (enemy == null)
                 {
                     hitCollider.SendMessage("TakeDamage", damage, SendMessageOptions.DontRequireReceiver);
                 }

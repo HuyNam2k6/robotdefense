@@ -195,6 +195,12 @@ public class GameEconomy : MonoBehaviour
     // ================= 2. MUA ROBOT ĐÀO MỎ =================
     public bool BuyWorkerRobot()
     {
+        if (mineBotFarm.AllMiners.Count >= 4)
+        {
+            Debug.LogWarning("<color=yellow>[GameEconomy]</color> Đã đạt tối đa 4 Robot Farm Đá (4/4)!");
+            return false;
+        }
+
         if (workerRobotPrefab == null)
         {
 #if UNITY_EDITOR

@@ -160,51 +160,52 @@ namespace IdleFactoryDefense.Editor
             closeTxt.color = Color.white;
             closeTxt.alignment = TextAnchor.MiddleCenter;
 
-            // ================= 4. KHU VỰC 4 THẺ ROBOT (CARDS CONTAINER) =================
+            // ================= 4. KHU VỰC 5 THẺ ROBOT (CARDS CONTAINER) =================
             GameObject cardsContainer = new GameObject("Cards_Container", typeof(RectTransform));
             cardsContainer.layer = uiLayer;
             cardsContainer.transform.SetParent(panelObj.transform, false);
             RectTransform ccRect = cardsContainer.GetComponent<RectTransform>();
             ccRect.anchorMin = new Vector2(0f, 0f);
             ccRect.anchorMax = new Vector2(1f, 1f);
-            ccRect.offsetMin = new Vector2(18f, 85f);
-            ccRect.offsetMax = new Vector2(-18f, -145f);
+            ccRect.offsetMin = new Vector2(18f, 75f);
+            ccRect.offsetMax = new Vector2(-18f, -140f);
 
             VerticalLayoutGroup vlg = cardsContainer.AddComponent<VerticalLayoutGroup>();
-            vlg.spacing = 14f;
+            vlg.spacing = 10f;
             vlg.childControlWidth = true;
             vlg.childControlHeight = false;
             vlg.childForceExpandWidth = true;
             vlg.childForceExpandHeight = false;
 
-            // Dữ liệu hiển thị 4 thẻ
-            string[] badges = new string[] { "01", "02", "03", "04" };
-            string[] names = new string[] { "STAN PHÁO NHỆN", "MIKE ĐẤU SĨ", "GEORGE SÁT THỦ", "LEELA XẠ THỦ" };
+            // Dữ liệu hiển thị 5 thẻ
+            string[] badges = new string[] { "01", "02", "03", "04", "05" };
+            string[] names = new string[] { "STAN PHÁO NHỆN", "MIKE ĐẤU SĨ", "GEORGE SÁT THỦ", "LEELA XẠ THỦ", "ROBOT FARM ĐÁ" };
             string[] descs = new string[]
             {
                 "Pháo Nhện Hỏa Lực Tầm Xa (70 HP / 30 DMG)",
                 "Tanker Hộ Pháp Tiền Tuyến (80 HP / 45 DMG)",
                 "Sát Thủ Cơ Động Lướt Nhanh (60 HP / 35 DMG)",
-                "Xạ Thủ Tầm Xa (60 HP / 40 DMG)"
+                "Xạ Thủ Tầm Xa (60 HP / 40 DMG)",
+                "Chuyên Gia Khai Thác Mỏ Đá (90 HP / 15 DMG)"
             };
-            string[] iconFileNames = new string[] { "Icon_Stan.png", "Icon_Mike.png", "Icon_George.png", "Icon_Leela.png" };
+            string[] iconFileNames = new string[] { "Icon_Stan.png", "Icon_Mike.png", "Icon_George.png", "Icon_Leela.png", "Icon_Miner.png" };
 
-            Button[] craftButtons = new Button[4];
-            Button[] infoButtons = new Button[4];
-            Text[] robotNameTexts = new Text[4];
-            Text[] robotCostTexts = new Text[4];
-            Text[] robotDescTexts = new Text[4];
-            Image[] robotIconImages = new Image[4];
-            Sprite[] robotSprites = new Sprite[4];
+            Button[] craftButtons = new Button[5];
+            Button[] infoButtons = new Button[5];
+            Text[] robotNameTexts = new Text[5];
+            Text[] robotCostTexts = new Text[5];
+            Text[] robotDescTexts = new Text[5];
+            Image[] robotIconImages = new Image[5];
+            Sprite[] robotSprites = new Sprite[5];
 
-            // Tải 4 Sprite icon
-            for (int i = 0; i < 4; i++)
+            // Tải 5 Sprite icon
+            for (int i = 0; i < 5; i++)
             {
                 string iconPath = $"Assets/UI/RobotIcons/{iconFileNames[i]}";
                 robotSprites[i] = AssetDatabase.LoadAssetAtPath<Sprite>(iconPath);
             }
 
-            for (int i = 0; i < 4; i++)
+            for (int i = 0; i < 5; i++)
             {
                 int botIndex = i;
                 GameObject cardObj = new GameObject($"Card_{badges[i]}_{names[i]}", typeof(RectTransform), typeof(Image));
@@ -212,7 +213,7 @@ namespace IdleFactoryDefense.Editor
                 cardObj.transform.SetParent(cardsContainer.transform, false);
 
                 RectTransform cardRt = cardObj.GetComponent<RectTransform>();
-                cardRt.sizeDelta = new Vector2(0f, 180f);
+                cardRt.sizeDelta = new Vector2(0f, 160f);
 
                 Image cardBg = cardObj.GetComponent<Image>();
                 cardBg.color = new Color(0.06f, 0.11f, 0.17f, 0.95f);

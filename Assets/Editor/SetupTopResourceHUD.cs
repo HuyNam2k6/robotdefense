@@ -10,6 +10,7 @@ namespace RobotDefense.Editor
     {
         static SetupTopResourceHUD()
         {
+            // Tự động kích hoạt sau khi compile lại thành công
             EditorApplication.delayCall += () =>
             {
                 CheckAndAutoSetup();

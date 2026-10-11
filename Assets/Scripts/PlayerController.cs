@@ -24,8 +24,8 @@ public class PlayerController : MonoBehaviour
 	public Transform respawnPoint;
 	[Tooltip("Thời gian chờ hồi sinh (giây) sau khi chết")]
 	public float respawnDelay = 3.0f;
-	[Tooltip("Bật/tắt thanh máu nổi trên đầu Player (Mặc định FALSE theo yêu cầu)")]
-	public bool showFloatingHealthBar = false;
+	[Tooltip("Bật/tắt thanh máu nổi trên đầu Player (Mặc định TRUE)")]
+	public bool showFloatingHealthBar = true;
 
 	[Header("Cài đặt Di Chuyển")]
 	public float moveSpeed = 4.5f;
@@ -56,6 +56,10 @@ public class PlayerController : MonoBehaviour
 	[Header("Điều Khiển Trên Mobile")]
 	public VirtualJoystick joystick;
 
+	[Header("Âm Thanh Di Chuyển (Movement Audio - PLayer.mp3)")]
+	public AudioSource moveAudioSource;
+	public AudioClip moveClip;
+
 	// Biến nội bộ
 	private float currentSpeed = 0f;
 	private float turnSmoothVelocity;
@@ -70,6 +74,13 @@ public class PlayerController : MonoBehaviour
 	private RectTransform hudHealthBarFill;
 	private Image hudHealthBarFillImage;
 	private Text hudHealthBarText;
+
+	// Thanh máu nổi trên đầu Player (World-Space)
+	public float floatingBarHeight = 2.3f;
+	private GameObject floatingHealthBarObj;
+	private RectTransform floatingHealthBarFill;
+	private Image floatingHealthBarFillImage;
+	private Text floatingHealthBarText;
 
 	// Đếm thời gian đứng yên
 	private float idleTimer = 0f;
@@ -92,6 +103,9 @@ public class PlayerController : MonoBehaviour
 		}
 
 		Instance = this;
+
+		// PHÓNG TO KÍCH THƯỚC PLAYER NGANG HÀNG DÂN CƯ (SCALE 1.0)
+		transform.localScale = Vector3.one;
 
 		// Đảm bảo đối tượng luôn có Tag Player chuẩn xác để hệ thống vũ khí tự động bỏ qua
 		if (!gameObject.CompareTag("Player"))
@@ -132,6 +146,9 @@ public class PlayerController : MonoBehaviour
 		initialSpawnRot = transform.rotation;
 		currentHealth = maxHealth;
 
+		// PHÓNG TO KÍCH CỠ PLAYER NGANG HÀNG DÂN CƯ (SCALE 1.0)
+		transform.localScale = Vector3.one;
+
 		EnsureRespawnPointExists();
 
 		// Bám đất tức thì bằng Raycast khi khởi động
@@ -139,6 +156,10 @@ public class PlayerController : MonoBehaviour
 
 		// Tạo thanh máu HUD cố định trên màn hình gần Task
 		CreateHUDHealthBar();
+		DestroyFloatingHealthBar();
+
+		// Khởi tạo âm thanh di chuyển (PLayer.mp3)
+		InitMovementAudio();
 
 		// Lên lịch ngẫu nhiên lần đầu tiên (từ 5 đến 10 giây)
 		nextIdleActionTime = Random.Range(minIdleTime, maxIdleTime);
@@ -194,42 +215,74 @@ public class PlayerController : MonoBehaviour
 		float rate = (targetSpeed > currentSpeed) ? acceleration : deceleration;
 		currentSpeed = Mathf.MoveTowards(currentSpeed, targetSpeed, rate * Time.deltaTime);
 
-		// ========== 4. DI CHUYỂN & TÍNH TOÁN VA CHẠM BẰNG RAYCAST (KHÔNG DÙNG COLLIDER) ==========
+		// ========== 4. DI CHUYỂN & TÍNH TOÁN VA CHẠM BẰNG SPHERECAST (KHÔNG DÙNG RIGIDBODY) ==========
 		if (currentSpeed > 0.01f)
 		{
 			float moveDist = currentSpeed * Time.deltaTime;
 			Vector3 moveDir = transform.forward;
 			Vector3 rayOrigin = transform.position + Vector3.up * raycastHeightOffset;
 
-			// Bắn Raycast quét phía trước để phát hiện vật cản (Đá, Cây, Tường, Chướng ngại vật)
+			// Bắn SphereCast hình cầu dày 0.32m phía trước để phát hiện vật cản (Đá, Cây, Tường, Chướng ngại vật)
 			float checkDist = moveDist + obstacleCheckDistance;
-			if (Physics.Raycast(rayOrigin, moveDir, out RaycastHit hit, checkDist))
-			{
-				if (hit.transform != transform && !hit.transform.IsChildOf(transform))
-				{
-					// Trượt men theo mặt phẳng của vật cản (Slide smoothly along obstacle normal)
-					Vector3 slideDir = Vector3.ProjectOnPlane(moveDir, hit.normal);
-					slideDir.y = 0f;
+			bool hasObstacle = false;
+			RaycastHit hit = default;
 
-					if (slideDir.sqrMagnitude > 0.001f)
-					{
-						slideDir.Normalize();
-						// Kiểm tra xem đường trượt có bị vật cản khác chắn không
-						if (!Physics.Raycast(rayOrigin, slideDir, checkDist))
-						{
-							float slideDot = Mathf.Clamp01(Vector3.Dot(moveDir, slideDir));
-							transform.position += slideDir * (currentSpeed * Time.deltaTime * slideDot);
-						}
-					}
-				}
-				else
+			if (Physics.SphereCast(rayOrigin, 0.32f, moveDir, out hit, checkDist))
+			{
+				string hitName = hit.collider.name.ToLower();
+				if (!hitName.Contains("bullet") && !hitName.Contains("coin") && hit.transform != transform && !hit.transform.IsChildOf(transform))
 				{
-					transform.position += moveDir * moveDist;
+					hasObstacle = true;
+				}
+			}
+			else if (Physics.Raycast(rayOrigin, moveDir, out hit, checkDist + 0.2f))
+			{
+				string hitName = hit.collider.name.ToLower();
+				if (!hitName.Contains("bullet") && !hitName.Contains("coin") && hit.transform != transform && !hit.transform.IsChildOf(transform))
+				{
+					hasObstacle = true;
+				}
+			}
+
+			if (hasObstacle)
+			{
+				// Trượt men theo mặt phẳng của vật cản (Slide smoothly along obstacle normal)
+				Vector3 slideDir = Vector3.ProjectOnPlane(moveDir, hit.normal);
+				slideDir.y = 0f;
+
+				if (slideDir.sqrMagnitude > 0.001f)
+				{
+					slideDir.Normalize();
+					if (!Physics.SphereCast(rayOrigin, 0.28f, slideDir, out _, checkDist))
+					{
+						float slideDot = Mathf.Clamp01(Vector3.Dot(moveDir, slideDir));
+						transform.position += slideDir * (currentSpeed * Time.deltaTime * slideDot);
+					}
 				}
 			}
 			else
 			{
 				transform.position += moveDir * moveDist;
+			}
+
+			// Chống lọt vào bên trong tảng đá hoặc bờ tường (Push-out phòng thủ)
+			Vector3 pCenter = transform.position + Vector3.up * 0.5f;
+			Collider[] overlaps = Physics.OverlapSphere(pCenter, 0.38f);
+			foreach (var col in overlaps)
+			{
+				if (col == null || col.isTrigger || col.transform == transform || col.transform.IsChildOf(transform)) continue;
+				string cName = col.name.ToLower();
+				if (cName.Contains("rock") || cName.Contains("wall"))
+				{
+					Vector3 closest = col.ClosestPoint(pCenter);
+					Vector3 pushDir = (pCenter - closest);
+					pushDir.y = 0f;
+					float pDist = pushDir.magnitude;
+					if (pDist < 0.38f && pDist > 0.0001f)
+					{
+						transform.position += pushDir.normalized * (0.38f - pDist);
+					}
+				}
 			}
 		}
 
@@ -266,11 +319,20 @@ public class PlayerController : MonoBehaviour
 		if (animator != null)
 			animator.SetBool("isMoving", currentSpeed > 0.1f);
 
-		// ========== 7. PHÍM BẤM ĐIỀU KHIỂN TRÊN PC ==========
+		// ========== 7. PHÍM BẤM ĐIỀU KHIỂN TRÊN PC & MOBILE ==========
 		if (Input.GetKeyDown(KeyCode.Space))
 			OnJumpButtonPressed();
 
-		if (Input.GetMouseButtonDown(0) || Input.GetKeyDown(KeyCode.E))
+		bool isPointerOverUI = false;
+		if (UnityEngine.EventSystems.EventSystem.current != null)
+		{
+			if (Input.touchCount > 0)
+				isPointerOverUI = UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(Input.GetTouch(0).fingerId);
+			else
+				isPointerOverUI = UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject();
+		}
+
+		if ((Input.GetMouseButtonDown(0) && !isPointerOverUI) || Input.GetKeyDown(KeyCode.E))
 			OnPunchButtonPressed();
 
 		if (Input.GetKeyDown(KeyCode.H))
@@ -284,6 +346,9 @@ public class PlayerController : MonoBehaviour
 
 		// ========== 9. QUÉT NHẬN SÁT THƯƠNG BẰNG RAYCAST (KHÔNG CẦN COLLIDER) ==========
 		CheckIncomingRaycastAttacks();
+
+		// ========== 10. ÂM THANH DI CHUYỂN BƯỚC CHÂN (PLayer.mp3) ==========
+		HandleMovementAudio();
 	}
 
 	/// <summary>
@@ -373,19 +438,54 @@ public class PlayerController : MonoBehaviour
 		}
 	}
 
-	// Đấm / Đào đá / Chặt cây
+	[Header("Thời Gian Chờ Hoạt Ảnh Tấn Công (Attack Animation)")]
+	public float attackAnimationDuration = 0.85f;
+	public bool IsAttacking => isAttacking;
+	private bool isAttacking = false;
+	private Coroutine attackRoutine;
+
+	// Đấm / Đào đá / Chặt cây / Tấn công: Phải đợi diễn ra xong animation mới được đánh tiếp!
 	public void OnPunchButtonPressed()
 	{
+		if (isDead) return;
+		if (isAttacking) return; // Đang chạy animation attack thì KHÔNG được đánh tiếp cho đến khi kết thúc!
+
+		if (attackRoutine != null) StopCoroutine(attackRoutine);
+		attackRoutine = StartCoroutine(AttackAnimationRoutine());
+	}
+
+	private IEnumerator AttackAnimationRoutine()
+	{
+		isAttacking = true;
+
 		if (animator != null)
+		{
+			animator.ResetTrigger("mine");
 			animator.SetTrigger("mine");
+		}
 
 		TryChopNearbyTree();
+
+		// Đợi hoạt ảnh đấm / chặt hoàn tất (0.833s ~ 0.85s)
+		yield return new WaitForSeconds(attackAnimationDuration);
+
+		isAttacking = false;
+		attackRoutine = null;
 	}
 
 	private void TryChopNearbyTree()
 	{
+		// 1. Kiểm tra bằng danh sách cây tĩnh không phụ thuộc PhysX Collider
+		ChoppableTree directTree = ChoppableTree.FindClosestChoppableTree(transform.position, 2.8f);
+		if (directTree != null && directTree.CanBeChopped)
+		{
+			directTree.Chop(1, transform);
+			return;
+		}
+
+		// 2. Quét dự phòng Physics OverlapSphere
 		Vector3 center = transform.position + transform.forward * 1.0f + Vector3.up * 0.5f;
-		Collider[] colliders = Physics.OverlapSphere(center, 2.0f);
+		Collider[] colliders = Physics.OverlapSphere(center, 2.5f, ~0, QueryTriggerInteraction.Collide);
 		ChoppableTree nearestTree = null;
 		float minDist = float.MaxValue;
 
@@ -537,6 +637,11 @@ public class PlayerController : MonoBehaviour
 		currentSpeed = 0f;
 		verticalVelocity = 0f;
 
+		if (moveAudioSource != null && moveAudioSource.isPlaying)
+		{
+			moveAudioSource.Stop();
+		}
+
 		// Kích hoạt animation chết
 		if (animator != null)
 		{
@@ -665,6 +770,19 @@ public class PlayerController : MonoBehaviour
 		Destroy(aura, 1.5f);
 	}
 
+	private void LateUpdate()
+	{
+		if (floatingHealthBarObj != null && floatingHealthBarObj.activeInHierarchy)
+		{
+			Camera cam = Camera.main;
+			if (cam != null)
+			{
+				floatingHealthBarObj.transform.rotation = cam.transform.rotation;
+				floatingHealthBarObj.transform.position = transform.position + Vector3.up * floatingBarHeight;
+			}
+		}
+	}
+
 	// ================= THANH MÁU HUD TRÊN MÀN HÌNH (GẦN TASK) =================
 
 	private void CreateHUDHealthBar()
@@ -673,13 +791,23 @@ public class PlayerController : MonoBehaviour
 		Canvas[] allCanvases = FindObjectsByType<Canvas>();
 		foreach (var c in allCanvases)
 		{
-			if (c.renderMode == RenderMode.ScreenSpaceOverlay || c.name.Contains("Shop_Canvas") || c.name.Contains("Canvas"))
+			if (c != null && c.renderMode == RenderMode.ScreenSpaceOverlay)
 			{
 				canvas = c;
 				break;
 			}
 		}
-		if (canvas == null && allCanvases.Length > 0) canvas = allCanvases[0];
+		if (canvas == null)
+		{
+			foreach (var c in allCanvases)
+			{
+				if (c != null && c.renderMode != RenderMode.WorldSpace)
+				{
+					canvas = c;
+					break;
+				}
+			}
+		}
 		if (canvas == null) return;
 
 		Transform existing = canvas.transform.Find("[HUD_Player_HealthBar]");
@@ -687,6 +815,8 @@ public class PlayerController : MonoBehaviour
 
 		GameObject hudBar = new GameObject("[HUD_Player_HealthBar]", typeof(RectTransform));
 		hudBar.transform.SetParent(canvas.transform, false);
+		hudBar.transform.SetAsLastSibling();
+
 		RectTransform rt = hudBar.GetComponent<RectTransform>();
 		rt.anchorMin = new Vector2(0f, 1f);
 		rt.anchorMax = new Vector2(0f, 1f);
@@ -734,11 +864,21 @@ public class PlayerController : MonoBehaviour
 		UpdateHealthBar();
 	}
 
+	private void DestroyFloatingHealthBar()
+	{
+		Transform existing = transform.Find("[Player_FloatingHealthBar]");
+		if (existing != null) Destroy(existing.gameObject);
+		floatingHealthBarObj = null;
+		floatingHealthBarFill = null;
+		floatingHealthBarFillImage = null;
+		floatingHealthBarText = null;
+	}
+
 	private void UpdateHealthBar()
 	{
 		float pct = maxHealth > 0f ? Mathf.Clamp01(currentHealth / maxHealth) : 0f;
 
-		// Cập nhật duy nhất thanh máu HUD trên màn hình (đã bỏ thanh máu trên đầu)
+		// 1. Cập nhật thanh máu HUD trên màn hình gần Task
 		if (hudHealthBarFill != null)
 		{
 			hudHealthBarFill.localScale = new Vector3(pct, 1f, 1f);
@@ -753,6 +893,69 @@ public class PlayerController : MonoBehaviour
 		if (hudHealthBarText != null)
 		{
 			hudHealthBarText.text = $"❤️ MÁU: {Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}";
+		}
+	}
+
+	// ================= HỆ THỐNG ÂM THANH DI CHUYỂN (PLayer.mp3) =================
+
+	private void InitMovementAudio()
+	{
+		if (moveAudioSource == null)
+		{
+			moveAudioSource = GetComponent<AudioSource>();
+			if (moveAudioSource == null) moveAudioSource = gameObject.AddComponent<AudioSource>();
+		}
+
+		moveAudioSource.loop = true;
+		moveAudioSource.playOnAwake = false;
+		moveAudioSource.spatialBlend = 0f; // 2D âm thanh trực tiếp rõ ràng
+
+		if (moveClip == null)
+		{
+#if UNITY_EDITOR
+			moveClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/PLayer.mp3");
+#endif
+			if (moveClip == null)
+			{
+				moveClip = Resources.Load<AudioClip>("PLayer");
+			}
+		}
+
+		if (moveClip != null)
+		{
+			moveAudioSource.clip = moveClip;
+		}
+	}
+
+	private void HandleMovementAudio()
+	{
+		if (moveAudioSource == null) return;
+
+		bool isMovingNow = currentSpeed > 0.15f && isGrounded && !isDead;
+		float sfxVol = GameAudioManager.Instance != null ? GameAudioManager.Instance.GetSFXVolume() : 0.85f;
+		bool isMuted = sfxVol <= 0.001f;
+
+		moveAudioSource.mute = isMuted;
+		moveAudioSource.volume = isMuted ? 0f : sfxVol * 0.75f;
+
+		if (isMovingNow)
+		{
+			if (moveAudioSource.clip == null && moveClip != null)
+			{
+				moveAudioSource.clip = moveClip;
+			}
+
+			if (moveAudioSource.clip != null && !moveAudioSource.isPlaying)
+			{
+				moveAudioSource.Play();
+			}
+		}
+		else
+		{
+			if (moveAudioSource.isPlaying)
+			{
+				moveAudioSource.Pause();
+			}
 		}
 	}
 }

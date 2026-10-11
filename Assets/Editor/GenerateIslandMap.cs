@@ -9,7 +9,7 @@ namespace RobotDefense.Editor
     [InitializeOnLoad]
     public static class GenerateIslandMap
     {
-        private const string REGEN_FLAG_KEY = "IslandMap_Expanded_V1";
+        private const string REGEN_FLAG_KEY = "IslandMap_Expanded_V2_2X";
 
         static GenerateIslandMap()
         {
@@ -38,9 +38,9 @@ namespace RobotDefense.Editor
             TerrainData tData = terrain.terrainData;
             Undo.RegisterCompleteObjectUndo(tData, "Generate Island Map");
 
-            // Kích thước mở rộng: Rộng 95m (tăng ~35%), Dài 165m (tăng ~27%), Cao 20m
-            float mapWidth = 95f;
-            float mapLength = 165f;
+            // Kích thước mở rộng gấp 2 lần: Rộng 190m (gấp đôi), Dài 330m (gấp đôi), Cao 20m
+            float mapWidth = 190f;
+            float mapLength = 330f;
             float maxHeight = 20f;
             tData.size = new Vector3(mapWidth, maxHeight, mapLength);
 
@@ -60,18 +60,18 @@ namespace RobotDefense.Editor
                 {
                     float u = (float)x / (hRes - 1); // Trục ngang (X)
 
-                    // Bán kính chiều ngang của đảo mở rộng rộng rãi hơn (0.25 thay vì 0.22)
+                    // Bán kính chiều ngang của đảo mở rộng bề thế gấp 2 lần (0.35 thay vì 0.25)
                     float uDist = Mathf.Abs(u - 0.5f);
-                    float islandHalfWidth = 0.25f + 0.04f * Mathf.Sin(v * Mathf.PI);
+                    float islandHalfWidth = 0.35f + 0.05f * Mathf.Sin(v * Mathf.PI);
 
                     // Nhiễu Perlin Noise để viền đá nhấp nhô tự nhiên
-                    float edgeNoise = (Mathf.PerlinNoise(u * 14f, v * 14f) - 0.5f) * 0.07f;
+                    float edgeNoise = (Mathf.PerlinNoise(u * 14f, v * 14f) - 0.5f) * 0.06f;
                     float effectiveBoundary = islandHalfWidth + edgeNoise;
 
-                    // Giới hạn theo chiều dọc trải dài hơn (0.07 đến 0.93)
+                    // Giới hạn theo chiều dọc trải dài hơn (0.06 đến 0.94)
                     float distFromSide = effectiveBoundary - uDist;
-                    float distFromTop = 0.93f - v;
-                    float distFromBottom = v - 0.07f;
+                    float distFromTop = 0.94f - v;
+                    float distFromBottom = v - 0.06f;
                     float edgeDist = Mathf.Min(distFromSide, Mathf.Min(distFromTop, distFromBottom));
 
                     // Tạo vách dốc đứng (Cliff)
@@ -239,8 +239,8 @@ namespace RobotDefense.Editor
             GameObject boundObj = new GameObject("_Boundaries");
             boundObj.transform.SetParent(parent, false);
 
-            float playWidth = width * 0.48f;
-            float playLength = length * 0.84f;
+            float playWidth = width * 0.68f;
+            float playLength = length * 0.86f;
 
             CreateWall(boundObj.transform, new Vector3(width/2f - playWidth/2f, islandY + 2f, length/2f), new Vector3(0.5f, 5f, playLength));
             CreateWall(boundObj.transform, new Vector3(width/2f + playWidth/2f, islandY + 2f, length/2f), new Vector3(0.5f, 5f, playLength));

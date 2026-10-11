@@ -76,9 +76,9 @@ public class UpgradableTurret : MonoBehaviour
         return false;
     }
 
-    [Header("--- Thanh Máu Nổi (World-Space HealthBar) ---")]
+    [Header("--- Thanh Máu Nổi Trên Đầu Trụ & Vũ Khí (World-Space HealthBar) ---")]
     public bool showHealthBar = true;
-    public float healthBarHeight = 3.2f;
+    public float healthBarHeight = 4.2f;
     private GameObject healthBarObj;
     private RectTransform healthBarFill;
     private UnityEngine.UI.Image healthBarFillImage;
@@ -155,6 +155,24 @@ public class UpgradableTurret : MonoBehaviour
         ApplyLevel(currentLevel);
     }
 
+    public float GetCalculatedHealthBarHeight()
+    {
+        float maxMeshY = transform.position.y;
+        Renderer[] rends = GetComponentsInChildren<Renderer>(true);
+        if (rends != null && rends.Length > 0)
+        {
+            foreach (var r in rends)
+            {
+                if (r == null || !r.enabled) continue;
+                string rn = r.name.ToLower();
+                if (rn.Contains("healthbar") || rn.Contains("sparkle") || rn.Contains("selection") || rn.Contains("range") || rn.Contains("bg") || rn.Contains("fill") || rn.Contains("line")) continue;
+                if (r.bounds.max.y > maxMeshY) maxMeshY = r.bounds.max.y;
+            }
+        }
+        float meshOverhead = (maxMeshY - transform.position.y) + 0.95f;
+        return Mathf.Max(healthBarHeight, meshOverhead);
+    }
+
     void LateUpdate()
     {
         if (healthBarObj != null)
@@ -163,7 +181,8 @@ public class UpgradableTurret : MonoBehaviour
             if (mainCamera != null)
             {
                 healthBarObj.transform.rotation = mainCamera.transform.rotation;
-                healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
+                float actualH = GetCalculatedHealthBarHeight();
+                healthBarObj.transform.position = transform.position + Vector3.up * actualH;
             }
         }
     }
@@ -175,27 +194,36 @@ public class UpgradableTurret : MonoBehaviour
         Transform existing = transform.Find("[Turret_HealthBar]");
         if (existing != null) Destroy(existing.gameObject);
 
+        float initialH = GetCalculatedHealthBarHeight();
         healthBarObj = new GameObject("[Turret_HealthBar]");
         healthBarObj.transform.SetParent(transform, false);
-        healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
+        healthBarObj.transform.position = transform.position + Vector3.up * initialH;
 
         Canvas canvas = healthBarObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = 450; // Luôn hiển thị nổi bật trên cùng
         var cs = healthBarObj.AddComponent<UnityEngine.UI.CanvasScaler>();
         cs.dynamicPixelsPerUnit = 10;
 
+        // Phóng to thanh máu vượt trội: 185f x 26f (world width ~2.5m, cực kỳ dễ nhìn từ góc camera xa)
         RectTransform rt = healthBarObj.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(115f, 16f);
-        rt.localScale = Vector3.one * 0.009f;
+        rt.sizeDelta = new Vector2(185f, 26f);
+        rt.localScale = Vector3.one * 0.0135f;
 
+        // Nền đen xám viền kim loại công nghệ
         GameObject bg = new GameObject("BG", typeof(RectTransform), typeof(UnityEngine.UI.Image));
         bg.transform.SetParent(healthBarObj.transform, false);
         RectTransform bgRt = bg.GetComponent<RectTransform>();
         bgRt.anchorMin = Vector2.zero;
         bgRt.anchorMax = Vector2.one;
         bgRt.sizeDelta = Vector2.zero;
-        bg.GetComponent<UnityEngine.UI.Image>().color = new Color(0.1f, 0.12f, 0.16f, 0.85f);
+        bg.GetComponent<UnityEngine.UI.Image>().color = new Color(0.06f, 0.08f, 0.12f, 0.94f);
+        var bgOutline = bg.AddComponent<UnityEngine.UI.Outline>();
+        bgOutline.effectColor = new Color(0.2f, 0.45f, 0.7f, 0.95f);
+        bgOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
+        // Thanh máu sinh động (Fill Bar)
         GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(UnityEngine.UI.Image));
         fill.transform.SetParent(healthBarObj.transform, false);
         healthBarFill = fill.GetComponent<RectTransform>();
@@ -204,8 +232,9 @@ public class UpgradableTurret : MonoBehaviour
         healthBarFill.sizeDelta = Vector2.zero;
         healthBarFill.pivot = new Vector2(0f, 0.5f);
         healthBarFillImage = fill.GetComponent<UnityEngine.UI.Image>();
-        healthBarFillImage.color = new Color(0.2f, 0.85f, 0.45f, 1f);
+        healthBarFillImage.color = new Color(0.15f, 0.95f, 0.45f, 1f);
 
+        // Nhãn chữ sắc nét hiển thị Tên Vũ Khí / Cấp Độ / Máu hiện tại
         GameObject txt = new GameObject("Text", typeof(RectTransform), typeof(UnityEngine.UI.Text));
         txt.transform.SetParent(healthBarObj.transform, false);
         RectTransform txtRt = txt.GetComponent<RectTransform>();
@@ -214,10 +243,13 @@ public class UpgradableTurret : MonoBehaviour
         txtRt.sizeDelta = Vector2.zero;
         healthBarText = txt.GetComponent<UnityEngine.UI.Text>();
         healthBarText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
-        healthBarText.fontSize = 11;
+        healthBarText.fontSize = 14;
         healthBarText.fontStyle = FontStyle.Bold;
         healthBarText.alignment = TextAnchor.MiddleCenter;
         healthBarText.color = Color.white;
+        var txtOutline = txt.AddComponent<UnityEngine.UI.Outline>();
+        txtOutline.effectColor = new Color(0f, 0f, 0f, 0.95f);
+        txtOutline.effectDistance = new Vector2(1.2f, -1.2f);
 
         UpdateHealthBar();
     }
@@ -231,14 +263,15 @@ public class UpgradableTurret : MonoBehaviour
         if (healthBarFillImage != null)
         {
             if (pct > 0.5f)
-                healthBarFillImage.color = Color.Lerp(new Color(1f, 0.85f, 0.2f), new Color(0.2f, 0.85f, 0.45f), (pct - 0.5f) * 2f);
+                healthBarFillImage.color = Color.Lerp(new Color(1f, 0.85f, 0.2f), new Color(0.15f, 0.95f, 0.45f), (pct - 0.5f) * 2f);
             else
                 healthBarFillImage.color = Color.Lerp(new Color(0.95f, 0.2f, 0.2f), new Color(1f, 0.85f, 0.2f), pct * 2f);
         }
 
         if (healthBarText != null)
         {
-            healthBarText.text = $"{Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}";
+            string title = !string.IsNullOrEmpty(turretDisplayName) ? turretDisplayName : $"TRỤ CẤP {currentLevel}";
+            healthBarText.text = $"<b>{title}: {Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}</b>";
         }
     }
 
@@ -758,18 +791,10 @@ public class UpgradableTurret : MonoBehaviour
             case TurretType.Phaotuhanh:
                 if (rocketLauncher != null)
                 {
-                    // Cấp 1 -> 6: 16, 22, 28, 34, 40, 48 quả
-                    rocketLauncher.rocketsPerVolley = 16 + (currentLevel - 1) * (currentLevel == 6 ? 8 : 6);
-                    // Nạp: 2.0s -> 0.75s
-                    rocketLauncher.fireCooldown = Mathf.Max(0.75f, 2.0f - (currentLevel - 1) * 0.25f);
-                    // Tầm: 30m, 34m, 38m, 42m, 46m, 50m
+                    // Cấp 1 -> 6: Cân bằng số lượng tên lửa 8 -> 18 quả, nạp đạn 2.2s -> 1.2s (giảm áp lực sát thương dồn)
+                    rocketLauncher.rocketsPerVolley = 8 + (currentLevel - 1) * 2;
+                    rocketLauncher.fireCooldown = Mathf.Max(1.2f, 2.2f - (currentLevel - 1) * 0.2f);
                     rocketLauncher.attackRange = 30f + (currentLevel - 1) * 4f;
-                    
-                    var field = rocketLauncher.GetType().GetField("rocketDamage");
-                    if (field != null)
-                    {
-                        field.SetValue(rocketLauncher, 25f + (currentLevel - 1) * 15f);
-                    }
                 }
                 break;
 
@@ -812,12 +837,12 @@ public class UpgradableTurret : MonoBehaviour
                 return $"⚡ DPS: <b>{curDps}</b> (TỐI ĐA)  |  Tầm Bắn: <b>{curRange}m</b>";
 
             case TurretType.Phaotuhanh:
-                int curRockets = 16 + (currentLevel - 1) * (currentLevel == 6 ? 8 : 6);
-                float curCd = Mathf.Max(0.75f, 2.0f - (currentLevel - 1) * 0.25f);
+                int curRockets = 8 + (currentLevel - 1) * 2;
+                float curCd = Mathf.Max(1.2f, 2.2f - (currentLevel - 1) * 0.2f);
                 if (currentLevel < MaxLevel)
                 {
-                    int nextRockets = 16 + currentLevel * (currentLevel + 1 == 6 ? 8 : 6);
-                    float nextCd = Mathf.Max(0.75f, 2.0f - currentLevel * 0.25f);
+                    int nextRockets = 8 + currentLevel * 2;
+                    float nextCd = Mathf.Max(1.2f, 2.2f - currentLevel * 0.2f);
                     return $"🚀 Loạt: <b>{curRockets} quả</b> ➔ <color=#00FFFF><b>{nextRockets} quả</b></color>  |  Nạp: <b>{curCd:F1}s</b> ➔ <color=#00FFFF><b>{nextCd:F1}s</b></color>";
                 }
                 return $"🚀 Loạt Bắn: <b>{curRockets} quả</b> (TỐI ĐA)  |  Nạp: <b>{curCd:F1}s</b>";

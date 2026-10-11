@@ -51,6 +51,7 @@ public class Enemy : MonoBehaviour
     public float attackDelay = 0.5f;
 
     private float lastAttackTime = 0f;
+    private float lastDamageTime = -999f;
     public bool isDead = false;
     private Collider myCollider;
     private float retargetTimer = 0f;
@@ -67,40 +68,102 @@ public class Enemy : MonoBehaviour
         AllEnemies.Remove(this);
     }
 
+    [Header("--- Bán Kính Va Chạm Raycast Không Dùng Collider ---")]
+    public float hitRadius = 1.2f;
+
+    /// <summary>
+    /// Tính toán va chạm trừ HP của quái vật bằng Raycast toán học (Ray-Sphere Intersection),
+    /// Hoạt động 100% chuẩn xác ngay cả khi đã xóa toàn bộ Collider trên Enemy!
+    /// </summary>
+    public static bool RaycastHitEnemy(Ray ray, float maxDistance, out Enemy hitEnemy, out Vector3 hitPoint)
+    {
+        hitEnemy = null;
+        hitPoint = Vector3.zero;
+        float closestDist = float.MaxValue;
+
+        for (int i = 0; i < AllEnemies.Count; i++)
+        {
+            Enemy e = AllEnemies[i];
+            if (e == null || e.isDead || !e.gameObject.activeInHierarchy) continue;
+
+            float r = e.hitRadius;
+            Vector3 center = e.transform.position + Vector3.up * (e.isFlying ? 1.0f : 0.8f);
+
+            // Thuật toán Ray-Sphere Intersection
+            Vector3 m = ray.origin - center;
+            float b = Vector3.Dot(m, ray.direction);
+            float c = Vector3.Dot(m, m) - r * r;
+
+            if (c > 0.0f && b > 0.0f) continue;
+
+            float discr = b * b - c;
+            if (discr < 0.0f) continue;
+
+            float t = -b - Mathf.Sqrt(discr);
+            if (t < 0.0f) t = 0.0f;
+
+            if (t <= maxDistance && t < closestDist)
+            {
+                closestDist = t;
+                hitEnemy = e;
+                hitPoint = ray.origin + ray.direction * t;
+            }
+        }
+
+        return hitEnemy != null;
+    }
+
     void Awake()
     {
         currentHealth = maxHealth;
         myCollider = GetComponent<Collider>();
         if (animator == null) animator = GetComponentInChildren<Animator>();
 
-        // Tự động xóa Rigidbody nếu có (game 3D dùng trọng lực code theo quy tắc dự án)
+        // Tối ưu CPU & Khử lỗi bay lên trời: Xóa bỏ Rigidbody và chuyển toàn bộ Collider thành Trigger
         Rigidbody rb = GetComponent<Rigidbody>();
-        if (rb != null)
+        if (rb != null) Destroy(rb);
+
+        Collider[] allCols = GetComponentsInChildren<Collider>();
+        foreach (var c in allCols)
         {
-            Destroy(rb);
+            if (c != null) c.isTrigger = true; // Tuyệt đối không dùng collider vật lý cản trở hay đẩy quái
         }
 
         // Tự động chuẩn hóa kích thước theo yêu cầu thiết kế mới nhất:
-        // 1. Boss Rồng (MechaDragon): Giảm 20% độ to (từ 5.0 xuống 4.0) -> Scale (4.0, 4.0, 4.0)
-        // 2. Bọ ngoài hành tinh (AlienBug): Tăng kích thước lên 3 lần -> Scale (3.0, 3.0, 3.0)
-        // 3. Nhện (Spider): Giảm kích thước đi 2 lần -> Scale (0.5, 0.5, 0.5)
+        // 1. Boss Rồng (MechaDragon): Giảm độ cao bay, scale 4.0
+        // 2. Bọ ngoài hành tinh (AlienBug): Scale 3.0, bò đất
+        // 3. Nhện (Spider): Scale 0.5, bò đất
         string lowerCheck = (name + " " + enemyName).ToLower();
         bool isBoss = isFlying || lowerCheck.Contains("dragon") || GetComponent<MechaDragonBoss>() != null;
 
         if (isBoss)
         {
             transform.localScale = Vector3.one * 4.0f;
+            isFlying = true;
+            flightAltitude = 1.4f; // Bay là là mặt đất 1.4m, vừa tầm mắt để người chơi nhìn rõ và tấn công thoải mái
+            hitRadius = 3.2f;
         }
         else if (lowerCheck.Contains("alienbug") || lowerCheck.Contains("bug"))
         {
             transform.localScale = Vector3.one * 3.0f;
+            isFlying = false;
+            flightAltitude = 0f;
+            hitRadius = 1.6f;
         }
         else if (lowerCheck.Contains("spider"))
         {
             transform.localScale = Vector3.one * 0.5f;
+            isFlying = false;
+            flightAltitude = 0f;
+            hitRadius = 0.9f;
         }
 
         // Lượng máu (HP): Giữ nguyên đúng chỉ số thiết kế theo từng loại quái từ Prefab (không đồng bộ số máu)
+        baseMaxHealth = maxHealth;
+        baseMoveSpeed = moveSpeed;
+        baseAttackDamage = attackDamage;
+        baseAttackCooldown = attackCooldown;
+        baseGoldReward = goldReward;
         currentHealth = maxHealth;
 
         // Tự động bù góc 180 độ cho Nhện nếu chưa đặt (vì model gốc hướng đầu về -Z)
@@ -176,6 +239,12 @@ public class Enemy : MonoBehaviour
         return 3.2f; // AlienBug scale 3.0 -> thanh máu cao 3.2m
     }
 
+    private float baseMaxHealth;
+    private float baseMoveSpeed;
+    private float baseAttackDamage;
+    private float baseAttackCooldown;
+    private int baseGoldReward;
+
     void Start()
     {
         mainCamera = Camera.main;
@@ -184,6 +253,49 @@ public class Enemy : MonoBehaviour
         SnapToGroundImmediately();
         FindTarget();
         CreateFloatingHealthBar();
+        ApplyDayNightModifiers();
+    }
+
+    /// <summary>
+    /// Điều chỉnh chỉ số Quái vật theo Ngày / Đêm & Tăng dần độ khó theo từng Đêm:
+    /// - Ban ngày: Tốc độ tấn công chậm hơn 40% (cooldown x1.40), sát thương giảm 40% (-40% DMG) để người chơi dễ farm vàng chuẩn bị phòng thủ.
+    /// - Ban đêm: Càng sang các đêm sau (Đêm 2, Đêm 3...) quái vật càng mạnh hơn (+20% HP & DMG mỗi đêm), rơi nhiều vàng hơn!
+    /// </summary>
+    public void ApplyDayNightModifiers()
+    {
+        if (DayNightSystem.Instance == null) return;
+        if (baseMaxHealth <= 0f) baseMaxHealth = maxHealth;
+        if (baseMoveSpeed <= 0f) baseMoveSpeed = moveSpeed;
+        if (baseAttackDamage <= 0f) baseAttackDamage = attackDamage;
+        if (baseAttackCooldown <= 0f) baseAttackCooldown = attackCooldown;
+        if (baseGoldReward <= 0) baseGoldReward = goldReward;
+
+        bool isNight = DayNightSystem.Instance.isNight;
+        int currentDay = DayNightSystem.Instance.currentDay;
+
+        if (isNight)
+        {
+            // Ban đêm: Càng sang đêm sau quái càng mạnh hơn một chút (+20% HP & DMG mỗi đêm)
+            float nightProgress = 1.0f + Mathf.Max(0, currentDay - 1) * 0.20f;
+
+            attackDamage = baseAttackDamage * 1.35f * nightProgress;
+            attackCooldown = Mathf.Max(0.55f, baseAttackCooldown * 0.85f); // Tấn công nhanh dồn dập
+            maxHealth = baseMaxHealth * 1.20f * nightProgress;
+            moveSpeed = baseMoveSpeed * 1.20f;
+            goldReward = Mathf.CeilToInt(baseGoldReward * nightProgress);
+        }
+        else
+        {
+            // Ban ngày: Tốc độ tấn công yếu hơn / chậm hơn 40%, sát thương giảm 40% để người chơi farm vàng
+            attackDamage = baseAttackDamage * 0.60f;
+            attackCooldown = baseAttackCooldown * 1.40f; // Chậm hơn 40%
+            maxHealth = baseMaxHealth * 0.90f;
+            moveSpeed = baseMoveSpeed * 1.15f;
+            goldReward = Mathf.Max(12, baseGoldReward);
+        }
+
+        currentHealth = Mathf.Min(currentHealth, maxHealth);
+        UpdateHealthBar();
     }
 
     public void FindTarget()
@@ -460,84 +572,86 @@ public class Enemy : MonoBehaviour
     {
         if (healthBarObj != null)
         {
-            if (mainCamera == null) mainCamera = Camera.main;
-            if (mainCamera != null)
-            {
-                healthBarObj.transform.rotation = mainCamera.transform.rotation;
-                healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
+            // ================= QUY TẮC HIỂN THỊ THANH MÁU THÔNG MINH =================
+            // 1. Khi bị tấn công (TakeDamage): Hiện ngay lập tức!
+            // 2. Nếu không bị tấn công trong 5s: Tự động ẩn đi!
+            // 3. Nếu máu dưới 50%: LUÔN LUÔN HIỆN!
+            bool isLowHp = (maxHealth > 0f && (currentHealth / maxHealth) <= 0.5f);
+            bool isRecentlyAttacked = (Time.time - lastDamageTime <= 5.0f);
+            bool shouldShowBar = showHealthBar && (isLowHp || isRecentlyAttacked) && !isDead;
 
-                // Đồng bộ kích thước hiển thị của thanh HP tuyệt đối trong World Space:
-                // Khử ảnh hưởng của scale model cha (Bug scale 3x hay Spider scale 0.5x đều có kích thước thanh máu bằng nhau)
-                Vector3 pLossy = transform.lossyScale;
-                float sx = pLossy.x > 0.001f ? (1f / pLossy.x) : 1f;
-                float sy = pLossy.y > 0.001f ? (1f / pLossy.y) : 1f;
-                float sz = pLossy.z > 0.001f ? (1f / pLossy.z) : 1f;
-                healthBarObj.transform.localScale = new Vector3(sx * 0.012f, sy * 0.012f, sz * 0.012f);
+            if (healthBarObj.activeSelf != shouldShowBar)
+            {
+                healthBarObj.SetActive(shouldShowBar);
+            }
+
+            if (shouldShowBar)
+            {
+                if (mainCamera == null) mainCamera = Camera.main;
+                if (mainCamera != null)
+                {
+                    healthBarObj.transform.rotation = mainCamera.transform.rotation;
+                    healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
+
+                    // Đồng bộ kích thước hiển thị của thanh HP to rõ nét (scale 0.020f world space)
+                    Vector3 pLossy = transform.lossyScale;
+                    float sx = pLossy.x > 0.001f ? (1f / pLossy.x) : 1f;
+                    float sy = pLossy.y > 0.001f ? (1f / pLossy.y) : 1f;
+                    float sz = pLossy.z > 0.001f ? (1f / pLossy.z) : 1f;
+                    healthBarObj.transform.localScale = new Vector3(sx * 0.020f, sy * 0.020f, sz * 0.020f);
+                }
             }
         }
     }
 
     // ================= TRỌNG LỰC BẰNG CODE CHO GAME 3D (RULE 8) =================
+    private float GetTrueGroundY(Vector3 pos)
+    {
+        // 1. ƯU TIÊN TUYỆT ĐỐI 100%: Lấy độ cao chuẩn từ Terrain của Unity
+        if (Terrain.activeTerrain != null)
+        {
+            return Terrain.activeTerrain.SampleHeight(pos) + Terrain.activeTerrain.transform.position.y;
+        }
+
+        // 2. Dự phòng nếu không có Terrain: Raycast chỉ lấy bề mặt đảo dưới chân, loại trừ cây cối, đá, tường, quái
+        if (Physics.Raycast(new Vector3(pos.x, 35f, pos.z), Vector3.down, out RaycastHit hit, 50f))
+        {
+            string hitName = hit.collider.name.ToLower();
+            if (!hitName.Contains("bullet") && !hitName.Contains("enemy") && !hitName.Contains("wall") && !hitName.Contains("tree") && !hitName.Contains("rock"))
+            {
+                return hit.point.y;
+            }
+        }
+
+        return 9.5f; // Độ cao mặc định mặt đất căn cứ
+    }
+
     private void SnapToGroundImmediately()
     {
         Vector3 currentPos = transform.position;
-        Vector3 rayOrigin = new Vector3(currentPos.x, currentPos.y + 15f, currentPos.z);
-        int layerMask = ~LayerMask.GetMask("Enemy");
-        float groundY = currentPos.y;
-        bool hasGround = false;
-
-        if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 35f, layerMask, QueryTriggerInteraction.Ignore))
-        {
-            groundY = hit.point.y;
-            hasGround = true;
-        }
-        else if (Terrain.activeTerrain != null)
-        {
-            groundY = Terrain.activeTerrain.SampleHeight(currentPos) + Terrain.activeTerrain.transform.position.y;
-            hasGround = true;
-        }
-
-        if (hasGround)
-        {
-            currentPos.y = isFlying ? (groundY + flightAltitude) : groundY;
-            transform.position = currentPos;
-        }
+        float groundY = GetTrueGroundY(currentPos);
+        currentPos.y = isFlying ? (groundY + flightAltitude) : groundY;
+        transform.position = currentPos;
     }
 
     private void ApplyGroundGravity()
     {
         Vector3 currentPos = transform.position;
-        Vector3 rayOrigin = new Vector3(currentPos.x, currentPos.y + (isFlying ? 15f : 4f), currentPos.z);
-        int layerMask = ~LayerMask.GetMask("Enemy");
-        float groundY = currentPos.y;
-        bool hasGround = false;
+        float groundY = GetTrueGroundY(currentPos);
 
-        if (Physics.Raycast(rayOrigin, Vector3.down, out RaycastHit hit, 30f, layerMask, QueryTriggerInteraction.Ignore))
+        if (isFlying)
         {
-            groundY = hit.point.y;
-            hasGround = true;
+            // Quái bay (Rồng): Bay lượn vừa tầm mắt người chơi ở độ cao 1.4m để dễ nhìn và dễ tấn công
+            float targetY = groundY + flightAltitude + Mathf.Sin(Time.time * hoverBobSpeed) * 0.2f;
+            currentPos.y = Mathf.MoveTowards(currentPos.y, targetY, 8f * Time.deltaTime);
         }
-        else if (Terrain.activeTerrain != null)
+        else
         {
-            groundY = Terrain.activeTerrain.SampleHeight(currentPos) + Terrain.activeTerrain.transform.position.y;
-            hasGround = true;
+            // Quái bò đất: Khóa chặt vào mặt đất, TUYỆT ĐỐI KHÔNG THỂ BAY LÊN TRỜI
+            currentPos.y = groundY;
         }
 
-        if (hasGround)
-        {
-            if (isFlying)
-            {
-                // Quái bay: duy trì độ cao lượn êm ái trên không theo hình sin
-                float targetY = groundY + flightAltitude + Mathf.Sin(Time.time * hoverBobSpeed) * hoverBobAmount;
-                currentPos.y = Mathf.MoveTowards(currentPos.y, targetY, 12f * Time.deltaTime);
-            }
-            else
-            {
-                // Quái bò đất: bám sát mặt đất
-                currentPos.y = Mathf.MoveTowards(currentPos.y, groundY, 20f * Time.deltaTime);
-            }
-            transform.position = currentPos;
-        }
+        transform.position = currentPos;
     }
 
     void Attack()
@@ -656,6 +770,8 @@ public class Enemy : MonoBehaviour
     {
         if (isDead) return;
 
+        lastDamageTime = Time.time; // Cập nhật thời điểm bị tấn công để hiện thanh máu trong 5s
+
         var boss = GetComponent<MechaDragonBoss>();
         if (boss != null && boss.isShieldActive)
         {
@@ -752,18 +868,18 @@ public class Enemy : MonoBehaviour
 
         RectTransform rt = healthBarObj.GetComponent<RectTransform>();
         bool isBoss = isFlying || maxHealth >= 500f;
-        float barWidth = isBoss ? 240f : 140f;
-        float barHeight = isBoss ? 28f : 18f;
+        float barWidth = isBoss ? 280f : 180f;
+        float barHeight = isBoss ? 32f : 24f;
         rt.sizeDelta = new Vector2(barWidth, barHeight);
 
-        // Khử scale của model cha để thanh máu có kích thước chuẩn đồng nhất
+        // Khử scale của model cha để thanh máu có kích thước to rõ nét (scale 0.020f)
         Vector3 parentLossy = transform.lossyScale;
         float sx = parentLossy.x > 0.001f ? (1f / parentLossy.x) : 1f;
         float sy = parentLossy.y > 0.001f ? (1f / parentLossy.y) : 1f;
         float sz = parentLossy.z > 0.001f ? (1f / parentLossy.z) : 1f;
-        rt.localScale = new Vector3(sx * 0.012f, sy * 0.012f, sz * 0.012f);
+        rt.localScale = new Vector3(sx * 0.020f, sy * 0.020f, sz * 0.020f);
 
-        // Khung nền đen xám viền (KHÔNG dùng Outline để tránh nhân bản đỉnh tạo cảm giác 3 thanh máu)
+        // Khung nền đen đậm viền sắc nét
         GameObject bg = new GameObject("Background", typeof(RectTransform), typeof(Image));
         bg.transform.SetParent(healthBarObj.transform, false);
         RectTransform bgRt = bg.GetComponent<RectTransform>();
@@ -771,9 +887,13 @@ public class Enemy : MonoBehaviour
         bgRt.anchorMax = Vector2.one;
         bgRt.sizeDelta = Vector2.zero;
         Image bgImg = bg.GetComponent<Image>();
-        bgImg.color = isBoss ? new Color(0.12f, 0.04f, 0.06f, 0.95f) : new Color(0.12f, 0.12f, 0.12f, 0.85f);
+        bgImg.color = isBoss ? new Color(0.08f, 0.02f, 0.03f, 0.95f) : new Color(0.05f, 0.05f, 0.07f, 0.92f);
+        
+        var bgOutline = bg.AddComponent<Outline>();
+        bgOutline.effectColor = isBoss ? new Color(1f, 0.3f, 0.1f, 0.8f) : new Color(0.1f, 0.4f, 0.7f, 0.8f);
+        bgOutline.effectDistance = new Vector2(1f, -1f);
 
-        // Thanh fill máu đơn nhất
+        // Thanh fill máu sinh động
         GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(Image));
         fill.transform.SetParent(healthBarObj.transform, false);
         healthBarFill = fill.GetComponent<RectTransform>();
@@ -783,9 +903,9 @@ public class Enemy : MonoBehaviour
         healthBarFill.pivot = new Vector2(0f, 0.5f);
         healthBarFill.anchoredPosition = Vector2.zero;
         healthBarFillImage = fill.GetComponent<Image>();
-        healthBarFillImage.color = isBoss ? new Color(1f, 0.18f, 0.25f, 1f) : new Color(0.95f, 0.25f, 0.25f, 1f);
+        healthBarFillImage.color = isBoss ? new Color(1f, 0.18f, 0.25f, 1f) : new Color(0.2f, 0.95f, 0.45f, 1f);
 
-        // Text hiển thị số HP
+        // Text hiển thị số HP to, rõ nét, có viền đen tương phản
         GameObject textObj = new GameObject("HP_Text", typeof(RectTransform), typeof(Text));
         textObj.transform.SetParent(healthBarObj.transform, false);
         RectTransform textRt = textObj.GetComponent<RectTransform>();
@@ -795,12 +915,19 @@ public class Enemy : MonoBehaviour
         healthBarText = textObj.GetComponent<Text>();
         Font font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
         healthBarText.font = font;
-        healthBarText.fontSize = isBoss ? 15 : 11;
+        healthBarText.fontSize = isBoss ? 17 : 14;
         healthBarText.fontStyle = FontStyle.Bold;
         healthBarText.alignment = TextAnchor.MiddleCenter;
         healthBarText.color = Color.white;
+        
+        var txtOutline = textObj.AddComponent<Outline>();
+        txtOutline.effectColor = new Color(0f, 0f, 0f, 0.95f);
+        txtOutline.effectDistance = new Vector2(1.2f, -1.2f);
 
         UpdateHealthBar();
+
+        // Mặc định ban đầu (chưa bị tấn công và HP >= 50%): ẩn thanh máu
+        healthBarObj.SetActive(false);
     }
 
     public void UpdateHealthBar()
@@ -815,14 +942,14 @@ public class Enemy : MonoBehaviour
             bool isBoss = isFlying || maxHealth >= 500f;
             if (isBoss)
             {
-                healthBarFillImage.color = Color.Lerp(new Color(0.8f, 0.1f, 0.1f), new Color(1f, 0.25f, 0.35f), pct);
+                healthBarFillImage.color = Color.Lerp(new Color(0.85f, 0.1f, 0.1f), new Color(1f, 0.35f, 0.45f), pct);
             }
             else
             {
                 if (pct > 0.5f)
-                    healthBarFillImage.color = Color.Lerp(new Color(1f, 0.7f, 0.1f), new Color(0.95f, 0.25f, 0.25f), (1f - pct) * 2f);
+                    healthBarFillImage.color = Color.Lerp(new Color(1f, 0.85f, 0.15f), new Color(0.2f, 0.95f, 0.45f), (pct - 0.5f) * 2f);
                 else
-                    healthBarFillImage.color = new Color(0.95f, 0.15f, 0.15f);
+                    healthBarFillImage.color = Color.Lerp(new Color(0.95f, 0.15f, 0.15f), new Color(1f, 0.85f, 0.15f), pct * 2f);
             }
         }
 
@@ -830,9 +957,9 @@ public class Enemy : MonoBehaviour
         {
             bool isBoss = isFlying || maxHealth >= 500f;
             if (isBoss)
-                healthBarText.text = $"👑 BOSS: {Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}";
+                healthBarText.text = $"<b>👑 BOSS: {Mathf.CeilToInt(currentHealth)} / {Mathf.CeilToInt(maxHealth)}</b>";
             else
-                healthBarText.text = $"{Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}";
+                healthBarText.text = $"<b>{Mathf.CeilToInt(currentHealth)} / {Mathf.CeilToInt(maxHealth)}</b>";
         }
     }
 }

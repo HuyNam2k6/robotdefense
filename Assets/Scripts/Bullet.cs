@@ -59,7 +59,19 @@ public class Bullet : MonoBehaviour
 
 		float step = speed * Time.deltaTime;
 
-		// 100% Raycast: Quét tia Raycast về phía trước dọc theo đường đạn bay mỗi frame
+		// 1. Raycast toán học trừ HP Enemy trực tiếp (Không cần Collider trên Enemy)
+		if (Enemy.RaycastHitEnemy(new Ray(transform.position, direction), step * 1.35f, out Enemy hitEnemy, out Vector3 enemyHitPos))
+		{
+			hasHit = true;
+			transform.position = enemyHitPos;
+			hitEnemy.TakeDamage(damage);
+			Debug.Log($"<color=red>[Đạn Lửa]</color> Raycast trúng Enemy: {hitEnemy.name}! Trừ {damage} HP!");
+			SpawnImpactEffect(enemyHitPos, true);
+			Destroy(gameObject);
+			return;
+		}
+
+		// 2. 100% Raycast: Quét tia Raycast về phía trước dọc theo đường đạn bay mỗi frame
 		if (Physics.Raycast(transform.position, direction, out RaycastHit hit, step * 1.25f, hitMask, QueryTriggerInteraction.Ignore))
 		{
 			Collider hitCol = hit.collider;

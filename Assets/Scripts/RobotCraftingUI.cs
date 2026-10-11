@@ -33,22 +33,23 @@ public class RobotCraftingUI : MonoBehaviour
     public Text headerTitleText;
     public Text armyStatusText;
 
-    [Header("--- Chi Phí Sản Xuất 4 Robot (Tùy Chỉnh Linh Hoạt Trong Inspector) ---")]
-    public RobotCostData[] robotCosts = new RobotCostData[4]
+    [Header("--- Chi Phí Sản Xuất Robot (Tùy Chỉnh Linh Hoạt Trong Inspector) ---")]
+    public RobotCostData[] robotCosts = new RobotCostData[5]
     {
         new RobotCostData { goldCost = 0, woodCost = 0, diamondCost = 0 }, // 01 Stan
         new RobotCostData { goldCost = 0, woodCost = 0, diamondCost = 0 }, // 02 Mike
         new RobotCostData { goldCost = 0, woodCost = 0, diamondCost = 0 }, // 03 George
-        new RobotCostData { goldCost = 0, woodCost = 0, diamondCost = 0 }  // 04 Leela
+        new RobotCostData { goldCost = 0, woodCost = 0, diamondCost = 0 }, // 04 Leela
+        new RobotCostData { goldCost = 0, woodCost = 0, diamondCost = 0 }  // 05 Robot Farm Đá
     };
 
-    [Header("--- Icon Hình Ảnh 4 Robot Thực Tế ---")]
-    public Sprite[] robotSprites = new Sprite[4];
+    [Header("--- Icon Hình Ảnh Robot Thực Tế ---")]
+    public Sprite[] robotSprites = new Sprite[5];
     public Image[] robotIconImages;
 
-    [Header("--- 4 Nút Chế Tạo & Nút [!] Thông Số ---")]
-    public Button[] craftButtons; // Index 0: Stan, 1: Mike, 2: George, 3: Leela
-    public Button[] infoButtons;  // Index 0: Stan, 1: Mike, 2: George, 3: Leela
+    [Header("--- Các Nút Chế Tạo & Nút [!] Thông Số ---")]
+    public Button[] craftButtons; // Index 0: Stan, 1: Mike, 2: George, 3: Leela, 4: Miner
+    public Button[] infoButtons;  // Index 0: Stan, 1: Mike, 2: George, 3: Leela, 4: Miner
     public Text[] robotNameTexts;
     public Text[] robotCostTexts; // Hiển thị: 🪙 0  🪵 0  💎 0
     public Text[] robotDescTexts;
@@ -66,7 +67,7 @@ public class RobotCraftingUI : MonoBehaviour
     // Tham chiếu Nhà máy đang tương tác
     private RobotFactory currentFactory;
 
-    // Dữ liệu chi tiết 4 Robot
+    // Dữ liệu chi tiết 5 Robot (Stan, Mike, George, Leela, Robot Farm Đá)
     public struct RobotData
     {
         public string name;
@@ -134,6 +135,19 @@ public class RobotCraftingUI : MonoBehaviour
             speed = 4.0f,
             skills = "• Bắn Tỉa Laser Chuẩn Xác (Shoot - 80%)\n• Cú Đá Móc Tự Vệ Cận Chiến (Kick - 20%)",
             desc = "Xạ thủ bắn tỉa tầm xa (60 HP / 40 DMG), hạ gục quái vật trước khi chúng kịp tới gần căn cứ."
+        },
+        new RobotData
+        {
+            name = "Robot Farm Đá",
+            titleInCard = "ROBOT FARM ĐÁ",
+            role = "Khai Thác Mỏ Đá Tự Động",
+            iconEmoji = "⛏️",
+            hp = 90f,
+            damage = 15f,
+            range = 2.0f,
+            speed = 3.5f,
+            skills = "• Cuốc Sắt Khai Thác Mỏ (MineHit)\n• Tự Động Tìm Mỏ Đá Quanh Đảo",
+            desc = "Robot công nhân cầm cuốc sắt đi khắp đảo đập đá mỏ, tự động thu gom đá quý về kho chứa căn cứ."
         }
     };
 
@@ -180,6 +194,7 @@ public class RobotCraftingUI : MonoBehaviour
         }
 
         UpdateCostDisplays();
+        RefreshRobotIcons();
     }
 
     void Update()
@@ -199,7 +214,53 @@ public class RobotCraftingUI : MonoBehaviour
         {
             mainCraftingPanel.SetActive(true);
             UpdateCostDisplays();
+            RefreshRobotIcons();
             UpdateLivePanelStatus();
+        }
+    }
+
+    public void RefreshRobotIcons()
+    {
+        string[] iconFiles = new string[] { "Icon_Stan.png", "Icon_Mike.png", "Icon_George.png", "Icon_Leela.png", "Icon_Miner.png" };
+        
+        if (robotSprites == null || robotSprites.Length < iconFiles.Length)
+        {
+            robotSprites = new Sprite[iconFiles.Length];
+        }
+
+        for (int i = 0; i < iconFiles.Length; i++)
+        {
+            if (robotSprites[i] == null)
+            {
+#if UNITY_EDITOR
+                robotSprites[i] = UnityEditor.AssetDatabase.LoadAssetAtPath<Sprite>($"Assets/UI/RobotIcons/{iconFiles[i]}");
+#endif
+                if (robotSprites[i] == null)
+                {
+                    string path = System.IO.Path.Combine(Application.dataPath, "UI/RobotIcons", iconFiles[i]);
+                    if (System.IO.File.Exists(path))
+                    {
+                        byte[] bytes = System.IO.File.ReadAllBytes(path);
+                        Texture2D tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                        if (tex.LoadImage(bytes))
+                        {
+                            robotSprites[i] = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+                        }
+                    }
+                }
+            }
+        }
+
+        if (robotIconImages != null)
+        {
+            for (int i = 0; i < robotIconImages.Length; i++)
+            {
+                if (robotIconImages[i] != null && i < robotSprites.Length && robotSprites[i] != null)
+                {
+                    robotIconImages[i].sprite = robotSprites[i];
+                    robotIconImages[i].preserveAspect = true;
+                }
+            }
         }
     }
 
@@ -440,8 +501,16 @@ public class RobotCraftingUI : MonoBehaviour
 
                     if (isUnlocked)
                     {
-                        if (btnTxt != null) btnTxt.text = "⚡ <b>SẢN XUẤT</b>";
-                        if (btnImg != null) btnImg.color = new Color(0.12f, 0.75f, 0.35f, 1f);
+                        if (i == 4 && mineBotFarm.AllMiners.Count >= 4)
+                        {
+                            if (btnTxt != null) btnTxt.text = "🔒 <b>4/4 (MAX)</b>";
+                            if (btnImg != null) btnImg.color = new Color(0.42f, 0.44f, 0.48f, 0.95f);
+                        }
+                        else
+                        {
+                            if (btnTxt != null) btnTxt.text = "⚡ <b>SẢN XUẤT</b>";
+                            if (btnImg != null) btnImg.color = new Color(0.12f, 0.75f, 0.35f, 1f);
+                        }
                     }
                     else
                     {

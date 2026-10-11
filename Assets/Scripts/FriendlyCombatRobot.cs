@@ -571,7 +571,7 @@ public class FriendlyCombatRobot : MonoBehaviour
             }
             if (maxTop > float.MinValue + 10f)
             {
-                float computedHeight = (maxTop - transform.position.y) + 0.35f;
+                float computedHeight = (maxTop - transform.position.y) + 0.75f;
                 if (computedHeight > 1.2f) return computedHeight;
             }
         }
@@ -579,11 +579,11 @@ public class FriendlyCombatRobot : MonoBehaviour
         // 2. Chiều cao tiêu chuẩn theo từng Class
         switch (robotClass)
         {
-            case RobotClass.Mike_Brawler: return 3.8f;
-            case RobotClass.George_Assassin: return 3.6f;
-            case RobotClass.Leela_Sniper: return 3.4f;
-            case RobotClass.Stan_Artillery: return 2.6f;
-            default: return 3.2f;
+            case RobotClass.Mike_Brawler: return 4.2f;
+            case RobotClass.George_Assassin: return 4.0f;
+            case RobotClass.Leela_Sniper: return 3.8f;
+            case RobotClass.Stan_Artillery: return 3.2f;
+            default: return 3.6f;
         }
     }
 
@@ -603,7 +603,7 @@ public class FriendlyCombatRobot : MonoBehaviour
         bg.name = "BG";
         bg.transform.SetParent(hpBarRoot, false);
         bg.transform.localPosition = Vector3.zero;
-        bg.transform.localScale = new Vector3(1.1f, 0.14f, 1f);
+        bg.transform.localScale = new Vector3(1.6f, 0.22f, 1f);
         Collider colBg = bg.GetComponent<Collider>();
         if (colBg != null) Destroy(colBg);
 
@@ -612,7 +612,7 @@ public class FriendlyCombatRobot : MonoBehaviour
         {
             Shader sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
             Material mBg = new Material(sh);
-            mBg.color = new Color(0.1f, 0.12f, 0.16f, 0.9f);
+            mBg.color = new Color(0.08f, 0.1f, 0.15f, 0.95f);
             rBg.material = mBg;
         }
 
@@ -621,7 +621,7 @@ public class FriendlyCombatRobot : MonoBehaviour
         fg.name = "FG";
         fg.transform.SetParent(hpBarRoot, false);
         fg.transform.localPosition = new Vector3(0f, 0f, -0.01f);
-        fg.transform.localScale = new Vector3(1.06f, 0.10f, 1f);
+        fg.transform.localScale = new Vector3(1.54f, 0.17f, 1f);
         Collider colFg = fg.GetComponent<Collider>();
         if (colFg != null) Destroy(colFg);
 

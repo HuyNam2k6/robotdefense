@@ -750,6 +750,7 @@ MonoBehaviour:
   shootPoint: {fileID: 0}
   attackDelay: 0.5
   isDead: 0
+  hitRadius: 1.2
 --- !u!1 &4401838235255887427
 GameObject:
   m_ObjectHideFlags: 0

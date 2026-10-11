@@ -47,7 +47,7 @@ public class WallSegment : MonoBehaviour
 
     [Header("--- Thanh Máu Nổi (World-Space HealthBar) ---")]
     public bool showHealthBar = true;
-    public float healthBarHeight = 1.85f;
+    public float healthBarHeight = 2.2f;
     private GameObject healthBarObj;
     private RectTransform healthBarFill;
     private UnityEngine.UI.Image healthBarFillImage;
@@ -84,9 +84,12 @@ public class WallSegment : MonoBehaviour
     private static Texture2D sharedSparkleTexture;
     private static Material sharedSparkleMaterial;
 
+    public static readonly Vector3 StandardWallScale = new Vector3(1.5f, 0.95f, 1.5f);
+
     public void SetBaseScale(Vector3 scale)
     {
-        baseScale = scale;
+        baseScale = new Vector3(scale.x, 0.95f, scale.z);
+        transform.localScale = baseScale;
     }
 
     void OnEnable()
@@ -103,13 +106,15 @@ public class WallSegment : MonoBehaviour
     {
         cachedRenderers = GetComponentsInChildren<Renderer>(true);
         propBlock = new MaterialPropertyBlock();
-        baseScale = transform.localScale;
+        baseScale = new Vector3(transform.localScale.x <= 1.05f ? 1.5f : transform.localScale.x, 0.95f, transform.localScale.z <= 1.05f ? 1.5f : transform.localScale.z);
+        transform.localScale = baseScale;
         baseLocalPosition = transform.localPosition;
     }
 
     void Start()
     {
-        if (baseScale == Vector3.zero) baseScale = transform.localScale;
+        baseScale = new Vector3(transform.localScale.x <= 1.05f ? 1.5f : transform.localScale.x, 0.95f, transform.localScale.z <= 1.05f ? 1.5f : transform.localScale.z);
+        transform.localScale = baseScale;
         if (baseLocalPosition == Vector3.zero) baseLocalPosition = transform.localPosition;
 
         EnsureSparkleParticles();
@@ -151,12 +156,14 @@ public class WallSegment : MonoBehaviour
 
         Canvas canvas = healthBarObj.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = 380;
         var cs = healthBarObj.AddComponent<UnityEngine.UI.CanvasScaler>();
         cs.dynamicPixelsPerUnit = 10;
 
         RectTransform rt = healthBarObj.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(110f, 16f);
-        rt.localScale = Vector3.one * 0.009f;
+        rt.sizeDelta = new Vector2(145f, 22f);
+        rt.localScale = Vector3.one * 0.0115f;
 
         GameObject bg = new GameObject("BG", typeof(RectTransform), typeof(UnityEngine.UI.Image));
         bg.transform.SetParent(healthBarObj.transform, false);
@@ -164,7 +171,10 @@ public class WallSegment : MonoBehaviour
         bgRt.anchorMin = Vector2.zero;
         bgRt.anchorMax = Vector2.one;
         bgRt.sizeDelta = Vector2.zero;
-        bg.GetComponent<UnityEngine.UI.Image>().color = new Color(0.1f, 0.12f, 0.16f, 0.85f);
+        bg.GetComponent<UnityEngine.UI.Image>().color = new Color(0.08f, 0.1f, 0.14f, 0.92f);
+        var bgOutline = bg.AddComponent<UnityEngine.UI.Outline>();
+        bgOutline.effectColor = new Color(0.2f, 0.4f, 0.6f, 0.9f);
+        bgOutline.effectDistance = new Vector2(1.2f, -1.2f);
 
         GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(UnityEngine.UI.Image));
         fill.transform.SetParent(healthBarObj.transform, false);
@@ -184,10 +194,13 @@ public class WallSegment : MonoBehaviour
         txtRt.sizeDelta = Vector2.zero;
         healthBarText = txt.GetComponent<UnityEngine.UI.Text>();
         healthBarText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
-        healthBarText.fontSize = 11;
+        healthBarText.fontSize = 13;
         healthBarText.fontStyle = FontStyle.Bold;
         healthBarText.alignment = TextAnchor.MiddleCenter;
         healthBarText.color = Color.white;
+        var txtOutline = txt.AddComponent<UnityEngine.UI.Outline>();
+        txtOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
+        txtOutline.effectDistance = new Vector2(1f, -1f);
 
         UpdateHealthBar();
     }
@@ -208,7 +221,7 @@ public class WallSegment : MonoBehaviour
 
         if (healthBarText != null)
         {
-            healthBarText.text = $"{Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}";
+            healthBarText.text = $"<b>Tường: {Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}</b>";
         }
     }
 
@@ -248,7 +261,8 @@ public class WallSegment : MonoBehaviour
     {
         if (baseScale == Vector3.zero) baseScale = transform.localScale;
         if (baseScale.x <= 1.05f && transform.localScale.x > 1.1f) baseScale = transform.localScale;
-        if (baseScale == Vector3.one || baseScale.x <= 1.05f) baseScale = Vector3.one * 1.5f;
+        if (baseScale == Vector3.one || baseScale.x <= 1.05f) baseScale = StandardWallScale;
+        baseScale = new Vector3(baseScale.x, 0.95f, baseScale.z);
         return baseScale;
     }
 

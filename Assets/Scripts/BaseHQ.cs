@@ -30,7 +30,7 @@ public class BaseHQ : MonoBehaviour
 
     public static readonly float[] HealthPerLevel = new float[] { 2000f, 3500f, 5500f, 8000f };
     public static readonly int[] UpgradeCoinsCost = new int[] { 100, 250, 500 };
-    public static readonly int[] UpgradeWoodCost = new int[] { 50, 120, 250 };
+    public static readonly int[] UpgradeWoodCost = new int[] { 0, 0, 0 };
     public static readonly int[] UpgradeStoneCost = new int[] { 50, 120, 250 };
 
     public static int CurrentMapLevel => Instance != null ? Instance.level : 1;
@@ -53,7 +53,7 @@ public class BaseHQ : MonoBehaviour
     [Header("=== CHI PHÍ SỬA CHỮA CĂN CỨ ===")]
     public int repairCostCoins = 15;
     public int repairCostStone = 10;
-    public int repairCostWood = 10;
+    public int repairCostWood = 0;
     public float repairHealthAmount = 350f;
 
     [Header("=== CỐ ĐỊNH VỊ TRÍ BAN ĐẦU ===")]
@@ -63,7 +63,7 @@ public class BaseHQ : MonoBehaviour
     private bool isPositionLocked = false;
 
     [Header("=== THANH MÁU NỔI (WORLD-SPACE HEALTHBAR) ===")]
-    public float healthBarHeight = 5.2f;
+    public float healthBarHeight = 7.5f;
     private GameObject healthBarObj;
     private RectTransform healthBarFill;
     private Image healthBarFillImage;
@@ -347,7 +347,11 @@ public class BaseHQ : MonoBehaviour
     {
         if (WallSelectionManager.Instance != null)
         {
-            WallSelectionManager.Instance.DeselectAll();
+            // Bỏ chọn các công trình khác nhưng DUY TRÌ NHẤP NHÁY LIÊN TỤC cho Nhà Chính
+            WallSelectionManager.Instance.DeselectWall();
+            WallSelectionManager.Instance.DeselectTurret();
+            WallSelectionManager.Instance.DeselectFactory();
+            WallSelectionManager.Instance.SetPersistentBlinkTarget(transform);
         }
 
         BuildingShopUI shop = FindAnyObjectByType<BuildingShopUI>();
@@ -366,12 +370,17 @@ public class BaseHQ : MonoBehaviour
             UpdateHQPanelUI();
         }
 
-        Debug.Log("<color=#00FFFF>🏛️ [BaseHQ]</color> Đã chọn Nhà Chính! Hiển thị 2 nút [THÔNG TIN] và [NÂNG CẤP].");
+        Debug.Log("<color=#00FFFF>🏛️ [BaseHQ]</color> Đã chọn Nhà Chính! Toàn bộ mô hình nhấp nháy liên tục cho đến khi nhấn vào vật khác.");
     }
 
     public void CloseHQInteractionMenu()
     {
         isHQSelected = false;
+
+        if (WallSelectionManager.Instance != null && WallSelectionManager.Instance.currentBlinkTarget == transform)
+        {
+            WallSelectionManager.Instance.ClearPersistentBlinking();
+        }
 
         if (hqActionPanel != null) hqActionPanel.SetActive(false);
         if (hqInfoModalObj != null) hqInfoModalObj.SetActive(false);
@@ -416,18 +425,15 @@ public class BaseHQ : MonoBehaviour
         if (GameEconomy.Instance == null) return false;
 
         int reqCoins = GetUpgradeCoins();
-        int reqWood = GetUpgradeWood();
         int reqStone = GetUpgradeStone();
 
         bool hasCoins = GameEconomy.Instance.coins >= reqCoins;
-        bool hasWood = GameEconomy.Instance.woodCount >= reqWood;
         bool hasStone = GameEconomy.Instance.stoneCount >= reqStone;
 
-        if (!hasCoins || !hasWood || !hasStone)
+        if (!hasCoins || !hasStone)
         {
             string missing = $"Chưa đủ tài nguyên nâng Lò Năng Lượng Cấp {level + 1}!\nCần: ";
             if (!hasCoins) missing += $"<color=#FFD700>🪙 {reqCoins} Vàng</color>  ";
-            if (!hasWood) missing += $"<color=#DEB887>🪵 {reqWood} Gỗ</color>  ";
             if (!hasStone) missing += $"<color=#C0C0C0>🪨 {reqStone} Đá</color>  ";
 
             CenterWarningBanner.Show($"⚠️ CHƯA ĐỦ TÀI NGUYÊN NÂNG LÒ NĂNG LƯỢNG (CẤP {level + 1})!", missing, 3.2f);
@@ -435,7 +441,6 @@ public class BaseHQ : MonoBehaviour
         }
 
         GameEconomy.Instance.SpendCoins(reqCoins);
-        GameEconomy.Instance.SpendWood(reqWood);
         GameEconomy.Instance.SpendStone(reqStone);
 
         level++;
@@ -457,14 +462,12 @@ public class BaseHQ : MonoBehaviour
 
         bool hasCoins = GameEconomy.Instance.coins >= repairCostCoins;
         bool hasStone = GameEconomy.Instance.stoneCount >= repairCostStone;
-        bool hasWood = GameEconomy.Instance.woodCount >= repairCostWood;
 
-        if (!hasCoins || !hasStone || !hasWood)
+        if (!hasCoins || !hasStone)
         {
             string missing = "Thiếu tài nguyên sửa chữa Lò Năng Lượng!\nCần: ";
             if (!hasCoins) missing += $"<color=#FFD700>🪙 {repairCostCoins} Vàng</color>  ";
             if (!hasStone) missing += $"<color=#C0C0C0>🪨 {repairCostStone} Đá</color>  ";
-            if (!hasWood) missing += $"<color=#DEB887>🪵 {repairCostWood} Gỗ</color>  ";
 
             CenterWarningBanner.Show("⚠️ THIẾU TÀI NGUYÊN SỬA CHỮA!", missing, 2.5f);
             return;
@@ -472,7 +475,6 @@ public class BaseHQ : MonoBehaviour
 
         GameEconomy.Instance.SpendCoins(repairCostCoins);
         GameEconomy.Instance.SpendStone(repairCostStone);
-        GameEconomy.Instance.SpendWood(repairCostWood);
 
         currentHealth = Mathf.Min(maxHealth, currentHealth + repairHealthAmount);
         UpdateHealthBarVisual();
@@ -744,7 +746,7 @@ public class BaseHQ : MonoBehaviour
         {
             if (level < MaxLevel)
             {
-                hqUpgradeButtonText.text = $"⭐ <b>NÂNG CẤP LÒ NĂNG LƯỢNG (CẤP {level + 1})</b>\n<size=15><color=#FFD700>🪙 {GetUpgradeCoins()} Vàng</color> • <color=#DEB887>🪵 {GetUpgradeWood()} Gỗ</color> • <color=#C0C0C0>🪨 {GetUpgradeStone()} Đá</color></size>";
+                hqUpgradeButtonText.text = $"⭐ <b>NÂNG CẤP LÒ NĂNG LƯỢNG (CẤP {level + 1})</b>\n<size=15><color=#FFD700>🪙 {GetUpgradeCoins()} Vàng</color> • <color=#C0C0C0>🪨 {GetUpgradeStone()} Đá</color></size>";
                 hqUpgradeButton.interactable = true;
             }
             else
@@ -759,7 +761,7 @@ public class BaseHQ : MonoBehaviour
             bool needRepair = currentHealth < maxHealth;
             hqRepairButton.interactable = needRepair;
             hqRepairButtonText.text = needRepair 
-                ? $"🔧\n<b>SỬA CHỮA</b>\n<size=11><color=#FFD700>{repairCostCoins}🪙</color> <color=#DEB887>{repairCostWood}🪵</color> <color=#C0C0C0>{repairCostStone}🪨</color></size>" 
+                ? $"🔧\n<b>SỬA CHỮA</b>\n<size=11><color=#FFD700>{repairCostCoins}🪙</color> <color=#C0C0C0>{repairCostStone}🪨</color></size>" 
                 : "✅\n<b>ĐẦY MÁU</b>";
         }
     }
@@ -859,24 +861,143 @@ public class BaseHQ : MonoBehaviour
         }
     }
 
+    private GameObject defeatDialogObj;
+
     private void OnBaseDestroyed()
     {
         if (isDestroyed) return;
         isDestroyed = true;
 
-        CenterWarningBanner.Show("☠️ CĂN CỨ ĐÃ BỊ THẤT THỦ! ☠️", "Lò năng lượng đã cạn kiệt! Kích hoạt quy trình tái khởi động dự phòng...", 4.5f);
-        StartCoroutine(EmergencyRebootRoutine(6.0f));
+        int nightIndex = (DayNightSystem.Instance != null) ? DayNightSystem.Instance.currentDay : 1;
+        string defeatTitle = $"Thủ thất bại ở đêm thứ {nightIndex}";
+
+        FloatingDamageText.SpawnResource(transform.position + Vector3.up * 4.5f, $"☠️ {defeatTitle}!", new Color(1f, 0.2f, 0.2f, 1f), 0.16f);
+        Debug.LogWarning($"<color=#FF2222>[BaseHQ]</color> {defeatTitle}");
+
+        // Hiện Dialog Thất Bại với nút OK để trở về như lúc chưa chơi ván này
+        ShowDefeatDialog(nightIndex);
     }
 
-    private IEnumerator EmergencyRebootRoutine(float delay)
+    private void ShowDefeatDialog(int nightIndex)
     {
-        yield return new WaitForSeconds(delay);
+        Canvas canvas = null;
+        Canvas[] allCanvases = FindObjectsByType<Canvas>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        foreach (var c in allCanvases)
+        {
+            if (c.renderMode == RenderMode.ScreenSpaceOverlay)
+            {
+                canvas = c;
+                break;
+            }
+        }
+        if (canvas == null && allCanvases.Length > 0) canvas = allCanvases[0];
 
-        currentHealth = maxHealth * 0.5f;
-        isDestroyed = false;
-        UpdateHealthBarVisual();
-        if (isHQSelected) UpdateHQPanelUI();
+        if (canvas == null)
+        {
+            GameObject cGo = new GameObject("[Defeat_Canvas]", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            canvas = cGo.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.sortingOrder = 999;
+        }
 
-        CenterWarningBanner.Show("⚡ LÒ NĂNG LƯỢNG ĐÃ KHỞI ĐỘNG LẠI! ⚡", "Hệ thống điện năng dự phòng đã khôi phục căn cứ!", 3.5f);
+        if (defeatDialogObj != null) Destroy(defeatDialogObj);
+
+        defeatDialogObj = new GameObject("[Defeat_Dialog_Modal]", typeof(RectTransform), typeof(Image));
+        defeatDialogObj.transform.SetParent(canvas.transform, false);
+        RectTransform rtModal = defeatDialogObj.GetComponent<RectTransform>();
+        rtModal.anchorMin = Vector2.zero;
+        rtModal.anchorMax = Vector2.one;
+        rtModal.offsetMin = Vector2.zero;
+        rtModal.offsetMax = Vector2.zero;
+
+        // Nền đen mờ phủ toàn màn hình
+        Image imgModal = defeatDialogObj.GetComponent<Image>();
+        imgModal.color = new Color(0.04f, 0.02f, 0.02f, 0.88f);
+
+        // Hộp thông báo trung tâm
+        GameObject box = new GameObject("Box", typeof(RectTransform), typeof(Image), typeof(Outline));
+        box.transform.SetParent(defeatDialogObj.transform, false);
+        RectTransform rtBox = box.GetComponent<RectTransform>();
+        rtBox.anchorMin = new Vector2(0.5f, 0.5f);
+        rtBox.anchorMax = new Vector2(0.5f, 0.5f);
+        rtBox.pivot = new Vector2(0.5f, 0.5f);
+        rtBox.sizeDelta = new Vector2(520f, 260f);
+
+        Image imgBox = box.GetComponent<Image>();
+        imgBox.color = new Color(0.12f, 0.04f, 0.04f, 0.98f);
+
+        Outline outline = box.GetComponent<Outline>();
+        outline.effectColor = new Color(1f, 0.2f, 0.2f, 1f);
+        outline.effectDistance = new Vector2(3f, -3f);
+
+        Font safeFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+
+        // Tiêu đề: THỦ THẤT BẠI Ở ĐÊM THỨ X
+        GameObject titleObj = new GameObject("Title", typeof(RectTransform), typeof(Text));
+        titleObj.transform.SetParent(box.transform, false);
+        RectTransform rtTitle = titleObj.GetComponent<RectTransform>();
+        rtTitle.anchorMin = new Vector2(0f, 1f);
+        rtTitle.anchorMax = new Vector2(1f, 1f);
+        rtTitle.pivot = new Vector2(0.5f, 1f);
+        rtTitle.anchoredPosition = new Vector2(0f, -22f);
+        rtTitle.sizeDelta = new Vector2(500f, 50f);
+        Text txtTitle = titleObj.GetComponent<Text>();
+        txtTitle.font = safeFont;
+        txtTitle.text = $"☠️ <b>THỦ THẤT BẠI Ở ĐÊM THỨ {nightIndex}</b> ☠️";
+        txtTitle.fontSize = 24;
+        txtTitle.alignment = TextAnchor.MiddleCenter;
+        txtTitle.color = new Color(1f, 0.25f, 0.25f, 1f);
+
+        // Mô tả
+        GameObject descObj = new GameObject("Desc", typeof(RectTransform), typeof(Text));
+        descObj.transform.SetParent(box.transform, false);
+        RectTransform rtDesc = descObj.GetComponent<RectTransform>();
+        rtDesc.anchorMin = new Vector2(0f, 1f);
+        rtDesc.anchorMax = new Vector2(1f, 1f);
+        rtDesc.pivot = new Vector2(0.5f, 1f);
+        rtDesc.anchoredPosition = new Vector2(0f, -80f);
+        rtDesc.sizeDelta = new Vector2(480f, 60f);
+        Text txtDesc = descObj.GetComponent<Text>();
+        txtDesc.font = safeFont;
+        txtDesc.text = "Lò năng lượng căn cứ đã bị phá hủy hoàn toàn!\nNhấn nút bên dưới để khởi động lại ván chơi mới từ đầu.";
+        txtDesc.fontSize = 15;
+        txtDesc.alignment = TextAnchor.MiddleCenter;
+        txtDesc.color = new Color(0.9f, 0.9f, 0.9f, 1f);
+
+        // Nút OK
+        GameObject btnObj = new GameObject("Btn_OK", typeof(RectTransform), typeof(Image), typeof(Button));
+        btnObj.transform.SetParent(box.transform, false);
+        RectTransform rtBtn = btnObj.GetComponent<RectTransform>();
+        rtBtn.anchorMin = new Vector2(0.5f, 0f);
+        rtBtn.anchorMax = new Vector2(0.5f, 0f);
+        rtBtn.pivot = new Vector2(0.5f, 0f);
+        rtBtn.anchoredPosition = new Vector2(0f, 25f);
+        rtBtn.sizeDelta = new Vector2(220f, 52f);
+
+        Image imgBtn = btnObj.GetComponent<Image>();
+        imgBtn.color = new Color(0.85f, 0.15f, 0.15f, 1f);
+
+        Button btn = btnObj.GetComponent<Button>();
+        btn.onClick.AddListener(() =>
+        {
+            Time.timeScale = 1f;
+            UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
+        });
+
+        GameObject btnTxtObj = new GameObject("Text", typeof(RectTransform), typeof(Text));
+        btnTxtObj.transform.SetParent(btnObj.transform, false);
+        RectTransform rtBtnTxt = btnTxtObj.GetComponent<RectTransform>();
+        rtBtnTxt.anchorMin = Vector2.zero;
+        rtBtnTxt.anchorMax = Vector2.one;
+        rtBtnTxt.sizeDelta = Vector2.zero;
+        Text txtBtn = btnTxtObj.GetComponent<Text>();
+        txtBtn.font = safeFont;
+        txtBtn.text = "<b>OK (CHƠI LẠI)</b>";
+        txtBtn.fontSize = 18;
+        txtBtn.alignment = TextAnchor.MiddleCenter;
+        txtBtn.color = Color.white;
+
+        Cursor.visible = true;
+        Cursor.lockState = CursorLockMode.None;
     }
 }

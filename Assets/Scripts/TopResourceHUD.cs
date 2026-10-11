@@ -79,8 +79,10 @@ public class TopResourceHUD : MonoBehaviour
 
     void Start()
     {
+        EnsureEventSystemExists();
         EnsureSpritesCreated();
         CreateTopBarUI();
+        RefreshAudioSettingsUI();
 
         if (GameEconomy.Instance != null)
         {
@@ -208,7 +210,11 @@ public class TopResourceHUD : MonoBehaviour
         {
             bool willOpen = !settingsPopup.activeSelf;
             settingsPopup.SetActive(willOpen);
-            if (willOpen) settingsPopup.transform.SetAsLastSibling();
+            if (willOpen)
+            {
+                settingsPopup.transform.SetAsLastSibling();
+                RefreshAudioSettingsUI();
+            }
         }
     }
 
@@ -250,7 +256,7 @@ public class TopResourceHUD : MonoBehaviour
         topRect.anchorMax = new Vector2(0.5f, 1f);
         topRect.pivot = new Vector2(0.5f, 1f);
         topRect.anchoredPosition = new Vector2(0f, -38f); // Cách mép trên 38px
-        topRect.sizeDelta = new Vector2(1040f, 72f);
+        topRect.sizeDelta = new Vector2(924f, 72f);
 
         HorizontalLayoutGroup hlg = topBarPanel.AddComponent<HorizontalLayoutGroup>();
         hlg.spacing = 10f;
@@ -260,28 +266,28 @@ public class TopResourceHUD : MonoBehaviour
         hlg.childForceExpandWidth = false;
         hlg.childForceExpandHeight = false;
 
-        // 2. TẠO 5 CAPSULE TÀI NGUYÊN (THEO ĐÚNG HÌNH ẢNH)
+        // 2. TẠO 4 CAPSULE TÀI NGUYÊN (VÀNG, ĐÁ/SẮT, NĂNG LƯỢNG, KIM CƯƠNG)
         Vector2 capsuleSize = new Vector2(182f, 64f);
 
-        // Capsule 1: VÀNG (12,450)
+        // Capsule 1: VÀNG
         CreateResourceCapsule(topBarPanel.transform, "Capsule_Coins", capsuleSize, coinSprite, out coinText, OnAddCoinsClicked);
 
-        // Capsule 2: ĐÁ / SẮT (8,230)
+        // Capsule 2: ĐÁ / SẮT
         CreateResourceCapsule(topBarPanel.transform, "Capsule_Stone", capsuleSize, stoneSprite, out stoneText, OnAddStoneClicked);
 
-        // Capsule 3: GỖ / GẠCH (5,180)
-        CreateResourceCapsule(topBarPanel.transform, "Capsule_Wood", capsuleSize, woodSprite, out woodText, OnAddWoodClicked);
-
-        // Capsule 4: NĂNG LƯỢNG (320)
+        // Capsule 3: NĂNG LƯỢNG
         CreateResourceCapsule(topBarPanel.transform, "Capsule_Energy", capsuleSize, energySprite, out energyText, OnAddEnergyClicked);
 
-        // Capsule 5: KIM CƯƠNG TÍM (120)
+        // Capsule 4: KIM CƯƠNG TÍM
         CreateResourceCapsule(topBarPanel.transform, "Capsule_Gems", capsuleSize, gemSprite, out gemText, OnAddGemsClicked);
 
-        // 3. NÚT CÀI ĐẶT (BÁNH RĂNG) Ở GÓC PHẢI
+        // 3. NÚT ÂM THANH NHANH (QUICK MUTE/UNMUTE)
+        CreateQuickAudioButton(topBarPanel.transform, new Vector2(64f, 64f));
+
+        // 4. NÚT CÀI ĐẶT (BÁNH RĂNG) Ở GÓC PHẢI
         CreateSettingsButton(topBarPanel.transform, new Vector2(64f, 64f));
 
-        // 4. POPUP CÀI ĐẶT NHỎ GỌN
+        // 5. POPUP CÀI ĐẶT NHỎ GỌN
         CreateSettingsPopup(canvas.transform);
     }
 
@@ -422,6 +428,103 @@ public class TopResourceHUD : MonoBehaviour
         iconImg.raycastTarget = false;
     }
 
+    private void CreateQuickAudioButton(Transform parent, Vector2 size)
+    {
+        GameObject audioBtnObj = new GameObject("Btn_QuickAudio", typeof(RectTransform));
+        audioBtnObj.layer = LayerMask.NameToLayer("UI");
+        audioBtnObj.transform.SetParent(parent, false);
+
+        RectTransform r = audioBtnObj.GetComponent<RectTransform>();
+        r.sizeDelta = size;
+
+        Image bg = audioBtnObj.AddComponent<Image>();
+        bg.sprite = capsuleBgSprite;
+        bg.type = Image.Type.Sliced;
+        bg.color = new Color(0.06f, 0.10f, 0.16f, 0.94f);
+
+        Outline ol = audioBtnObj.AddComponent<Outline>();
+        ol.effectColor = new Color(0.12f, 0.38f, 0.62f, 0.85f);
+        ol.effectDistance = new Vector2(1.5f, -1.5f);
+
+        Button btn = audioBtnObj.AddComponent<Button>();
+        btn.onClick.AddListener(() =>
+        {
+            if (GameAudioManager.Instance != null)
+            {
+                GameAudioManager.Instance.ToggleMute();
+                RefreshAudioSettingsUI();
+            }
+        });
+
+        GameObject iconObj = new GameObject("Icon", typeof(RectTransform));
+        iconObj.layer = LayerMask.NameToLayer("UI");
+        iconObj.transform.SetParent(audioBtnObj.transform, false);
+        RectTransform iconRect = iconObj.GetComponent<RectTransform>();
+        iconRect.anchorMin = Vector2.zero;
+        iconRect.anchorMax = Vector2.one;
+        iconRect.sizeDelta = Vector2.zero;
+
+        quickAudioBtnText = iconObj.AddComponent<Text>();
+        quickAudioBtnText.font = safeFont;
+        quickAudioBtnText.fontSize = 26;
+        quickAudioBtnText.alignment = TextAnchor.MiddleCenter;
+        quickAudioBtnText.text = "🔊";
+        quickAudioBtnText.color = new Color(0f, 0.95f, 1f, 1f);
+        quickAudioBtnText.raycastTarget = false;
+    }
+
+    private Slider bgmSlider;
+    private Text bgmPercentText;
+    private Text bgmMuteBtnText;
+
+    private Slider sfxSlider;
+    private Text sfxPercentText;
+    private Text sfxMuteBtnText;
+
+    private Text quickAudioBtnText;
+
+    private void EnsureEventSystemExists()
+    {
+        if (UnityEngine.EventSystems.EventSystem.current == null && FindAnyObjectByType<UnityEngine.EventSystems.EventSystem>() == null)
+        {
+            GameObject es = new GameObject("EventSystem", typeof(UnityEngine.EventSystems.EventSystem), typeof(UnityEngine.EventSystems.StandaloneInputModule));
+            DontDestroyOnLoad(es);
+        }
+    }
+
+    public void RefreshAudioSettingsUI()
+    {
+        if (GameAudioManager.Instance == null) return;
+
+        float bgmVol = GameAudioManager.Instance.bgmVolume;
+        bool bgmMuted = GameAudioManager.Instance.isBgmMuted;
+
+        float sfxVol = GameAudioManager.Instance.sfxVolume;
+        bool sfxMuted = GameAudioManager.Instance.isSfxMuted;
+
+        // 1. Nhạc Nền (BGM): Giữ nguyên vị trí thanh trượt đã kéo
+        if (bgmSlider != null) bgmSlider.SetValueWithoutNotify(bgmVol);
+        if (bgmPercentText != null) bgmPercentText.text = (bgmMuted || bgmVol <= 0.01f) ? "TẮT" : $"{Mathf.RoundToInt(bgmVol * 100)}%";
+        if (bgmMuteBtnText != null) bgmMuteBtnText.text = (!bgmMuted && bgmVol > 0.01f) ? "🔊" : "🔇";
+
+        // 2. Hiệu Ứng (SFX): Giữ nguyên vị trí thanh trượt đã kéo
+        if (sfxSlider != null) sfxSlider.SetValueWithoutNotify(sfxVol);
+        if (sfxPercentText != null) sfxPercentText.text = (sfxMuted || sfxVol <= 0.01f) ? "TẮT" : $"{Mathf.RoundToInt(sfxVol * 100)}%";
+        if (sfxMuteBtnText != null) sfxMuteBtnText.text = (!sfxMuted && sfxVol > 0.01f) ? "🔊" : "🔇";
+
+        // 3. Nút Quick Audio góc trên TopBar
+        UpdateQuickAudioButtonState();
+    }
+
+    private void UpdateQuickAudioButtonState()
+    {
+        if (quickAudioBtnText == null || GameAudioManager.Instance == null) return;
+        bool hasSound = (!GameAudioManager.Instance.isBgmMuted && GameAudioManager.Instance.bgmVolume > 0.01f) ||
+                        (!GameAudioManager.Instance.isSfxMuted && GameAudioManager.Instance.sfxVolume > 0.01f);
+        quickAudioBtnText.text = hasSound ? "🔊" : "🔇";
+        quickAudioBtnText.color = hasSound ? new Color(0f, 0.95f, 1f, 1f) : new Color(1f, 0.35f, 0.35f, 1f);
+    }
+
     private void CreateSettingsPopup(Transform canvasTr)
     {
         settingsPopup = new GameObject("Popup_SettingsDialog", typeof(RectTransform));
@@ -433,16 +536,16 @@ public class TopResourceHUD : MonoBehaviour
         rect.anchorMax = new Vector2(0.5f, 0.5f);
         rect.pivot = new Vector2(0.5f, 0.5f);
         rect.anchoredPosition = Vector2.zero;
-        rect.sizeDelta = new Vector2(500f, 320f);
+        rect.sizeDelta = new Vector2(520f, 490f);
 
         Image bg = settingsPopup.AddComponent<Image>();
-        bg.color = new Color(0.08f, 0.12f, 0.18f, 0.98f);
+        bg.color = new Color(0.06f, 0.10f, 0.16f, 0.98f);
 
         Outline ol = settingsPopup.AddComponent<Outline>();
-        ol.effectColor = new Color(0.15f, 0.65f, 1f, 0.85f);
-        ol.effectDistance = new Vector2(2f, -2f);
+        ol.effectColor = new Color(0.15f, 0.75f, 1f, 0.9f);
+        ol.effectDistance = new Vector2(2.5f, -2.5f);
 
-        // Tiêu đề
+        // 1. Tiêu đề Cài Đặt
         GameObject tObj = new GameObject("Title", typeof(RectTransform));
         tObj.layer = LayerMask.NameToLayer("UI");
         tObj.transform.SetParent(settingsPopup.transform, false);
@@ -450,8 +553,8 @@ public class TopResourceHUD : MonoBehaviour
         tr.anchorMin = new Vector2(0f, 1f);
         tr.anchorMax = new Vector2(1f, 1f);
         tr.pivot = new Vector2(0.5f, 1f);
-        tr.anchoredPosition = new Vector2(0f, -15f);
-        tr.sizeDelta = new Vector2(460f, 36f);
+        tr.anchoredPosition = new Vector2(0f, -14f);
+        tr.sizeDelta = new Vector2(480f, 38f);
 
         Text titleText = tObj.AddComponent<Text>();
         titleText.font = safeFont;
@@ -461,19 +564,125 @@ public class TopResourceHUD : MonoBehaviour
         titleText.color = new Color(1f, 0.88f, 0.2f, 1f);
         titleText.raycastTarget = false;
 
-        // Nút cứu hộ Player Reset vị trí
+        // 2. KHUNG ÂM THANH: NHẠC NỀN RIÊNG VÀ HIỆU ỨNG RIÊNG (SLIDER KÉO THẢ ĐỨNG YÊN)
+        GameObject audioBox = new GameObject("Audio_Section_Box", typeof(RectTransform));
+        audioBox.layer = LayerMask.NameToLayer("UI");
+        audioBox.transform.SetParent(settingsPopup.transform, false);
+        RectTransform abRt = audioBox.GetComponent<RectTransform>();
+        abRt.anchorMin = new Vector2(0.5f, 1f);
+        abRt.anchorMax = new Vector2(0.5f, 1f);
+        abRt.pivot = new Vector2(0.5f, 1f);
+        abRt.anchoredPosition = new Vector2(0f, -62f);
+        abRt.sizeDelta = new Vector2(470f, 210f);
+
+        Image abBg = audioBox.AddComponent<Image>();
+        abBg.color = new Color(0.03f, 0.07f, 0.12f, 0.95f);
+        Outline abOl = audioBox.AddComponent<Outline>();
+        abOl.effectColor = new Color(0f, 0.65f, 0.9f, 0.6f);
+        abOl.effectDistance = new Vector2(1.5f, -1.5f);
+
+        // Tiêu đề khung âm thanh
+        GameObject aHeadObj = new GameObject("AudioHeader", typeof(RectTransform), typeof(Text));
+        aHeadObj.layer = LayerMask.NameToLayer("UI");
+        aHeadObj.transform.SetParent(audioBox.transform, false);
+        RectTransform ahRt = aHeadObj.GetComponent<RectTransform>();
+        ahRt.anchorMin = new Vector2(0f, 1f);
+        ahRt.anchorMax = new Vector2(1f, 1f);
+        ahRt.pivot = new Vector2(0.5f, 1f);
+        ahRt.anchoredPosition = new Vector2(0f, -10f);
+        ahRt.sizeDelta = new Vector2(440f, 24f);
+        Text ahTxt = aHeadObj.GetComponent<Text>();
+        ahTxt.font = safeFont;
+        ahTxt.text = "🎵 <b>CÀI ĐẶT ÂM THANH</b>";
+        ahTxt.fontSize = 15;
+        ahTxt.alignment = TextAnchor.MiddleCenter;
+        ahTxt.color = new Color(0f, 0.92f, 1f, 1f);
+
+        // THANH 1: ÂM THANH NỀN (BGM)
+        bgmSlider = CreateAudioSliderRow(
+            audioBox.transform,
+            "🎵 Âm Thanh Nền",
+            -40f,
+            out bgmPercentText,
+            out bgmMuteBtnText,
+            () =>
+            {
+                if (GameAudioManager.Instance != null) GameAudioManager.Instance.ToggleBGMMute();
+                RefreshAudioSettingsUI();
+            },
+            (val) =>
+            {
+                if (GameAudioManager.Instance != null)
+                {
+                    GameAudioManager.Instance.SetBGMVolume(val);
+                    if (val > 0.01f && GameAudioManager.Instance.isBgmMuted)
+                    {
+                        GameAudioManager.Instance.SetBGMMuted(false);
+                    }
+                }
+                if (bgmPercentText != null)
+                {
+                    bool isMuted = GameAudioManager.Instance != null && GameAudioManager.Instance.isBgmMuted;
+                    bgmPercentText.text = (isMuted || val <= 0.01f) ? "TẮT" : $"{Mathf.RoundToInt(val * 100)}%";
+                }
+                if (bgmMuteBtnText != null)
+                {
+                    bool isMuted = GameAudioManager.Instance != null && GameAudioManager.Instance.isBgmMuted;
+                    bgmMuteBtnText.text = (!isMuted && val > 0.01f) ? "🔊" : "🔇";
+                }
+                UpdateQuickAudioButtonState();
+            }
+        );
+
+        // THANH 2: ÂM THANH HIỆU ỨNG (SFX)
+        sfxSlider = CreateAudioSliderRow(
+            audioBox.transform,
+            "💥 Âm Thanh Hiệu Ứng",
+            -116f,
+            out sfxPercentText,
+            out sfxMuteBtnText,
+            () =>
+            {
+                if (GameAudioManager.Instance != null) GameAudioManager.Instance.ToggleSFXMute();
+                RefreshAudioSettingsUI();
+            },
+            (val) =>
+            {
+                if (GameAudioManager.Instance != null)
+                {
+                    GameAudioManager.Instance.SetSFXVolume(val);
+                    if (val > 0.01f && GameAudioManager.Instance.isSfxMuted)
+                    {
+                        GameAudioManager.Instance.SetSFXMuted(false);
+                    }
+                }
+                if (sfxPercentText != null)
+                {
+                    bool isMuted = GameAudioManager.Instance != null && GameAudioManager.Instance.isSfxMuted;
+                    sfxPercentText.text = (isMuted || val <= 0.01f) ? "TẮT" : $"{Mathf.RoundToInt(val * 100)}%";
+                }
+                if (sfxMuteBtnText != null)
+                {
+                    bool isMuted = GameAudioManager.Instance != null && GameAudioManager.Instance.isSfxMuted;
+                    sfxMuteBtnText.text = (!isMuted && val > 0.01f) ? "🔊" : "🔇";
+                }
+                UpdateQuickAudioButtonState();
+            }
+        );
+
+        // 3. NÚT CỨU HỘ PLAYER RESET VỊ TRÍ
         GameObject resetObj = new GameObject("Btn_ResetPlayerPos", typeof(RectTransform));
         resetObj.layer = LayerMask.NameToLayer("UI");
         resetObj.transform.SetParent(settingsPopup.transform, false);
         RectTransform resetRect = resetObj.GetComponent<RectTransform>();
-        resetRect.anchorMin = new Vector2(0.5f, 0.5f);
-        resetRect.anchorMax = new Vector2(0.5f, 0.5f);
-        resetRect.pivot = new Vector2(0.5f, 0.5f);
-        resetRect.anchoredPosition = new Vector2(0f, 25f);
-        resetRect.sizeDelta = new Vector2(380f, 55f);
+        resetRect.anchorMin = new Vector2(0.5f, 0f);
+        resetRect.anchorMax = new Vector2(0.5f, 0f);
+        resetRect.pivot = new Vector2(0.5f, 0f);
+        resetRect.anchoredPosition = new Vector2(0f, 85f);
+        resetRect.sizeDelta = new Vector2(400f, 48f);
 
         Image resetBg = resetObj.AddComponent<Image>();
-        resetBg.color = new Color(0.18f, 0.55f, 0.75f, 1f);
+        resetBg.color = new Color(0.18f, 0.52f, 0.72f, 1f);
 
         Button resetBtn = resetObj.AddComponent<Button>();
         resetBtn.onClick.AddListener(() =>
@@ -501,12 +710,12 @@ public class TopResourceHUD : MonoBehaviour
         Text resetTxt = resetTxtObj.AddComponent<Text>();
         resetTxt.font = safeFont;
         resetTxt.text = "🚀 <b>CỨU HỘ PLAYER VỀ TRUNG TÂM</b>";
-        resetTxt.fontSize = 17;
+        resetTxt.fontSize = 16;
         resetTxt.alignment = TextAnchor.MiddleCenter;
         resetTxt.color = Color.white;
         resetTxt.raycastTarget = false;
 
-        // Nút Đóng
+        // 4. NÚT ĐÓNG
         GameObject closeObj = new GameObject("Btn_Close", typeof(RectTransform));
         closeObj.layer = LayerMask.NameToLayer("UI");
         closeObj.transform.SetParent(settingsPopup.transform, false);
@@ -515,10 +724,10 @@ public class TopResourceHUD : MonoBehaviour
         closeRect.anchorMax = new Vector2(0.5f, 0f);
         closeRect.pivot = new Vector2(0.5f, 0f);
         closeRect.anchoredPosition = new Vector2(0f, 20f);
-        closeRect.sizeDelta = new Vector2(200f, 50f);
+        closeRect.sizeDelta = new Vector2(220f, 48f);
 
         Image closeBg = closeObj.AddComponent<Image>();
-        closeBg.color = new Color(0.65f, 0.22f, 0.22f, 1f);
+        closeBg.color = new Color(0.68f, 0.2f, 0.2f, 1f);
 
         Button closeBtn = closeObj.AddComponent<Button>();
         closeBtn.onClick.AddListener(() => settingsPopup.SetActive(false));
@@ -540,6 +749,195 @@ public class TopResourceHUD : MonoBehaviour
         closeTxt.raycastTarget = false;
 
         settingsPopup.SetActive(false);
+    }
+
+    private Slider CreateAudioSliderRow(
+        Transform parent,
+        string titleText,
+        float posY,
+        out Text percentText,
+        out Text muteBtnText,
+        UnityEngine.Events.UnityAction onMuteClick,
+        UnityEngine.Events.UnityAction<float> onSliderChange)
+    {
+        bool isBgm = titleText.Contains("Nền");
+        Color themeColor = isBgm ? new Color(0f, 0.88f, 1f, 1f) : new Color(1f, 0.75f, 0.2f, 1f);
+
+        // 1. Container của từng dòng cài đặt âm thanh
+        GameObject rowObj = new GameObject("SliderRow_" + (isBgm ? "BGM" : "SFX"), typeof(RectTransform));
+        rowObj.layer = LayerMask.NameToLayer("UI");
+        rowObj.transform.SetParent(parent, false);
+
+        RectTransform rowRt = rowObj.GetComponent<RectTransform>();
+        rowRt.anchorMin = new Vector2(0.5f, 1f);
+        rowRt.anchorMax = new Vector2(0.5f, 1f);
+        rowRt.pivot = new Vector2(0.5f, 1f);
+        rowRt.anchoredPosition = new Vector2(0f, posY);
+        rowRt.sizeDelta = new Vector2(440f, 68f);
+
+        // 2. Tên phân loại âm thanh (bên trái phía trên)
+        GameObject labelObj = new GameObject("Label", typeof(RectTransform), typeof(Text));
+        labelObj.layer = LayerMask.NameToLayer("UI");
+        labelObj.transform.SetParent(rowObj.transform, false);
+        RectTransform labelRt = labelObj.GetComponent<RectTransform>();
+        labelRt.anchorMin = new Vector2(0f, 1f);
+        labelRt.anchorMax = new Vector2(0.65f, 1f);
+        labelRt.pivot = new Vector2(0f, 1f);
+        labelRt.anchoredPosition = new Vector2(6f, -2f);
+        labelRt.sizeDelta = new Vector2(250f, 22f);
+
+        Text labelTxt = labelObj.GetComponent<Text>();
+        labelTxt.font = safeFont;
+        labelTxt.text = "<b>" + titleText + "</b>";
+        labelTxt.fontSize = 15;
+        labelTxt.alignment = TextAnchor.MiddleLeft;
+        labelTxt.color = themeColor;
+        labelTxt.raycastTarget = false;
+
+        // 3. Số % âm lượng trực quan (bên phải phía trên)
+        GameObject pctObj = new GameObject("Percent", typeof(RectTransform), typeof(Text));
+        pctObj.layer = LayerMask.NameToLayer("UI");
+        pctObj.transform.SetParent(rowObj.transform, false);
+        RectTransform pctRt = pctObj.GetComponent<RectTransform>();
+        pctRt.anchorMin = new Vector2(0.65f, 1f);
+        pctRt.anchorMax = new Vector2(1f, 1f);
+        pctRt.pivot = new Vector2(1f, 1f);
+        pctRt.anchoredPosition = new Vector2(-6f, -2f);
+        pctRt.sizeDelta = new Vector2(140f, 22f);
+
+        percentText = pctObj.GetComponent<Text>();
+        percentText.font = safeFont;
+        percentText.text = "100%";
+        percentText.fontSize = 15;
+        percentText.alignment = TextAnchor.MiddleRight;
+        percentText.color = Color.white;
+        percentText.raycastTarget = false;
+
+        // 4. Nút Bật/Tắt âm thanh riêng biệt (Mute/Unmute)
+        GameObject muteBtnObj = new GameObject("Btn_Mute", typeof(RectTransform), typeof(Image), typeof(Button));
+        muteBtnObj.layer = LayerMask.NameToLayer("UI");
+        muteBtnObj.transform.SetParent(rowObj.transform, false);
+        RectTransform muteRt = muteBtnObj.GetComponent<RectTransform>();
+        muteRt.anchorMin = new Vector2(0f, 0f);
+        muteRt.anchorMax = new Vector2(0f, 0f);
+        muteRt.pivot = new Vector2(0f, 0f);
+        muteRt.anchoredPosition = new Vector2(6f, 6f);
+        muteRt.sizeDelta = new Vector2(40f, 32f);
+
+        Image muteBg = muteBtnObj.GetComponent<Image>();
+        muteBg.color = new Color(0.08f, 0.16f, 0.25f, 0.95f);
+        Outline mOl = muteBtnObj.AddComponent<Outline>();
+        mOl.effectColor = new Color(0.15f, 0.45f, 0.7f, 0.8f);
+        mOl.effectDistance = new Vector2(1f, -1f);
+
+        Button muteBtn = muteBtnObj.GetComponent<Button>();
+        muteBtn.onClick.AddListener(onMuteClick);
+
+        GameObject muteTxtObj = new GameObject("Icon", typeof(RectTransform), typeof(Text));
+        muteTxtObj.layer = LayerMask.NameToLayer("UI");
+        muteTxtObj.transform.SetParent(muteBtnObj.transform, false);
+        RectTransform mtRt = muteTxtObj.GetComponent<RectTransform>();
+        mtRt.anchorMin = Vector2.zero;
+        mtRt.anchorMax = Vector2.one;
+        mtRt.sizeDelta = Vector2.zero;
+
+        muteBtnText = muteTxtObj.GetComponent<Text>();
+        muteBtnText.font = safeFont;
+        muteBtnText.text = "🔊";
+        muteBtnText.fontSize = 18;
+        muteBtnText.alignment = TextAnchor.MiddleCenter;
+        muteBtnText.color = Color.white;
+        muteBtnText.raycastTarget = false;
+
+        // 5. Thanh trượt Slider tương tác thực tế (Kéo - Thả đứng yên tại chỗ)
+        GameObject sliderObj = new GameObject("Slider", typeof(RectTransform), typeof(Slider));
+        sliderObj.layer = LayerMask.NameToLayer("UI");
+        sliderObj.transform.SetParent(rowObj.transform, false);
+        RectTransform sRt = sliderObj.GetComponent<RectTransform>();
+        sRt.anchorMin = new Vector2(0f, 0f);
+        sRt.anchorMax = new Vector2(1f, 0f);
+        sRt.pivot = new Vector2(0f, 0f);
+        sRt.anchoredPosition = new Vector2(54f, 6f);
+        sRt.sizeDelta = new Vector2(-60f, 32f);
+
+        Slider slider = sliderObj.GetComponent<Slider>();
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.minValue = 0f;
+        slider.maxValue = 1f;
+        slider.wholeNumbers = false;
+
+        // 5a. Rãnh trượt (Track Background)
+        GameObject bgObj = new GameObject("Background", typeof(RectTransform), typeof(Image));
+        bgObj.layer = LayerMask.NameToLayer("UI");
+        bgObj.transform.SetParent(sliderObj.transform, false);
+        RectTransform bgRt = bgObj.GetComponent<RectTransform>();
+        bgRt.anchorMin = new Vector2(0f, 0.30f);
+        bgRt.anchorMax = new Vector2(1f, 0.70f);
+        bgRt.offsetMin = Vector2.zero;
+        bgRt.offsetMax = Vector2.zero;
+
+        Image bgImg = bgObj.GetComponent<Image>();
+        bgImg.color = new Color(0.08f, 0.12f, 0.18f, 1f);
+        bgImg.raycastTarget = true; // Bấm trực tiếp lên thanh rãnh trượt để nhảy giá trị
+
+        Outline bgOl = bgObj.AddComponent<Outline>();
+        bgOl.effectColor = new Color(0.15f, 0.3f, 0.45f, 0.8f);
+        bgOl.effectDistance = new Vector2(1f, -1f);
+
+        // 5b. Thanh mức âm lượng (Fill Bar)
+        GameObject fillArea = new GameObject("Fill Area", typeof(RectTransform));
+        fillArea.layer = LayerMask.NameToLayer("UI");
+        fillArea.transform.SetParent(sliderObj.transform, false);
+        RectTransform faRt = fillArea.GetComponent<RectTransform>();
+        faRt.anchorMin = new Vector2(0f, 0.30f);
+        faRt.anchorMax = new Vector2(1f, 0.70f);
+        faRt.offsetMin = new Vector2(5f, 0f);
+        faRt.offsetMax = new Vector2(-5f, 0f);
+
+        GameObject fillObj = new GameObject("Fill", typeof(RectTransform), typeof(Image));
+        fillObj.layer = LayerMask.NameToLayer("UI");
+        fillObj.transform.SetParent(fillArea.transform, false);
+        RectTransform fillRt = fillObj.GetComponent<RectTransform>();
+        fillRt.anchorMin = new Vector2(0f, 0f);
+        fillRt.anchorMax = new Vector2(0f, 1f);
+        fillRt.sizeDelta = Vector2.zero;
+
+        Image fillImg = fillObj.GetComponent<Image>();
+        fillImg.color = themeColor;
+        fillImg.raycastTarget = false;
+        slider.fillRect = fillRt;
+
+        // 5c. Cục kéo (Handle Knob) - Cầm kéo thả mượt mà, thả ra đứng yên
+        GameObject handleArea = new GameObject("Handle Slide Area", typeof(RectTransform));
+        handleArea.layer = LayerMask.NameToLayer("UI");
+        handleArea.transform.SetParent(sliderObj.transform, false);
+        RectTransform haRt = handleArea.GetComponent<RectTransform>();
+        haRt.anchorMin = new Vector2(0f, 0f);
+        haRt.anchorMax = new Vector2(1f, 1f);
+        haRt.offsetMin = new Vector2(14f, 0f);
+        haRt.offsetMax = new Vector2(-14f, 0f);
+
+        GameObject handleObj = new GameObject("Handle", typeof(RectTransform), typeof(Image));
+        handleObj.layer = LayerMask.NameToLayer("UI");
+        handleObj.transform.SetParent(handleArea.transform, false);
+        RectTransform handleRt = handleObj.GetComponent<RectTransform>();
+        handleRt.sizeDelta = new Vector2(28f, 30f);
+
+        Image handleImg = handleObj.GetComponent<Image>();
+        handleImg.color = Color.white;
+        handleImg.raycastTarget = true; // Nhận bắt sự kiện chuột và chạm màn hình
+
+        Outline hOl = handleObj.AddComponent<Outline>();
+        hOl.effectColor = themeColor;
+        hOl.effectDistance = new Vector2(1.5f, -1.5f);
+
+        slider.handleRect = handleRt;
+        slider.targetGraphic = handleImg;
+
+        // Đăng ký nhận sự kiện kéo thả giá trị
+        slider.onValueChanged.AddListener(onSliderChange);
+
+        return slider;
     }
 
     // ================= TẠO PROCEDURAL SPRITES SẮC NÉT (PIXEL PERFECT) =================

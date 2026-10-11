@@ -36,6 +36,10 @@ public class WallSelectionManager : MonoBehaviour
     private UpgradableTurret pressedTurret;
     private BaseHQ pressedHQ;
     private RobotFactory pressedFactory;
+    private CivilianHouse pressedHouse;
+
+    // Đối tượng đang được chọn nhấp nháy cho đến khi nhấn vào vật khác
+    public Transform currentBlinkTarget;
 
     private struct PressRendererInfo
     {
@@ -193,6 +197,12 @@ public class WallSelectionManager : MonoBehaviour
 
         // 3. Nhận diện nhấn giữ, nhấp nháy xanh dương và kéo trực tiếp
         HandleWorldSelectionAndDragDetection();
+
+        // 4. Cập nhật hiệu ứng nhấp nháy liên tục cho công trình đang được chọn cho đến khi nhấn vào vật khác
+        if (currentBlinkTarget != null)
+        {
+            UpdatePressBlinking();
+        }
     }
 
     /// <summary>
@@ -234,21 +244,24 @@ public class WallSelectionManager : MonoBehaviour
                 UpgradableTurret clickedTurret = hit.collider.GetComponentInParent<UpgradableTurret>();
                 BaseHQ clickedHQ = hit.collider.GetComponentInParent<BaseHQ>();
                 RobotFactory clickedFactory = hit.collider.GetComponentInParent<RobotFactory>();
+                CivilianHouse clickedHouse = hit.collider.GetComponentInParent<CivilianHouse>();
 
-                if (clickedWall != null || clickedTurret != null || clickedHQ != null || clickedFactory != null)
+                if (clickedWall != null || clickedTurret != null || clickedHQ != null || clickedFactory != null || clickedHouse != null)
                 {
                     pressedWall = clickedWall;
                     pressedTurret = clickedTurret;
                     pressedHQ = clickedHQ;
                     pressedFactory = clickedFactory;
+                    pressedHouse = clickedHouse;
                     isPressHolding = true;
 
                     Transform targetT = (clickedWall != null) ? clickedWall.transform :
                                         (clickedTurret != null) ? clickedTurret.transform :
                                         (clickedHQ != null) ? clickedHQ.transform :
-                                        clickedFactory.transform;
+                                        (clickedFactory != null) ? clickedFactory.transform :
+                                        clickedHouse.transform;
 
-                    CollectPressRenderers(targetT);
+                    SetPersistentBlinkTarget(targetT);
                     return;
                 }
             }
@@ -259,9 +272,6 @@ public class WallSelectionManager : MonoBehaviour
         }
         else if (Input.GetMouseButton(0) && isPressHolding)
         {
-            // Trong lúc đang nhấn giữ: Nhấp nháy màu xanh dương rồi trở về màu cũ liên tục
-            UpdatePressBlinking();
-
             // Kiểm tra kéo chuột / ngón tay vượt quá 14 pixel
             if (Vector3.Distance(Input.mousePosition, pressStartMousePos) > 14f)
             {
@@ -305,9 +315,7 @@ public class WallSelectionManager : MonoBehaviour
             {
                 isPressHolding = false;
 
-                // Thả tay ra: Dừng ngay nhấp nháy và trả về màu cũ nguyên bản
-                ClearPressBlinking();
-
+                // Lưu ý: KHÔNG tắt nhấp nháy khi thả tay ra (duy trì nhấp nháy liên tục cho đến khi nhấn vào vật khác)
                 // Nếu không phải đang kéo di chuyển (chỉ nhấn/thả tại chỗ) -> Mở bảng thông tin/nâng cấp
                 if (!isDragStarted)
                 {
@@ -327,12 +335,17 @@ public class WallSelectionManager : MonoBehaviour
                     {
                         SelectFactory(pressedFactory);
                     }
+                    else if (pressedHouse != null)
+                    {
+                        FloatingDamageText.SpawnResource(pressedHouse.transform.position + Vector3.up * 3.5f, "🏠 " + pressedHouse.houseName, new Color(0.2f, 0.85f, 1f), 0.12f);
+                    }
                 }
 
                 pressedWall = null;
                 pressedTurret = null;
                 pressedHQ = null;
                 pressedFactory = null;
+                pressedHouse = null;
                 isDragStarted = false;
             }
         }
@@ -405,6 +418,27 @@ public class WallSelectionManager : MonoBehaviour
         }
     }
 
+    public void SetPersistentBlinkTarget(Transform target)
+    {
+        if (target == null)
+        {
+            ClearPersistentBlinking();
+            return;
+        }
+
+        if (currentBlinkTarget == target) return;
+
+        ClearPersistentBlinking();
+        currentBlinkTarget = target;
+        CollectPressRenderers(target);
+    }
+
+    public void ClearPersistentBlinking()
+    {
+        ClearPressBlinking();
+        currentBlinkTarget = null;
+    }
+
     public void ClearPressBlinking()
     {
         for (int i = 0; i < activePressRenderers.Count; i++)
@@ -418,19 +452,48 @@ public class WallSelectionManager : MonoBehaviour
         activePressRenderers.Clear();
 
         // Phục hồi lại hoàn toàn visual chuẩn của cấp độ
-        if (pressedWall != null) pressedWall.ApplyLevel(pressedWall.currentLevel);
-        else if (selectedWall != null) selectedWall.ApplyLevel(selectedWall.currentLevel);
-
-        if (pressedTurret != null) pressedTurret.ApplyTurretVisuals(pressedTurret.currentLevel);
-        else if (selectedTurret != null) selectedTurret.ApplyTurretVisuals(selectedTurret.currentLevel);
-
-        if (pressedHQ != null) pressedHQ.ResetHQVisuals();
-        else if (BaseHQ.Instance != null) BaseHQ.Instance.ResetHQVisuals();
-
-        if (pressedFactory != null)
+        Transform target = currentBlinkTarget;
+        if (target != null)
         {
-            Renderer[] rends = pressedFactory.GetComponentsInChildren<Renderer>(true);
-            foreach (var r in rends) if (r != null) r.SetPropertyBlock(null);
+            WallSegment ws = target.GetComponentInParent<WallSegment>();
+            if (ws != null) ws.ApplyLevel(ws.currentLevel);
+
+            UpgradableTurret ut = target.GetComponentInParent<UpgradableTurret>();
+            if (ut != null) ut.ApplyTurretVisuals(ut.currentLevel);
+
+            BaseHQ hq = target.GetComponentInParent<BaseHQ>();
+            if (hq != null) hq.ResetHQVisuals();
+
+            CivilianHouse ch = target.GetComponentInParent<CivilianHouse>();
+            if (ch != null)
+            {
+                Renderer[] rends = ch.GetComponentsInChildren<Renderer>(true);
+                foreach (var r in rends) if (r != null) r.SetPropertyBlock(null);
+            }
+
+            RobotFactory rf = target.GetComponentInParent<RobotFactory>();
+            if (rf != null)
+            {
+                Renderer[] rends = rf.GetComponentsInChildren<Renderer>(true);
+                foreach (var r in rends) if (r != null) r.SetPropertyBlock(null);
+            }
+        }
+        else
+        {
+            if (pressedWall != null) pressedWall.ApplyLevel(pressedWall.currentLevel);
+            else if (selectedWall != null) selectedWall.ApplyLevel(selectedWall.currentLevel);
+
+            if (pressedTurret != null) pressedTurret.ApplyTurretVisuals(pressedTurret.currentLevel);
+            else if (selectedTurret != null) selectedTurret.ApplyTurretVisuals(selectedTurret.currentLevel);
+
+            if (pressedHQ != null) pressedHQ.ResetHQVisuals();
+            else if (BaseHQ.Instance != null) BaseHQ.Instance.ResetHQVisuals();
+
+            if (pressedFactory != null)
+            {
+                Renderer[] rends = pressedFactory.GetComponentsInChildren<Renderer>(true);
+                foreach (var r in rends) if (r != null) r.SetPropertyBlock(null);
+            }
         }
     }
 
@@ -620,7 +683,7 @@ public class WallSelectionManager : MonoBehaviour
     public void DeselectAll()
     {
         if (isMoveMode) CancelMove();
-        if (isPressHolding) ClearPressBlinking();
+        ClearPersistentBlinking();
         DeselectWall();
         DeselectTurret();
         DeselectFactory();

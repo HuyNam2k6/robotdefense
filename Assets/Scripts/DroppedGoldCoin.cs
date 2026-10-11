@@ -4,10 +4,11 @@ using UnityEngine;
 
 /// <summary>
 /// DroppedGoldCoin - Đồng Xu Vàng Rơi Trên Chiến Trường:
-/// - Khi Enemy chết, vàng sẽ văng ra mặt đất thành các đồng xu 3D vàng kim phát sáng.
-/// - Đồng xu nằm trên đất, tự xoay 360 độ và nhấp nhô bồng bềnh.
-/// - Ban ngày (sáng ra) hoặc bất kỳ lúc nào Player đến gần (< 3.8m), đồng xu sẽ tự động bị từ trường hút về Player.
-/// - Khi chạm Player: Cộng tiền vào GameEconomy và nảy số vàng trên màn hình.
+/// - Khi Enemy/Boss chết, vàng sẽ văng ra và RƠI CHÍNH XÁC XUỐNG MẶT ĐẤT (Arc/Gravity).
+/// - Dù quái vật bay trên trời (Mecha Dragon) hay chết trên cao, toàn bộ tiền đều rơi từ trên không xuống mặt sàn.
+/// - Đồng xu nằm sát đất, tự xoay 360 độ và nhấp nhô nhẹ nhàng.
+/// - Khi Player hoặc Dân Làng đến gần, từ trường sẽ hút đồng xu gom vào người chơi.
+/// - Tuyệt đối không bao giờ bị lơ lửng trên không trung.
 /// </summary>
 public class DroppedGoldCoin : MonoBehaviour
 {
@@ -15,93 +16,205 @@ public class DroppedGoldCoin : MonoBehaviour
     public int coinValue = 5;
 
     [Header("=== CÀI ĐẶT HÚT & NHẶT ===")]
-    public float magnetDistance = 3.8f;
-    public float collectDistance = 0.65f;
+    public float magnetDistance = 5.0f;
+    public float collectDistance = 1.0f;
     public float moveSpeed = 0f;
-    public float maxSpeed = 16f;
-    public float acceleration = 24f;
+    public float maxSpeed = 18f;
+    public float acceleration = 28f;
 
-    [Header("=== ANIMATION NHẤP NHÔ & XOAY ===")]
+    [Header("=== HIỆU ỨNG RƠI XUỐNG ĐẤT (FALLING ARC) ===")]
+    public bool isLanded = false;
+    private Vector3 currentVelocity;
+    private Vector3 targetGroundPos;
+    private float targetGroundY;
+    private int bounceCount = 0;
+    private const int MAX_BOUNCES = 2;
+
+    [Header("=== ANIMATION XOAY VÀ NHẤP NHÔ NHẸ TRÊN ĐẤT ===")]
     public float rotateSpeed = 180f;
     public float bobSpeed = 3.5f;
-    public float bobHeight = 0.12f;
+    public float bobHeight = 0.04f; // Chỉ nhấp nhô nhẹ 4cm sát mặt đất
 
     private Transform playerTransform;
-    private Vector3 initialBasePos;
-    private float groundY;
     private bool isBeingAttracted = false;
     private float spawnTime;
 
     private static Material sharedGoldCoinMaterial;
+
+    public static readonly List<DroppedGoldCoin> ActiveCoins = new List<DroppedGoldCoin>();
+    public static event System.Action<Vector3> OnCoinDropped;
 
     private void Awake()
     {
         spawnTime = Time.time;
     }
 
+    private void OnEnable()
+    {
+        if (!ActiveCoins.Contains(this)) ActiveCoins.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        ActiveCoins.Remove(this);
+    }
+
     private void Start()
     {
         FindPlayer();
 
-        // Dò độ cao mặt đất để cố định vị trí đồng xu không bị rơi xuyên sàn
-        groundY = GetTrueGroundHeight(transform.position);
-        initialBasePos = new Vector3(transform.position.x, groundY + 0.22f, transform.position.z);
+        // Đảm bảo tính toán chính xác cao độ mặt đất hòn đảo
+        if (targetGroundY <= 0.01f)
+        {
+            targetGroundY = GetTrueGroundHeight(transform.position);
+            targetGroundPos = new Vector3(transform.position.x, targetGroundY + 0.12f, transform.position.z);
+        }
+    }
+
+    /// <summary>
+    /// Kích hoạt quỹ đạo văng và rơi xuống đất từ vị trí quái chết
+    /// </summary>
+    public void LaunchFall(Vector3 startPos, Vector3 targetLandingGround)
+    {
+        transform.position = startPos;
+        targetGroundPos = targetLandingGround;
+        targetGroundY = targetLandingGround.y;
+        isLanded = false;
+        bounceCount = 0;
+
+        // Vận tốc văng ban đầu: Bung nhẹ lên trên và tản ra ngoài
+        Vector3 horizontalDir = (targetLandingGround - startPos);
+        horizontalDir.y = 0f;
+        float hDist = horizontalDir.magnitude;
+
+        // Nếu quái chết ở rất cao trên không (rồng bay): rơi nhanh xuống
+        float dropHeight = Mathf.Max(0.5f, startPos.y - targetLandingGround.y);
+        float fallTime = Mathf.Clamp(Mathf.Sqrt((2f * dropHeight) / 22f), 0.35f, 1.2f);
+
+        Vector3 hVelocity = fallTime > 0.01f ? (horizontalDir / fallTime) : Vector3.zero;
+        float vVelocity = dropHeight > 2.0f ? 2.5f : 4.5f; // Nảy nhẹ lên trước khi rơi xuống
+
+        currentVelocity = new Vector3(hVelocity.x, vVelocity, hVelocity.z);
     }
 
     private void Update()
     {
-        // 1. Animation xoay tròn và nhấp nhô bồng bềnh
+        // 1. Luôn tự xoay tròn 360 độ quanh trục thẳng đứng
         transform.Rotate(Vector3.up, rotateSpeed * Time.deltaTime, Space.World);
 
-        if (!isBeingAttracted)
+        // 2. Nếu đang trong quá trình rơi từ trên không xuống mặt đất:
+        if (!isLanded && !isBeingAttracted)
         {
-            float bobOffset = Mathf.Sin((Time.time - spawnTime) * bobSpeed) * bobHeight;
-            transform.position = initialBasePos + Vector3.up * bobOffset;
+            ApplyFallPhysics();
+            return;
         }
 
-        // 2. Tìm Player nếu chưa có tham chiếu
+        // 3. Khi đã nằm trên mặt đất: Giữ cố định trên sàn + nhấp nhô nhẹ 4cm
+        if (isLanded && !isBeingAttracted)
+        {
+            float bob = Mathf.Sin((Time.time - spawnTime) * bobSpeed) * bobHeight;
+            transform.position = new Vector3(targetGroundPos.x, targetGroundY + 0.12f + bob, targetGroundPos.z);
+        }
+
+        // 4. Tìm Player nếu chưa có tham chiếu
         if (playerTransform == null)
         {
             FindPlayer();
             if (playerTransform == null) return;
         }
 
-        // 3. Kiểm tra khoảng cách tới Player
+        // 5. Kiểm tra khoảng cách tới Player (tính khoảng cách 2D mặt phẳng + độ chênh lệch cao độ)
         Vector3 playerPos = playerTransform.position + Vector3.up * 0.8f;
         float distToPlayer = Vector3.Distance(transform.position, playerPos);
+        float dist2D = Vector2.Distance(new Vector2(transform.position.x, transform.position.z), new Vector2(playerPos.x, playerPos.z));
 
-        if (distToPlayer <= magnetDistance)
+        // Ban ngày từ trường hút mạnh hơn (lên tới 8m)
+        float currentMagnetDist = (DayNightSystem.Instance != null && !DayNightSystem.Instance.isNight) 
+            ? magnetDistance * 1.6f 
+            : magnetDistance;
+
+        if (distToPlayer <= currentMagnetDist || dist2D <= currentMagnetDist)
         {
             isBeingAttracted = true;
         }
 
-        // 4. Nếu bị hút về Player
+        // 6. Nếu bị hút về phía Player: Trượt mượt mà theo đường thẳng vào túi đồ Player
         if (isBeingAttracted)
         {
             moveSpeed = Mathf.MoveTowards(moveSpeed, maxSpeed, acceleration * Time.deltaTime);
             transform.position = Vector3.MoveTowards(transform.position, playerPos, moveSpeed * Time.deltaTime);
 
             // Khi chạm vào Player -> Nhặt thành công!
-            if (distToPlayer <= collectDistance || Vector3.Distance(transform.position, playerPos) <= collectDistance)
+            if (distToPlayer <= collectDistance || dist2D <= collectDistance || Vector3.Distance(transform.position, playerPos) <= collectDistance)
             {
                 CollectCoin();
             }
         }
     }
 
+    /// <summary>
+    /// Mô phỏng vật lý rơi tự do chuẩn xác bằng code (Không dùng Rigidbody)
+    /// </summary>
+    private void ApplyFallPhysics()
+    {
+        float dt = Time.deltaTime;
+
+        // Trọng lực kéo xuống đất: g = -24 m/s²
+        currentVelocity.y -= 24f * dt;
+
+        Vector3 newPos = transform.position + currentVelocity * dt;
+
+        // Kiểm tra chạm sàn đất
+        if (newPos.y <= targetGroundY + 0.12f)
+        {
+            newPos.y = targetGroundY + 0.12f;
+            bounceCount++;
+
+            if (bounceCount < MAX_BOUNCES && Mathf.Abs(currentVelocity.y) > 3.0f)
+            {
+                // Nảy lên nhẹ (đàn hồi 30%)
+                currentVelocity.y = Mathf.Abs(currentVelocity.y) * 0.32f;
+                currentVelocity.x *= 0.5f;
+                currentVelocity.z *= 0.5f;
+            }
+            else
+            {
+                // Tiếp đất hoàn toàn! Nằm cố định trên thảm cỏ
+                isLanded = true;
+                currentVelocity = Vector3.zero;
+                targetGroundPos = newPos;
+            }
+        }
+
+        transform.position = newPos;
+    }
+
     private void CollectCoin()
     {
-        // 1. Cộng vàng vào kinh tế
         if (GameEconomy.Instance != null && coinValue > 0)
         {
             GameEconomy.Instance.AddCoins(coinValue);
         }
 
-        // 2. Nảy số vàng nổi trên đầu Player
         Vector3 popupPos = (playerTransform != null ? playerTransform.position : transform.position) + Vector3.up * 1.6f;
         FloatingDamageText.SpawnResource(popupPos, $"+{coinValue} 🪙", new Color(1f, 0.88f, 0.1f, 1f), 0.08f);
 
-        // 3. Tiêu hủy đồng xu
+        Destroy(gameObject);
+    }
+
+    /// <summary>
+    /// Cho phép Dân Làng (IslandSettler) chạy đến nhặt đồng xu vàng giúp Player
+    /// </summary>
+    public void CollectBySettler(Transform settler)
+    {
+        if (GameEconomy.Instance != null && coinValue > 0)
+        {
+            GameEconomy.Instance.AddCoins(coinValue);
+        }
+
+        Vector3 popupPos = (settler != null ? settler.position : transform.position) + Vector3.up * 1.5f;
+        FloatingDamageText.SpawnResource(popupPos, $"+{coinValue} 🪙", new Color(1f, 0.88f, 0.1f, 1f), 0.08f);
+
         Destroy(gameObject);
     }
 
@@ -127,27 +240,54 @@ public class DroppedGoldCoin : MonoBehaviour
         }
     }
 
-    private float GetTrueGroundHeight(Vector3 pos)
+    /// <summary>
+    /// Dò tìm cao độ mặt đất chuẩn xác nhất của hòn đảo:
+    /// - Ưu tiên Terrain.SampleHeight
+    /// - Lọc sạch toàn bộ cây cối, quái vật, boss, đạn, tường, trụ, coin để tuyệt đối không đặt coin trên không
+    /// </summary>
+    public static float GetTrueGroundHeight(Vector3 pos)
     {
-        float tY = 9.5f;
+        float terrainY = 9.5f;
         if (Terrain.activeTerrain != null)
         {
-            tY = Terrain.activeTerrain.SampleHeight(pos) + Terrain.activeTerrain.transform.position.y;
+            terrainY = Terrain.activeTerrain.SampleHeight(pos) + Terrain.activeTerrain.transform.position.y;
         }
 
-        if (Physics.Raycast(new Vector3(pos.x, 30f, pos.z), Vector3.down, out RaycastHit hit, 45f))
+        // Bắn Raycast quét các mặt sàn hợp lệ bên dưới
+        Vector3 rayStart = new Vector3(pos.x, 35f, pos.z);
+        RaycastHit[] hits = Physics.RaycastAll(rayStart, Vector3.down, 50f);
+        float bestFloorY = -999f;
+
+        foreach (var h in hits)
         {
-            string n = hit.collider.name.ToLower();
-            if (!n.Contains("player") && !n.Contains("enemy") && !n.Contains("bullet"))
+            if (h.collider == null) continue;
+            string n = h.collider.name.ToLower();
+
+            // LOẠI TRỪ TRIỆT ĐỂ: Bất kỳ vật thể nào không phải mặt sàn đi bộ
+            if (n.Contains("player") || n.Contains("enemy") || n.Contains("boss") || 
+                n.Contains("bullet") || n.Contains("wall") || n.Contains("turret") || 
+                n.Contains("tree") || n.Contains("coin") || n.Contains("leaf") || 
+                n.Contains("pine") || n.Contains("rock") || n.Contains("spider") || 
+                n.Contains("dragon") || n.Contains("building") || n.Contains("mesh"))
             {
-                return Mathf.Max(tY, hit.point.y);
+                continue;
+            }
+
+            if (h.collider is TerrainCollider || n.Contains("ground") || n.Contains("terrain") || n.Contains("floor"))
+            {
+                if (h.point.y > bestFloorY && h.point.y < 30f)
+                {
+                    bestFloorY = h.point.y;
+                }
             }
         }
-        return tY;
+
+        return Mathf.Max(terrainY, bestFloorY > -900f ? bestFloorY : terrainY);
     }
 
     /// <summary>
-    /// Rơi các đồng xu vàng ra xung quanh vị trí quái chết
+    /// Rơi các đồng xu vàng từ quái vật/boss: 
+    /// Toàn bộ tiền sẽ bung ra và RƠI CHÍNH XÁC XUỐNG MẶT ĐẤT!
     /// </summary>
     public static void SpawnCoins(Vector3 centerPos, int totalGold)
     {
@@ -158,37 +298,50 @@ public class DroppedGoldCoin : MonoBehaviour
         int valuePerCoin = Mathf.Max(1, totalGold / coinCount);
         int remainder = totalGold - (valuePerCoin * coinCount);
 
+        Vector3 averageGroundLandingPos = centerPos;
+
         for (int i = 0; i < coinCount; i++)
         {
             int thisCoinVal = valuePerCoin + (i == 0 ? remainder : 0);
 
-            // Văng ngẫu nhiên trong bán kính 1.2m
-            Vector2 randCircle = Random.insideUnitCircle * 1.25f;
-            Vector3 spawnPos = centerPos + new Vector3(randCircle.x, 0.5f, randCircle.y);
+            // Bán kính tản ra xung quanh điểm rơi
+            Vector2 randCircle = Random.insideUnitCircle * Random.Range(0.8f, 2.2f);
+            Vector3 landingGroundPos = new Vector3(centerPos.x + randCircle.x, 0f, centerPos.z + randCircle.y);
 
+            // Tính toán mặt sàn đất thực tế dưới chân vị trí rơi
+            float groundFloorY = GetTrueGroundHeight(landingGroundPos);
+            landingGroundPos.y = groundFloorY + 0.12f;
+
+            if (i == 0) averageGroundLandingPos = landingGroundPos;
+
+            // Tạo GameObject đồng xu
             GameObject coinObj = CreateCoinVisualObject(thisCoinVal);
-            coinObj.transform.position = spawnPos;
 
             DroppedGoldCoin coinComp = coinObj.GetComponent<DroppedGoldCoin>();
             if (coinComp != null)
             {
                 coinComp.coinValue = thisCoinVal;
+                // Kích hoạt quỹ đạo rơi từ vị trí quái chết xuống mặt đất!
+                coinComp.LaunchFall(centerPos, landingGroundPos);
             }
         }
+
+        // Báo cho toàn bộ Dân Làng trên đảo biết vị trí MẶT ĐẤT nơi tiền rơi xuống để chạy đến nhặt!
+        OnCoinDropped?.Invoke(averageGroundLandingPos);
     }
 
     /// <summary>
-    /// Tự động sinh GameObject đồng xu 3D mỏng đẹp chuẩn URP Lit
+    /// Khởi tạo GameObject đồng xu 3D mỏng đẹp chuẩn URP Lit
     /// </summary>
     private static GameObject CreateCoinVisualObject(int value)
     {
         GameObject coin = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
         coin.name = $"Dropped_Gold_Coin_{value}";
 
-        // Tỷ lệ đồng xu dẹt mỏng: đường kính 0.42m, độ dày 0.05m
+        // Tỷ lệ đồng xu dẹt mỏng: đường kính 0.42m, độ dày 0.035m
         coin.transform.localScale = new Vector3(0.42f, 0.025f, 0.42f);
 
-        // Khử collider vật lý đặc cứng (chỉ dùng trigger hoặc raycast code)
+        // Khử collider vật lý cứng (chỉ dùng Trigger để tối ưu CPU)
         Collider col = coin.GetComponent<Collider>();
         if (col != null) col.isTrigger = true;
 

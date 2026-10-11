@@ -495,11 +495,11 @@
    -> Không có AnimationClip nào!
 
 [File] Assets/Models/MechaDragon/source/MechaDragon.fbx:
-   - Clip: DragonArmature|Dragon_Flying (Length: 1.67s)
+   - Clip: DragonArmature|Dragon_Attack (Length: 0.88s)
    - Clip: DragonArmature|Dragon_Attack2 (Length: 1.67s)
    - Clip: DragonArmature|Dragon_Death (Length: 1.21s)
+   - Clip: DragonArmature|Dragon_Flying (Length: 1.67s)
    - Clip: DragonArmature|Dragon_Hit (Length: 1.67s)
-   - Clip: DragonArmature|Dragon_Attack (Length: 0.88s)
 
 [File] Assets/Models/NewMech/George.fbx:
    - Clip: Walk_Holding (Length: 0.83s)

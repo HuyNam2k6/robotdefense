@@ -4,20 +4,16 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
-[InitializeOnLoad]
 public static class RestorePhaotuhanh
 {
-    static RestorePhaotuhanh()
-    {
-        EditorApplication.delayCall += () =>
-        {
-            ExecuteRestore();
-        };
-    }
-
-    // [MenuItem("Tools/🚀 Khôi Phục Pháo Tự Hành MLRS & SampleScene")]
+    [MenuItem("Tools/🚀 Khôi Phục Pháo Tự Hành MLRS & SampleScene")]
     public static void ExecuteRestore()
     {
+        if (EditorApplication.isPlayingOrWillChangePlaymode || Application.isPlaying)
+        {
+            return;
+        }
+
         // 1. Mở SampleScene nếu chưa mở
         string scenePath = "Assets/Scenes/SampleScene.unity";
         Scene currentScene = EditorSceneManager.GetActiveScene();

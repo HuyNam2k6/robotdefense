@@ -29,6 +29,10 @@ public class MechaDragonBoss : MonoBehaviour
     private bool hasTriggeredHalfHpShield = false;
     private GameObject shieldVfxObj;
 
+    [Header("=== ÂM THANH VỖ CÁNH RỒNG (dragonmecha.mp3) ===")]
+    public AudioSource wingFlapAudioSource;
+    public AudioClip wingFlapClip;
+
     // Bộ đếm thời gian kỹ năng
     private float flameTimer = 3.0f;
     private float meteorTimer = 8.0f;
@@ -51,7 +55,7 @@ public class MechaDragonBoss : MonoBehaviour
             enemy.moveSpeed = 3.2f;
             enemy.attackRange = 9.0f;
             enemy.healthBarHeight = 2.4f;
-            enemy.flightAltitude = 4.2f;
+            enemy.flightAltitude = 1.4f;
         }
     }
 
@@ -62,12 +66,17 @@ public class MechaDragonBoss : MonoBehaviour
             enemy.UpdateHealthBar();
         }
 
+        // Khởi tạo âm thanh vỗ cánh (dragonmecha.mp3)
+        InitWingFlapAudio();
+
         // Báo hiệu Boss xuất hiện
         FloatingDamageText.Spawn(transform.position + Vector3.up * 3f, 0, new Color(1f, 0.2f, 0.2f));
     }
 
     private void Update()
     {
+        UpdateWingFlapAudio();
+
         if (enemy == null || enemy.currentHealth <= 0f) return;
 
         // 1. Kiểm tra kích hoạt Kỹ năng 5: [Lá Chắn Năng Lượng Thép] khi HP < 50%
@@ -436,6 +445,77 @@ public class MechaDragonBoss : MonoBehaviour
         if (shieldVfxObj != null)
         {
             Destroy(shieldVfxObj);
+        }
+
+        if (wingFlapAudioSource != null && wingFlapAudioSource.isPlaying)
+        {
+            wingFlapAudioSource.Stop();
+        }
+    }
+
+    // ================= ÂM THANH VỖ CÁNH RỒNG (dragonmecha.mp3) =================
+
+    private void InitWingFlapAudio()
+    {
+        if (wingFlapAudioSource == null)
+        {
+            wingFlapAudioSource = GetComponent<AudioSource>();
+            if (wingFlapAudioSource == null) wingFlapAudioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        wingFlapAudioSource.loop = true;
+        wingFlapAudioSource.playOnAwake = false;
+        wingFlapAudioSource.spatialBlend = 0.95f; // Âm thanh 3D lập thể
+        wingFlapAudioSource.minDistance = 6f;
+        wingFlapAudioSource.maxDistance = 50f;
+        wingFlapAudioSource.rolloffMode = AudioRolloffMode.Linear;
+
+        if (wingFlapClip == null)
+        {
+#if UNITY_EDITOR
+            wingFlapClip = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/dragonmecha.mp3");
+#endif
+            if (wingFlapClip == null)
+            {
+                wingFlapClip = Resources.Load<AudioClip>("dragonmecha");
+            }
+        }
+
+        if (wingFlapClip != null)
+        {
+            wingFlapAudioSource.clip = wingFlapClip;
+            wingFlapAudioSource.Play();
+        }
+    }
+
+    private void UpdateWingFlapAudio()
+    {
+        if (wingFlapAudioSource == null) return;
+
+        if (enemy != null && enemy.currentHealth > 0f)
+        {
+            float sfxVol = GameAudioManager.Instance != null ? GameAudioManager.Instance.GetSFXVolume() : 0.85f;
+            bool isMuted = sfxVol <= 0.001f;
+
+            wingFlapAudioSource.mute = isMuted;
+            wingFlapAudioSource.volume = isMuted ? 0f : sfxVol * 0.85f;
+
+            if (wingFlapClip != null && wingFlapAudioSource.clip == null)
+            {
+                wingFlapAudioSource.clip = wingFlapClip;
+            }
+
+            if (wingFlapAudioSource.clip != null && !wingFlapAudioSource.isPlaying)
+            {
+                wingFlapAudioSource.Play();
+            }
+        }
+        else
+        {
+            if (wingFlapAudioSource.isPlaying)
+            {
+                wingFlapAudioSource.Stop();
+            }
         }
     }
 }

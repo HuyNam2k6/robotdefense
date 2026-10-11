@@ -16,20 +16,20 @@ namespace RobotDefense.Editor
 
         private static void CheckAndPlant()
         {
-            GameObject existing = GameObject.Find("_IslandVegetation");
-            if (existing != null && existing.transform.Find("🌲 Cây Thông (Pines)") != null)
+            if (EditorApplication.isPaused || EditorApplication.isPlayingOrWillChangePlaymode) return;
+
+            if (SessionState.GetBool("PlantNature_V3_LushForest_Planted", false))
             {
                 EditorApplication.update -= CheckAndPlant;
                 return;
             }
 
-            if (EditorApplication.isPaused) return;
-
+            SessionState.SetBool("PlantNature_V3_LushForest_Planted", true);
             EditorApplication.update -= CheckAndPlant;
             PlantFoliage();
         }
 
-        // [MenuItem("Tools/🌿 Trồng Cây Cối & Bụi Rậm Khắp Đảo (Plant Nature)")]
+        [MenuItem("Tools/🌿 Trồng Cây Cối & Bụi Rậm Khắp Đảo (Plant Nature)")]
         public static void PlantFoliage()
         {
             Terrain terrain = Object.FindFirstObjectByType<Terrain>();
@@ -139,65 +139,65 @@ namespace RobotDefense.Editor
             };
 
             // ================= 1. TRỒNG CÁC CỤM CÂY THÔNG (PINE CLUSTERS) =================
-            // Trồng 16 cụm cây thông (mỗi cụm 2-4 cây + 1 tảng đá to bên cạnh)
-            int clusterCount = 16;
+            // Trồng 32 cụm cây thông tuyệt đẹp (mỗi cụm 3-5 cây + đá rêu + bụi hoa quanh gốc)
+            int clusterCount = 32;
             for (int c = 0; c < clusterCount; c++)
             {
-                // Chọn tâm cụm
-                float cx = Random.Range(-32f, 32f);
-                float cz = Random.Range(-58f, 58f);
+                // Chọn tâm cụm phân bổ hài hòa khắp đồi núi và thảo nguyên
+                float cx = Random.Range(-34f, 34f);
+                float cz = Random.Range(-62f, 62f);
 
                 if (isInBaseArea(cx, cz)) continue;
 
                 float ch = getTerrainHeight(cx, cz);
                 if (ch < 7.8f) continue; // Không trồng ở vực sâu hay dưới nước
 
-                // Số lượng cây thông trong cụm (2 - 4 cây)
-                int treesInCluster = Random.Range(2, 5);
+                // Số lượng cây thông trong cụm (3 - 5 cây đan xen so le tự nhiên)
+                int treesInCluster = Random.Range(3, 6);
                 for (int t = 0; t < treesInCluster; t++)
                 {
-                    float ox = cx + Random.Range(-3.5f, 3.5f);
-                    float oz = cz + Random.Range(-3.5f, 3.5f);
+                    float ox = cx + Random.Range(-4.2f, 4.2f);
+                    float oz = cz + Random.Range(-4.2f, 4.2f);
                     if (isInBaseArea(ox, oz)) continue;
 
                     float oh = getTerrainHeight(ox, oz);
                     if (oh < 7.8f) continue;
 
                     GameObject pPrefab = pineList[Random.Range(0, pineList.Count)];
-                    float scale = Random.Range(0.85f, 1.25f);
-                    SpawnNatureItem(pPrefab, new Vector3(ox, oh, oz), Vector3.one * scale, groupPines);
+                    float scale = Random.Range(0.85f, 1.35f);
+                    SpawnNatureItem(pPrefab, new Vector3(ox, oh, oz), Vector3.one * scale, groupPines, true);
                     totalPlanted++;
                 }
 
                 // Đi kèm 1 tảng đá lớn rêu xanh bên chân cụm thông
                 if (rockList.Count > 0 && Random.value < 0.85f)
                 {
-                    float rx = cx + Random.Range(-2f, 2f);
-                    float rz = cz + Random.Range(-2f, 2f);
+                    float rx = cx + Random.Range(-2.5f, 2.5f);
+                    float rz = cz + Random.Range(-2.5f, 2.5f);
                     float rh = getTerrainHeight(rx, rz);
                     if (rh >= 7.8f)
                     {
                         GameObject rPrefab = rockList[Random.Range(0, rockList.Count)];
-                        float rScale = Random.Range(1.4f, 2.2f);
-                        SpawnNatureItem(rPrefab, new Vector3(rx, rh - 0.2f, rz), Vector3.one * rScale, groupRocks);
+                        float rScale = Random.Range(1.12f, 1.76f);
+                        SpawnNatureItem(rPrefab, new Vector3(rx, rh - 0.2f, rz), Vector3.one * rScale, groupRocks, false);
                         totalPlanted++;
                     }
                 }
 
-                // Đi kèm 1-2 bụi cây quanh gốc
+                // Đi kèm 2-3 bụi cây quanh gốc tạo không gian tự nhiên tươi mát
                 if (bushList.Count > 0)
                 {
-                    int bushes = Random.Range(1, 3);
+                    int bushes = Random.Range(2, 4);
                     for (int b = 0; b < bushes; b++)
                     {
-                        float bx = cx + Random.Range(-3f, 3f);
-                        float bz = cz + Random.Range(-3f, 3f);
+                        float bx = cx + Random.Range(-3.5f, 3.5f);
+                        float bz = cz + Random.Range(-3.5f, 3.5f);
                         float bh = getTerrainHeight(bx, bz);
                         if (bh >= 7.8f)
                         {
                             GameObject bPrefab = bushList[Random.Range(0, bushList.Count)];
                             float bScale = Random.Range(1.5f, 2.5f);
-                            SpawnNatureItem(bPrefab, new Vector3(bx, bh, bz), Vector3.one * bScale, groupBushes);
+                            SpawnNatureItem(bPrefab, new Vector3(bx, bh, bz), Vector3.one * bScale, groupBushes, false);
                             totalPlanted++;
                         }
                     }
@@ -205,24 +205,23 @@ namespace RobotDefense.Editor
             }
 
             // ================= 2. TRỒNG CÂY TÁN TRÒN / CỔ THỤ (OAKS & BROADLEAF) =================
-            // Trồng 8-10 cây sồi / cây dương đơn lẻ hoặc theo cặp ở sườn cỏ thoai thoải
+            // Trồng 18 cây sồi / cổ thụ xanh mướt phân bổ nghệ thuật tại các thảm cỏ rộng
             int broadleafAttempts = 0;
             int broadleafPlanted = 0;
-            while (broadleafPlanted < 8 && broadleafAttempts < 50 && broadleafList.Count > 0)
+            while (broadleafPlanted < 18 && broadleafAttempts < 80 && broadleafList.Count > 0)
             {
                 broadleafAttempts++;
-                float ox = Random.Range(-28f, 28f);
-                float oz = Random.Range(-55f, 55f);
+                float ox = Random.Range(-30f, 30f);
+                float oz = Random.Range(-60f, 60f);
 
                 if (isInBaseArea(ox, oz)) continue;
 
                 float oh = getTerrainHeight(ox, oz);
-                if (oh < 8.2f) continue;
+                if (oh < 8.0f) continue;
 
                 GameObject oPrefab = broadleafList[Random.Range(0, broadleafList.Count)];
-                // Scale cây sồi vừa vặn (0.45x - 0.65x vì model gốc rất to)
-                float scale = Random.Range(0.45f, 0.65f);
-                SpawnNatureItem(oPrefab, new Vector3(ox, oh, oz), Vector3.one * scale, groupOaks);
+                float scale = Random.Range(0.48f, 0.70f);
+                SpawnNatureItem(oPrefab, new Vector3(ox, oh, oz), Vector3.one * scale, groupOaks, true);
                 broadleafPlanted++;
                 totalPlanted++;
 
@@ -230,21 +229,19 @@ namespace RobotDefense.Editor
                 if (bushList.Count > 0)
                 {
                     GameObject bPrefab = bushList[Random.Range(0, bushList.Count)];
-                    SpawnNatureItem(bPrefab, new Vector3(ox + 1.2f, oh, oz + 0.8f), Vector3.one * 1.8f, groupBushes);
+                    SpawnNatureItem(bPrefab, new Vector3(ox + 1.2f, oh, oz + 0.8f), Vector3.one * 1.8f, groupBushes, false);
                     totalPlanted++;
                 }
             }
 
             // ================= 3. TRỒNG CÁC TẢNG ĐÁ VEN VÁCH NÚI (CLIFFSIDE ROCKS) =================
-            // Trồng 15 tảng đá lớn nhô ra quanh rìa đảo
             int rockAttempts = 0;
             int rocksPlanted = 0;
-            while (rocksPlanted < 15 && rockAttempts < 80 && rockList.Count > 0)
+            while (rocksPlanted < 18 && rockAttempts < 90 && rockList.Count > 0)
             {
                 rockAttempts++;
-                // Chọn vị trí ven rìa đảo: |x| ~ [20, 33] hoặc |z| ~ [40, 60]
-                float rx = Random.Range(-33f, 33f);
-                float rz = Random.Range(-62f, 62f);
+                float rx = Random.Range(-34f, 34f);
+                float rz = Random.Range(-64f, 64f);
 
                 bool isEdge = (Mathf.Abs(rx) > 20f || Mathf.Abs(rz) > 38f);
                 if (!isEdge || isInBaseArea(rx, rz)) continue;
@@ -253,8 +250,8 @@ namespace RobotDefense.Editor
                 if (rh < 7.5f) continue;
 
                 GameObject rPrefab = rockList[Random.Range(0, rockList.Count)];
-                float rScale = Random.Range(1.8f, 3.0f);
-                SpawnNatureItem(rPrefab, new Vector3(rx, rh - 0.3f, rz), Vector3.one * rScale, groupRocks);
+                float rScale = Random.Range(1.44f, 2.4f);
+                SpawnNatureItem(rPrefab, new Vector3(rx, rh - 0.3f, rz), Vector3.one * rScale, groupRocks, false);
                 rocksPlanted++;
                 totalPlanted++;
             }
@@ -262,11 +259,11 @@ namespace RobotDefense.Editor
             // ================= 4. BỤI CÂY & HOA RẢI RÁC (MEADOW DETAILS) =================
             int bushAttempts = 0;
             int bushesPlanted = 0;
-            while (bushesPlanted < 40 && bushAttempts < 120 && bushList.Count > 0)
+            while (bushesPlanted < 60 && bushAttempts < 150 && bushList.Count > 0)
             {
                 bushAttempts++;
-                float bx = Random.Range(-30f, 30f);
-                float bz = Random.Range(-58f, 58f);
+                float bx = Random.Range(-32f, 32f);
+                float bz = Random.Range(-60f, 60f);
 
                 if (isInBaseArea(bx, bz)) continue;
 
@@ -275,7 +272,7 @@ namespace RobotDefense.Editor
 
                 GameObject bPrefab = bushList[Random.Range(0, bushList.Count)];
                 float bScale = Random.Range(1.5f, 2.6f);
-                SpawnNatureItem(bPrefab, new Vector3(bx, bh, bz), Vector3.one * bScale, groupBushes);
+                SpawnNatureItem(bPrefab, new Vector3(bx, bh, bz), Vector3.one * bScale, groupBushes, false);
                 bushesPlanted++;
                 totalPlanted++;
             }
@@ -300,7 +297,7 @@ namespace RobotDefense.Editor
             return list;
         }
 
-        private static void SpawnNatureItem(GameObject prefab, Vector3 position, Vector3 scale, Transform parent)
+        private static void SpawnNatureItem(GameObject prefab, Vector3 position, Vector3 scale, Transform parent, bool isTree = false)
         {
             if (prefab == null) return;
 
@@ -324,10 +321,50 @@ namespace RobotDefense.Editor
 
             instance.transform.localScale = scale;
 
-            // Tắt Collider để người chơi và robot di chuyển hoàn toàn thông suốt, không cản trở đặt tường
-            foreach (var col in instance.GetComponentsInChildren<Collider>())
+            // Nếu là cây, gắn script ChoppableTree để có thể khai thác gỗ
+            if (isTree)
             {
-                col.enabled = false;
+                ChoppableTree ct = instance.GetComponent<ChoppableTree>();
+                if (ct == null) ct = instance.AddComponent<ChoppableTree>();
+                ct.maxHits = 3;
+                ct.woodPerHit = 1;
+                ct.bonusWoodOnFelled = 2;
+                ct.respawnTime = 25f;
+
+                // Cây: Tắt collider cứng để không cản trở di chuyển và chặt cây bằng tia
+                foreach (var col in instance.GetComponentsInChildren<Collider>())
+                {
+                    col.enabled = false;
+                }
+            }
+            else
+            {
+                bool isRock = instance.name.ToLower().Contains("rock") || (parent != null && parent.name.ToLower().Contains("rock"));
+                if (isRock)
+                {
+                    // ĐÁ: BẮT BUỘC PHẢI BẬT COLLIDER CỨNG ĐỂ KHÔNG ĐI XUYÊN QUA!
+                    var cols = instance.GetComponentsInChildren<Collider>(true);
+                    if (cols.Length == 0)
+                    {
+                        RockObstacle.SetupSingleRock(instance);
+                    }
+                    else
+                    {
+                        foreach (var col in cols)
+                        {
+                            col.enabled = true;
+                            col.isTrigger = false;
+                        }
+                    }
+                }
+                else
+                {
+                    // Bụi cỏ hoa lá: tắt collider
+                    foreach (var col in instance.GetComponentsInChildren<Collider>())
+                    {
+                        col.enabled = false;
+                    }
+                }
             }
         }
     }

@@ -49,6 +49,18 @@ public class mineBotFarm : WorkerBot
     private GameObject overheadBadgeObj;
     private UnityEngine.UI.Text overheadText;
 
+    public static readonly System.Collections.Generic.List<mineBotFarm> AllMiners = new System.Collections.Generic.List<mineBotFarm>();
+
+    private void OnEnable()
+    {
+        if (!AllMiners.Contains(this)) AllMiners.Add(this);
+    }
+
+    private void OnDisable()
+    {
+        AllMiners.Remove(this);
+    }
+
     private void Awake()
     {
         anim = GetComponentInChildren<Animator>();

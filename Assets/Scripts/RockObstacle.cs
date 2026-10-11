@@ -14,6 +14,42 @@ public class RockObstacle : MonoBehaviour
     [Tooltip("Tự động quét và gắn Collider cho toàn bộ đá con nếu đây là thư mục chứa đá")]
     public bool isParentContainer = true;
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
+    public static void EnsureAllRocksInSceneHaveSolidColliders()
+    {
+        GameObject[] allObjs = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        int fixedCount = 0;
+        foreach (var go in allObjs)
+        {
+            if (go == null) continue;
+            string n = go.name.ToLower();
+            if (n.Contains("rock") && !n.Contains("rocket"))
+            {
+                Collider[] cols = go.GetComponentsInChildren<Collider>(true);
+                if (cols.Length == 0)
+                {
+                    SetupSingleRock(go);
+                    fixedCount++;
+                }
+                else
+                {
+                    foreach (var c in cols)
+                    {
+                        if (c != null)
+                        {
+                            c.enabled = true;
+                            c.isTrigger = false;
+                        }
+                    }
+                }
+            }
+        }
+        if (fixedCount > 0)
+        {
+            Debug.Log($"<color=#00FFAA><b>[RockObstacle]</b> Đã kích hoạt Collider kiên cố cho {fixedCount} tảng đá trên đảo!</color>");
+        }
+    }
+
     void Awake()
     {
         EnsureColliders();

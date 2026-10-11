@@ -24,15 +24,18 @@ public class RobotFactory : MonoBehaviour
     public const int MaxFactoryLevel = 4;
 
     public static readonly int[] FactoryUpgradeCoins = new int[] { 60, 150, 300 };
-    public static readonly int[] FactoryUpgradeWood = new int[] { 30, 80, 150 };
+    public static readonly int[] FactoryUpgradeWood = new int[] { 0, 0, 0 };
     public static readonly int[] FactoryUpgradeStone = new int[] { 30, 80, 150 };
 
     public int GetUpgradeCoins() => (factoryLevel >= 1 && factoryLevel < MaxFactoryLevel) ? FactoryUpgradeCoins[factoryLevel - 1] : 0;
-    public int GetUpgradeWood() => (factoryLevel >= 1 && factoryLevel < MaxFactoryLevel) ? FactoryUpgradeWood[factoryLevel - 1] : 0;
+    public int GetUpgradeWood() => 0;
     public int GetUpgradeStone() => (factoryLevel >= 1 && factoryLevel < MaxFactoryLevel) ? FactoryUpgradeStone[factoryLevel - 1] : 0;
+
+    public const int ROBOT_INDEX_MINER = 4; // Index 4: Robot Farm Đá (BipedRobot)
 
     public bool IsRobotUnlocked(int robotIndex)
     {
+        if (robotIndex == ROBOT_INDEX_MINER) return true; // Robot farm đá luôn sẵn sàng sản xuất từ Cấp 1!
         return factoryLevel >= (robotIndex + 1);
     }
 
@@ -59,14 +62,12 @@ public class RobotFactory : MonoBehaviour
         if (GameEconomy.Instance == null) return false;
 
         int reqCoins = GetUpgradeCoins();
-        int reqWood = GetUpgradeWood();
         int reqStone = GetUpgradeStone();
 
-        if (GameEconomy.Instance.coins < reqCoins || GameEconomy.Instance.woodCount < reqWood || GameEconomy.Instance.stoneCount < reqStone)
+        if (GameEconomy.Instance.coins < reqCoins || GameEconomy.Instance.stoneCount < reqStone)
         {
             string missing = $"Chưa đủ tài nguyên nâng Nhà Máy Cấp {factoryLevel + 1}!\nCần: ";
             if (GameEconomy.Instance.coins < reqCoins) missing += $"<color=#FFD700>🪙 {reqCoins} Vàng</color> ";
-            if (GameEconomy.Instance.woodCount < reqWood) missing += $"<color=#DEB887>🪵 {reqWood} Gỗ</color> ";
             if (GameEconomy.Instance.stoneCount < reqStone) missing += $"<color=#C0C0C0>🪨 {reqStone} Đá</color> ";
             FloatingDamageText.SpawnResource(transform.position + Vector3.up * 3.5f, missing, new Color(1f, 0.4f, 0.4f), 0.1f);
             CenterWarningBanner.Show($"⚠️ THIẾU TÀI NGUYÊN NÂNG NHÀ MÁY (CẤP {factoryLevel + 1})!", missing, 3.0f);
@@ -74,7 +75,6 @@ public class RobotFactory : MonoBehaviour
         }
 
         GameEconomy.Instance.SpendCoins(reqCoins);
-        GameEconomy.Instance.SpendWood(reqWood);
         GameEconomy.Instance.SpendStone(reqStone);
 
         factoryLevel++;
@@ -105,6 +105,10 @@ public class RobotFactory : MonoBehaviour
 
     [Tooltip("4 Prefab Robot chiến đấu: 0=Stan, 1=Mike, 2=George, 3=Leela")]
     public GameObject[] combatRobotPrefabs;
+
+    [Header("--- Robot Khai Thác Mỏ Đá (Stone Miner Robot) ---")]
+    [Tooltip("Prefab Robot đào đá (BipedRobot mang cúp sắt mineBotFarm)")]
+    public GameObject stoneMinerRobotPrefab;
 
     [Header("--- Vị Trí Xuất Xưởng ---")]
     public Transform spawnPoint;
@@ -175,6 +179,18 @@ public class RobotFactory : MonoBehaviour
                 if (p != null) list.Add(p);
             }
             if (list.Count > 0) combatRobotPrefabs = list.ToArray();
+        }
+
+        if (stoneMinerRobotPrefab == null)
+        {
+            stoneMinerRobotPrefab = Resources.Load<GameObject>("BipedRobot_Prefab");
+#if UNITY_EDITOR
+            if (stoneMinerRobotPrefab == null) stoneMinerRobotPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabsbot/BipedRobot_Prefab.prefab");
+#endif
+            if (stoneMinerRobotPrefab == null && GameEconomy.Instance != null)
+            {
+                stoneMinerRobotPrefab = GameEconomy.Instance.workerRobotPrefab;
+            }
         }
     }
 
@@ -294,6 +310,26 @@ public class RobotFactory : MonoBehaviour
             return false;
         }
 
+        // GIỚI HẠN TỐI ĐA 4 CON ROBOT FARM ĐÁ THEO YÊU CẦU NGƯỜI DÙNG
+        if (robotIndex == ROBOT_INDEX_MINER)
+        {
+            int currentMiners = mineBotFarm.AllMiners.Count;
+            int queuedMiners = 0;
+            foreach (var q in productionQueue)
+            {
+                if (q == ROBOT_INDEX_MINER) queuedMiners++;
+            }
+            if (isProducing && currentCraftingRobotIndex == ROBOT_INDEX_MINER) queuedMiners++;
+
+            if (currentMiners + queuedMiners >= 4)
+            {
+                string msg = "⚠️ ĐÃ ĐẠT TỐI ĐA 4 ROBOT FARM ĐÁ (4/4)!";
+                FloatingDamageText.SpawnResource(transform.position + Vector3.up * 3.2f, msg, Color.yellow, 0.13f);
+                Debug.LogWarning($"<color=yellow>[Robot Factory]</color> {msg}");
+                return false;
+            }
+        }
+
         int totalExpected = activeArmy.Count + (isProducing ? 1 : 0) + productionQueue.Count;
         if (totalExpected >= maxArmySize)
         {
@@ -327,6 +363,14 @@ public class RobotFactory : MonoBehaviour
         int nextIdx = fallbackRobotIndex % 4;
         fallbackRobotIndex++;
         return QueueCraftRobot(nextIdx);
+    }
+
+    /// <summary>
+    /// Sản xuất Robot Farm Đá (BipedRobot) ngay tại Nhà Máy Robot theo yêu cầu!
+    /// </summary>
+    public bool QueueCraftMinerRobot()
+    {
+        return QueueCraftRobot(ROBOT_INDEX_MINER);
     }
 
     private void StartProductionCycle()
@@ -395,8 +439,32 @@ public class RobotFactory : MonoBehaviour
         if (weldingLight != null) weldingLight.enabled = false;
         if (factoryBody != null) factoryBody.localScale = originalBodyScale;
 
-        // Lấy đúng prefab robot mà người chơi đã chọn
-        if (combatRobotPrefabs != null && combatRobotPrefabs.Length > 0)
+        // Nếu là Robot Farm Đá (BipedRobot mang cúp sắt mineBotFarm)
+        if (currentCraftingRobotIndex == ROBOT_INDEX_MINER)
+        {
+            GameObject minerPrefab = stoneMinerRobotPrefab;
+            if (minerPrefab == null && GameEconomy.Instance != null) minerPrefab = GameEconomy.Instance.workerRobotPrefab;
+            if (minerPrefab != null)
+            {
+                Vector3 spawnPos = spawnPoint != null ? spawnPoint.position : transform.position;
+                Quaternion spawnRot = spawnPoint != null ? spawnPoint.rotation : transform.rotation;
+
+                GameObject newMiner = Instantiate(minerPrefab, spawnPos, spawnRot);
+                newMiner.name = $"Robot_FarmDa_{System.Guid.NewGuid().ToString().Substring(0, 4)}";
+
+                var minerScript = newMiner.GetComponent<mineBotFarm>();
+                if (minerScript != null)
+                {
+                    minerScript.FindBestMiningTarget();
+                }
+
+                StartCoroutine(WalkOutToRallyPoint(newMiner, spawnPos, (rallyPoint != null) ? rallyPoint.position : spawnPos + transform.forward * 4.5f));
+                FloatingDamageText.SpawnResource(transform.position + Vector3.up * 4.2f, "⛏️ ĐÃ XUẤT XƯỞNG ROBOT FARM ĐÁ!", new Color(0.2f, 1f, 0.8f), 0.14f);
+                Debug.Log($"<color=#00FF88><b>[Robot Factory]</b> 🏭 CHẾ TẠO THÀNH CÔNG: {newMiner.name}! Ra đồng farm đá!</color>");
+            }
+        }
+        // Ngược lại, lấy đúng prefab robot chiến đấu mà người chơi đã chọn
+        else if (combatRobotPrefabs != null && combatRobotPrefabs.Length > 0)
         {
             int targetIdx = Mathf.Clamp(currentCraftingRobotIndex, 0, combatRobotPrefabs.Length - 1);
             GameObject prefabToSpawn = combatRobotPrefabs[targetIdx];

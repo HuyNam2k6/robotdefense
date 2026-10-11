@@ -286,7 +286,15 @@ public class BuildingShopUI : MonoBehaviour
 			return;
 		}
 
-		int cost = buildingSystem.items[itemIndex].cost;
+		// 1. Kiểm tra giới hạn mua tối đa là 3 cho tất cả vũ khí (Tường không giới hạn)
+		if (!BuildingSystem.CanPurchaseWeapon(itemIndex, out string limitReason))
+		{
+			ShowNotEnoughCoinsWarning(limitReason);
+			return;
+		}
+
+		// 2. Tính giá thực tế (Miễn phí 1 Thunder và 1 Pháo Tự Hành ban đầu)
+		int cost = BuildingSystem.GetWeaponEffectiveCost(itemIndex, buildingSystem.items[itemIndex].cost);
 		if (cost > 0 && GameEconomy.Instance != null && GameEconomy.Instance.coins < cost)
 		{
 			ShowNotEnoughCoinsWarning($"⚠️ Không đủ vàng để mua {displayName}! (Cần {cost}🪙)");
@@ -372,12 +380,24 @@ public class BuildingShopUI : MonoBehaviour
 			stoneText.text = $"🪨 <b>{GameEconomy.Instance.stoneCount:N0}</b>";
 
 		if (woodText != null)
-			woodText.text = $"🪵 <b>{GameEconomy.Instance.woodCount:N0}</b>";
+		{
+			if (woodText.transform.parent != null && woodText.transform.parent.name.Contains("Wood"))
+				woodText.transform.parent.gameObject.SetActive(false);
+			else
+				woodText.gameObject.SetActive(false);
+		}
 
 		// 2. Robot Đào Mỏ
 		if (buyWorkerText != null)
 		{
-			buyWorkerText.text = $"🤖 <b>MUA ROBOT ĐÀO</b>\n<color=#FFD700>🪙 {GameEconomy.Instance.workerRobotCost} Vàng</color>";
+			if (RobotFactory.Instance != null)
+			{
+				buyWorkerText.text = "🤖 <b>CHẾ TẠO ROBOT ĐÀO</b>\n<color=#00FF88>✦ Sản Xuất Trong Nhà Máy</color>";
+			}
+			else
+			{
+				buyWorkerText.text = $"🤖 <b>MUA ROBOT ĐÀO</b>\n<color=#FFD700>🪙 {GameEconomy.Instance.workerRobotCost} Vàng</color>";
+			}
 		}
 
 		// 2.1. Nút Xây Nhà Máy
@@ -435,6 +455,87 @@ public class BuildingShopUI : MonoBehaviour
 				if (upgradeWallButton != null) upgradeWallButton.interactable = false;
 			}
 		}
+
+		// 6. Cập nhật thẻ phòng thủ: Hiển thị Miễn Phí ban đầu & Giới hạn 3 vũ khí
+		UpdateDefenseShopButtons();
+	}
+
+	private void UpdateDefenseShopButtons()
+	{
+		// 1. Pháo Tự Hành
+		if (buyPhaotuhanhButton != null)
+		{
+			int count = BuildingSystem.GetWeaponCount(0);
+			Text btnTxt = buyPhaotuhanhButton.GetComponentInChildren<Text>();
+			if (btnTxt != null)
+			{
+				if (BuildingSystem.freePhaotuhanhRemaining > 0)
+				{
+					btnTxt.text = $"🎁 <b>MIỄN PHÍ</b>\n<color=#00FF88>0🪙 ({count}/3)</color>";
+				}
+				else if (count >= BuildingSystem.MaxWeaponLimit)
+				{
+					btnTxt.text = $"🔒 <b>TỐI ĐA</b>\n<color=#FF7777>({count}/3 ĐẦY)</color>";
+				}
+				else
+				{
+					btnTxt.text = $"🛒 <b>1,500🪙</b>\n<color=#FFD700>({count}/3)</color>";
+				}
+			}
+			buyPhaotuhanhButton.interactable = (count < BuildingSystem.MaxWeaponLimit);
+		}
+
+		// 2. Thunder (Trụ Sét)
+		if (buyThunderButton != null)
+		{
+			int count = BuildingSystem.GetWeaponCount(1);
+			Text btnTxt = buyThunderButton.GetComponentInChildren<Text>();
+			if (btnTxt != null)
+			{
+				if (BuildingSystem.freeThunderRemaining > 0)
+				{
+					btnTxt.text = $"🎁 <b>MIỄN PHÍ</b>\n<color=#00FF88>0🪙 ({count}/3)</color>";
+				}
+				else if (count >= BuildingSystem.MaxWeaponLimit)
+				{
+					btnTxt.text = $"🔒 <b>TỐI ĐA</b>\n<color=#FF7777>({count}/3 ĐẦY)</color>";
+				}
+				else
+				{
+					btnTxt.text = $"🛒 <b>2,500🪙</b>\n<color=#FFD700>({count}/3)</color>";
+				}
+			}
+			buyThunderButton.interactable = (count < BuildingSystem.MaxWeaponLimit);
+		}
+
+		// 3. Súng Phun Lửa
+		if (buyFlamethrowerButton != null)
+		{
+			int count = BuildingSystem.GetWeaponCount(2);
+			Text btnTxt = buyFlamethrowerButton.GetComponentInChildren<Text>();
+			if (btnTxt != null)
+			{
+				if (count >= BuildingSystem.MaxWeaponLimit)
+				{
+					btnTxt.text = $"🔒 <b>TỐI ĐA</b>\n<color=#FF7777>({count}/3 ĐẦY)</color>";
+				}
+				else
+				{
+					btnTxt.text = $"🛒 <b>3,200🪙</b>\n<color=#FFD700>({count}/3)</color>";
+				}
+			}
+			buyFlamethrowerButton.interactable = (count < BuildingSystem.MaxWeaponLimit);
+		}
+
+		// 4. Bức Tường (Không giới hạn)
+		if (buyWallItemButton != null)
+		{
+			Text btnTxt = buyWallItemButton.GetComponentInChildren<Text>();
+			if (btnTxt != null)
+			{
+				btnTxt.text = "🧱 <b>MUA TƯỜNG</b>\n<color=#00FFFF>100🪙 (Vô hạn)</color>";
+			}
+		}
 	}
 
 	public void ToggleShopPanel()
@@ -477,6 +578,14 @@ public class BuildingShopUI : MonoBehaviour
 
 	public void OnBuyWorker()
 	{
+		// Nếu đã có Nhà Máy, chuyển hướng trực tiếp vào Bảng Chế Tạo Rô Bốt của Nhà Máy
+		if (RobotFactory.Instance != null && RobotCraftingUI.Instance != null)
+		{
+			CloseShopPanel();
+			RobotCraftingUI.Instance.OpenPanel(RobotFactory.Instance);
+			return;
+		}
+
 		if (GameEconomy.Instance != null)
 		{
 			if (GameEconomy.Instance.BuyWorkerRobot())

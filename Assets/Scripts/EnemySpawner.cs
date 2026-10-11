@@ -16,32 +16,45 @@ public class EnemySpawner : MonoBehaviour
     public static EnemySpawner Instance { get; private set; }
 
     [Header("=== CÀI ĐẶT THỜI GIAN SPAWN (TIMERS) ===")]
-    [Tooltip("Thời gian sinh quái vật thường (mặc định 5s 1 con theo yêu cầu)")]
-    public float normalEnemyInterval = 5.0f;
+    [Tooltip("Thời gian sinh quái vật thường ban ngày (2.4s sinh 1 con để nhiều quái ban ngày cho người chơi cày vàng)")]
+    public float normalEnemyDayInterval = 2.4f;
 
-    [Tooltip("Thời gian sinh Đại Boss Mecha (mặc định 1 phút = 60s theo yêu cầu)")]
-    public float bossEnemyInterval = 60.0f;
+    [Tooltip("Thời gian sinh quái vật thường ban đêm")]
+    public float normalEnemyNightInterval = 0.65f;
+
+    [Header("=== LỊCH XUẤT HIỆN BOSS: MỖI ĐÊM ĐỀU CÓ 1 ĐẠI BOSS ===")]
+    [Tooltip("Thời gian từ khi bắt đầu đêm đến khi Boss xuất hiện (giây)")]
+    public float nightBossSpawnDelay = 4.0f;
+    public float nightBossTimer = 0f;
+    public bool isNightBossPending = false;
+    public bool hasBossSpawnedTonight = false;
+    public int currentNightIndex = 1;
+    public GameObject activeBossObject = null;
+    public string activeBossName = "";
 
     [Header("=== CÁC ĐIỂM SPAWN (DO BẠN TẠO TRÊN SCENE) ===")]
     [Tooltip("Kéo các GameObject Điểm Spawn vào đây. Nếu để trống, Spawner sẽ tự quét các GameObject có tên chứa 'EnemySpawnPoint' trên Scene")]
     public Transform[] spawnPoints;
 
-    [Header("=== PREFABS QUÁI VẬT & BOSS ===")]
+    [Header("=== PREFABS QUÁI VẬT & 5 LOẠI BOSS KHÁC NHAU ===")]
     [Tooltip("Danh sách prefab quái vật thông thường (Alien Bug, Spider)")]
     public GameObject[] normalEnemyPrefabs;
 
-    [Tooltip("Prefab Đại Boss Mecha (Mecha Cyber Dragon)")]
+    [Tooltip("Danh sách 5 loại Boss khác nhau (Mecha Dragon, Heavy Titan, Steampunk Warlord, Chúa Nhện, Bọ Gai Độc)")]
+    public GameObject[] bossPrefabs;
+
+    [Tooltip("Prefab Đại Boss Mecha dự phòng")]
     public GameObject mechaBossPrefab;
 
-    [Header("=== GIAO DIỆN ĐẾM GIỜ BOSS (HUD TIMER) ===")]
-    [Tooltip("Hiển thị đồng hồ đếm ngược thời gian xuất hiện của Boss trên màn hình")]
+    [Header("=== GIAO DIỆN TRẠNG THÁI BOSS THƯỜNG TRỰC ===")]
     public bool showBossTimerHUD = true;
 
     // Biến đếm thời gian
     private float normalTimer = 0f;
-    private float bossTimer = 0f;
     private int normalEnemyIndex = 0;
     private int spawnPointIndex = 0;
+    private int lastBossTypeIndex = -1;
+    private GameObject bossTimerObj;
     private Text bossCountdownText;
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -51,7 +64,7 @@ public class EnemySpawner : MonoBehaviour
         {
             GameObject spawnerObj = new GameObject("[Enemy_Wave_Spawner]");
             spawnerObj.AddComponent<EnemySpawner>();
-            Debug.Log("<color=#00FF88>[EnemySpawner]</color> Đã tự động kích hoạt Spawner quái thường (5s) và Mecha Boss (4')!");
+            Debug.Log("<color=#00FF88>[EnemySpawner]</color> Đã tự động kích hoạt Spawner quái thường và Đại Boss mỗi đêm!");
         }
     }
 
@@ -71,8 +84,6 @@ public class EnemySpawner : MonoBehaviour
     private void Start()
     {
         normalTimer = 0f;
-        bossTimer = 0f;
-
         EnsurePrefabsLoaded();
         EnsureSpawnPointsExist();
 
@@ -82,42 +93,80 @@ public class EnemySpawner : MonoBehaviour
         }
     }
 
+    /// <summary>
+    /// Được gọi mỗi khi bắt đầu ban đêm: Chuẩn bị sinh Đại Boss cho đêm này
+    /// </summary>
+    public void OnNightStarted(int nightNumber)
+    {
+        currentNightIndex = nightNumber;
+        isNightBossPending = true;
+        hasBossSpawnedTonight = false;
+        nightBossTimer = 0f;
+        activeBossObject = null;
+        activeBossName = "";
+        Debug.Log($"<color=#FF3333><b>[EnemySpawner]</b> 🌙 ĐÊM THỨ {nightNumber} BẮT ĐẦU! Đại Boss sẽ xuất hiện sau {nightBossSpawnDelay:F0}s!</color>");
+    }
+
+    /// <summary>
+    /// Được gọi mỗi khi bình minh đến: Cập nhật trạng thái sang ban ngày
+    /// </summary>
+    public void OnDayStarted(int dayNumber)
+    {
+        isNightBossPending = false;
+        hasBossSpawnedTonight = false;
+        activeBossObject = null;
+        activeBossName = "";
+    }
+
     private void Update()
     {
-        // 1. Kiểm tra Chu kỳ Ngày / Đêm: Ban ngày ngừng sinh quái để người chơi đi nhặt vàng & sửa nhà
-        if (DayNightSystem.Instance != null && !DayNightSystem.Instance.isNight)
-        {
-            normalTimer = 0f;
-            return;
-        }
+        bool isNight = DayNightSystem.Instance == null || DayNightSystem.Instance.isNight;
 
-        // 2. Đếm giờ và sinh quái vật thường trong đêm (dồn dập)
+        // 1. Sinh quái thường:
+        // Ban ngày: giảm lực công, tăng tốc độ (chu kỳ 5s/con)
+        // Ban đêm: cơ động mạnh mẽ, dồn dập (chu kỳ 0.7s/con)
         normalTimer += Time.deltaTime;
-        float currentInterval = DayNightSystem.Instance != null 
-            ? DayNightSystem.Instance.nightEnemyInterval 
-            : normalEnemyInterval;
+        float currentNormalInterval = isNight 
+            ? (DayNightSystem.Instance != null ? DayNightSystem.Instance.nightEnemyInterval : normalEnemyNightInterval) 
+            : (DayNightSystem.Instance != null ? DayNightSystem.Instance.dayEnemyInterval : normalEnemyDayInterval);
 
-        if (normalTimer >= currentInterval)
+        if (normalTimer >= currentNormalInterval)
         {
             normalTimer = 0f;
             SpawnNormalEnemy();
 
-            // Ban đêm: Thỉnh thoảng sinh thêm 1 con tạo bầy đàn quái đông đúc xông vào căn cứ
-            if (Random.value < 0.35f)
+            // Ban đêm: Thỉnh thoảng sinh thêm quái tạo bầy đàn
+            if (isNight && Random.value < 0.35f)
             {
                 SpawnNormalEnemy();
             }
         }
 
-        // 3. Đếm giờ và sinh Đại Boss Mecha (chỉ xuất hiện trong ban đêm)
-        bossTimer += Time.deltaTime;
-        if (bossTimer >= bossEnemyInterval)
+        // 2. Logic Boss MỖI ĐÊM ĐỀU XUẤT HIỆN:
+        if (isNight)
         {
-            bossTimer = 0f;
-            SpawnMechaBoss();
+            // Tự động kích hoạt đếm giờ Boss đêm nếu chưa kích hoạt
+            if (!hasBossSpawnedTonight && !isNightBossPending)
+            {
+                int curNight = DayNightSystem.Instance != null ? DayNightSystem.Instance.currentDay : 1;
+                OnNightStarted(curNight);
+            }
+
+            if (isNightBossPending && !hasBossSpawnedTonight)
+            {
+                nightBossTimer += Time.deltaTime;
+
+                // Khi hết thời gian chuẩn bị (4s) -> XUẤT HIỆN BOSS NGAY LẬP TỨC!
+                if (nightBossTimer >= nightBossSpawnDelay)
+                {
+                    isNightBossPending = false;
+                    hasBossSpawnedTonight = true;
+                    SpawnMechaBoss();
+                }
+            }
         }
 
-        // 4. Cập nhật HUD đếm ngược Boss nếu có
+        // 3. Cập nhật HUD trạng thái Boss liên tục để người chơi luôn biết rõ Boss đang hoạt động ra sao!
         UpdateBossTimerHUD();
     }
 
@@ -191,6 +240,17 @@ public class EnemySpawner : MonoBehaviour
 
         if (foundPoints.Count > 0)
         {
+            // Kiểm tra nếu các điểm spawn cũ bị xa tít ngoài màn hình (Z > 10f), kéo về gần căn cứ
+            for (int i = 0; i < foundPoints.Count; i++)
+            {
+                if (foundPoints[i] != null && foundPoints[i].position.z > 10f)
+                {
+                    Vector3 pos = foundPoints[i].position;
+                    pos.z = -11f;
+                    pos.y = GetTrueGroundHeight(pos) + 0.15f;
+                    foundPoints[i].position = pos;
+                }
+            }
             spawnPoints = foundPoints.ToArray();
             return;
         }
@@ -202,34 +262,38 @@ public class EnemySpawner : MonoBehaviour
 
     private void CreateDefaultSpawnPointsGroup()
     {
-        GameObject root = new GameObject("[Enemy_Spawn_Points]");
-        root.transform.position = Vector3.zero;
+        GameObject root = GameObject.Find("[Enemy_Spawn_Points]");
+        if (root == null)
+        {
+            root = new GameObject("[Enemy_Spawn_Points]");
+            root.transform.position = Vector3.zero;
+        }
 
         Transform[] newPoints = new Transform[3];
 
-        // Điểm spawn 1: Bên trái phía Bắc
-        GameObject p1 = new GameObject("EnemySpawnPoint_Trai");
-        p1.transform.SetParent(root.transform, false);
-        p1.transform.position = new Vector3(-12f, GetTrueGroundHeight(new Vector3(-12f, 15f, 28f)) + 0.15f, 28f);
+        // Điểm spawn 1: Bên trái phía trước căn cứ (Khoảng cách 20m)
+        GameObject p1 = GameObject.Find("EnemySpawnPoint_Trai");
+        if (p1 == null) { p1 = new GameObject("EnemySpawnPoint_Trai"); p1.transform.SetParent(root.transform, false); }
+        p1.transform.position = new Vector3(-14f, GetTrueGroundHeight(new Vector3(-14f, 15f, -12f)) + 0.15f, -12f);
         p1.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
         newPoints[0] = p1.transform;
 
-        // Điểm spawn 2: Chính giữa phía Bắc
-        GameObject p2 = new GameObject("EnemySpawnPoint_Giua");
-        p2.transform.SetParent(root.transform, false);
-        p2.transform.position = new Vector3(0f, GetTrueGroundHeight(new Vector3(0f, 15f, 30f)) + 0.15f, 30f);
+        // Điểm spawn 2: Chính giữa phía trước căn cứ (Khoảng cách 21m)
+        GameObject p2 = GameObject.Find("EnemySpawnPoint_Giua");
+        if (p2 == null) { p2 = new GameObject("EnemySpawnPoint_Giua"); p2.transform.SetParent(root.transform, false); }
+        p2.transform.position = new Vector3(0f, GetTrueGroundHeight(new Vector3(0f, 15f, -10f)) + 0.15f, -10f);
         p2.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
         newPoints[1] = p2.transform;
 
-        // Điểm spawn 3: Bên phải phía Bắc
-        GameObject p3 = new GameObject("EnemySpawnPoint_Phai");
-        p3.transform.SetParent(root.transform, false);
-        p3.transform.position = new Vector3(12f, GetTrueGroundHeight(new Vector3(12f, 15f, 28f)) + 0.15f, 28f);
+        // Điểm spawn 3: Bên phải phía trước căn cứ (Khoảng cách 20m)
+        GameObject p3 = GameObject.Find("EnemySpawnPoint_Phai");
+        if (p3 == null) { p3 = new GameObject("EnemySpawnPoint_Phai"); p3.transform.SetParent(root.transform, false); }
+        p3.transform.position = new Vector3(14f, GetTrueGroundHeight(new Vector3(14f, 15f, -12f)) + 0.15f, -12f);
         p3.transform.rotation = Quaternion.Euler(0f, 180f, 0f);
         newPoints[2] = p3.transform;
 
         spawnPoints = newPoints;
-        Debug.Log("<color=#00FF88>[EnemySpawner]</color> 📍 Đã tạo cụm [Enemy_Spawn_Points] gồm 3 điểm spawn (Trái, Giữa, Phải) trên Scene để bạn tùy ý di chuyển!");
+        Debug.Log("<color=#00FF88>[EnemySpawner]</color> 📍 Đã kích hoạt 3 điểm spawn gần căn cứ (-14, 0, +14 ở Z = -10 ~ -12m)!");
     }
 
     /// <summary>
@@ -287,10 +351,11 @@ public class EnemySpawner : MonoBehaviour
             try { enemyGo.tag = "Enemy"; } catch { }
         }
 
-        // Cập nhật thanh HP nổi chuẩn đồng nhất
+        // Cập nhật thanh HP nổi chuẩn đồng nhất và áp dụng chỉ số Ngày/Đêm ngay khi xuất hiện
         Enemy enemyComp = enemyGo.GetComponent<Enemy>();
         if (enemyComp != null)
         {
+            enemyComp.ApplyDayNightModifiers();
             enemyComp.UpdateHealthBar();
         }
 
@@ -299,14 +364,14 @@ public class EnemySpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// Sinh Đại Boss Mecha Cyber Dragon mỗi 1 phút (60 giây) tại điểm spawn do bạn tạo
+    /// Sinh 1 loại Đại Boss ngẫu nhiên / luân phiên (Mecha Dragon, Heavy Titan, Steampunk Warlord, Chúa Nhện)
     /// </summary>
     public GameObject SpawnMechaBoss()
     {
         EnsurePrefabsLoaded();
-        if (mechaBossPrefab == null)
+        if (bossPrefabs == null || bossPrefabs.Length == 0)
         {
-            Debug.LogWarning("[EnemySpawner] Chưa tìm thấy Prefab Mecha Boss Dragon!");
+            Debug.LogWarning("[EnemySpawner] Chưa tìm thấy Prefab Boss nào trong Assets/prefabsEnemy!");
             return null;
         }
 
@@ -317,14 +382,20 @@ public class EnemySpawner : MonoBehaviour
             return null;
         }
 
-        // Boss là quái bay (Flying Unit), giảm 20% độ to (Scale 4.0m), xuất hiện trên không trung cao 8.0m
-        Vector3 spawnPos = spawnPoint.position + Vector3.up * 8.0f;
+        // Mỗi lần Boss xuất hiện sẽ là một loại Boss khác nhau (không lặp lại)
+        lastBossTypeIndex = (lastBossTypeIndex + 1) % bossPrefabs.Length;
+        GameObject prefab = bossPrefabs[lastBossTypeIndex];
+        if (prefab == null) prefab = mechaBossPrefab;
+        if (prefab == null) return null;
+
+        bool isDragon = prefab.name.ToLower().Contains("dragon");
+        Vector3 spawnPos = spawnPoint.position + (isDragon ? Vector3.up * 1.2f : Vector3.up * 0.15f);
         Quaternion spawnRot = spawnPoint.rotation;
 
-        GameObject bossGo = Instantiate(mechaBossPrefab, spawnPos, spawnRot);
-        bossGo.name = "Mecha_Cyber_Dragon_BOSS";
-        bossGo.transform.localScale = Vector3.one * 4.0f; // Boss Rồng giảm 20% độ to (Scale 4.0)
+        GameObject bossGo = Instantiate(prefab, spawnPos, spawnRot);
+        bossGo.name = $"{prefab.name}_{Time.frameCount}";
 
+        // Tối ưu CPU: Tuyệt đối không dùng Rigidbody
         Rigidbody rb = bossGo.GetComponent<Rigidbody>();
         if (rb != null) Destroy(rb);
 
@@ -333,15 +404,84 @@ public class EnemySpawner : MonoBehaviour
             try { bossGo.tag = "Enemy"; } catch { }
         }
 
-        // Tích hợp AI Bộ Kỹ Năng Đỉnh Cao cho Đại Boss Mecha Cyber Dragon
-        MechaDragonBoss bossAI = bossGo.GetComponent<MechaDragonBoss>();
-        if (bossAI == null) bossAI = bossGo.AddComponent<MechaDragonBoss>();
+        if (isDragon)
+        {
+            MechaDragonBoss bossAI = bossGo.GetComponent<MechaDragonBoss>();
+            if (bossAI == null) bossAI = bossGo.AddComponent<MechaDragonBoss>();
+        }
+
+        Enemy enemyComp = bossGo.GetComponent<Enemy>();
+        if (enemyComp == null)
+        {
+            enemyComp = bossGo.AddComponent<Enemy>();
+            string lowerName = bossGo.name.ToLower();
+            if (lowerName.Contains("heavy"))
+            {
+                enemyComp.enemyName = "Heavy Titan Colossus";
+                enemyComp.maxHealth = 450f;
+                enemyComp.currentHealth = 450f;
+                enemyComp.moveSpeed = 2.2f;
+                enemyComp.attackDamage = 60f;
+                enemyComp.attackRange = 3.5f;
+                enemyComp.goldReward = 120;
+                bossGo.transform.localScale = Vector3.one * 3.5f;
+            }
+            else if (lowerName.Contains("steampunk"))
+            {
+                enemyComp.enemyName = "Steampunk Warlord";
+                enemyComp.maxHealth = 400f;
+                enemyComp.currentHealth = 400f;
+                enemyComp.moveSpeed = 2.8f;
+                enemyComp.attackDamage = 50f;
+                enemyComp.attackRange = 3.2f;
+                enemyComp.goldReward = 100;
+                bossGo.transform.localScale = Vector3.one * 3.2f;
+            }
+            else if (lowerName.Contains("spider"))
+            {
+                enemyComp.enemyName = "Chúa Nhện Broodmother";
+                enemyComp.maxHealth = 380f;
+                enemyComp.currentHealth = 380f;
+                enemyComp.moveSpeed = 3.4f;
+                enemyComp.attackDamage = 45f;
+                enemyComp.attackRange = 2.8f;
+                enemyComp.goldReward = 90;
+                bossGo.transform.localScale = Vector3.one * 2.2f;
+            }
+            else if (lowerName.Contains("toxic") || lowerName.Contains("behemoth"))
+            {
+                enemyComp.enemyName = "Đại Bọ Gai Toxic Behemoth";
+                enemyComp.maxHealth = 420f;
+                enemyComp.currentHealth = 420f;
+                enemyComp.moveSpeed = 3.0f;
+                enemyComp.attackDamage = 55f;
+                enemyComp.attackRange = 3.2f;
+                enemyComp.goldReward = 110;
+                bossGo.transform.localScale = Vector3.one * 2.8f;
+            }
+        }
+
+        // Tăng thêm độ thử thách dần theo số đêm người chơi sống sót (mỗi đêm Boss mạnh hơn +22% và rơi nhiều vàng hơn)
+        if (enemyComp != null)
+        {
+            float nightMultiplier = 1.0f + Mathf.Max(0, currentNightIndex - 1) * 0.22f;
+            enemyComp.maxHealth = Mathf.Round(enemyComp.maxHealth * nightMultiplier);
+            enemyComp.currentHealth = enemyComp.maxHealth;
+            enemyComp.attackDamage = Mathf.Round(enemyComp.attackDamage * nightMultiplier);
+            enemyComp.goldReward = Mathf.CeilToInt(enemyComp.goldReward * nightMultiplier);
+            enemyComp.UpdateHealthBar();
+        }
+
+        // Cập nhật tham chiếu Đại Boss đang hoạt động để hiển thị thường trực trên UI
+        string bDisplayName = enemyComp != null ? enemyComp.enemyName : bossGo.name;
+        activeBossObject = bossGo;
+        activeBossName = bDisplayName;
 
         // Thông báo toàn màn hình: Cảnh báo Boss xuất hiện!
         Vector3 noticePos = Camera.main != null ? (Camera.main.transform.position + Camera.main.transform.forward * 4.5f) : (spawnPos + Vector3.up * 4f);
-        FloatingDamageText.SpawnResource(noticePos, "⚠️ ĐẠI BOSS MECHA XUẤT HIỆN! ⚠️", new Color(1f, 0.15f, 0.15f, 1f), 0.12f);
+        FloatingDamageText.SpawnResource(noticePos, $"🚨 ĐẠI BOSS {bDisplayName.ToUpper()} ĐÃ XUẤT HIỆN Ở ĐÊM THỨ {currentNightIndex}! 🚨", new Color(1f, 0.2f, 0.2f, 1f), 0.15f);
 
-        Debug.Log($"<color=red><b>[Spawner] 🚨🚨 CẢNH BÁO: ĐẠI BOSS MECHA CYBER DRAGON ĐÃ XUẤT HIỆN TẠI {spawnPoint.name}! (Chu kỳ 1 phút)</b></color>");
+        Debug.Log($"<color=red><b>[Spawner] 🚨🚨 CẢNH BÁO: ĐẠI BOSS {bDisplayName} ĐÃ XUẤT HIỆN Ở ĐÊM THỨ {currentNightIndex} TẠI {spawnPoint.name}!</b></color>");
         return bossGo;
     }
 
@@ -367,21 +507,16 @@ public class EnemySpawner : MonoBehaviour
 
     private void EnsurePrefabsLoaded()
     {
+        // 1. Quái vật thường
         if (normalEnemyPrefabs == null || normalEnemyPrefabs.Length == 0 || normalEnemyPrefabs[0] == null)
         {
             List<GameObject> list = new List<GameObject>();
 #if UNITY_EDITOR
-            // Chỉ lấy duy nhất quái vật từ thư mục Assets/prefabsEnemy theo đúng yêu cầu
             string[] guids = UnityEditor.AssetDatabase.FindAssets("t:Prefab", new[] { "Assets/prefabsEnemy" });
             foreach (var guid in guids)
             {
                 string path = UnityEditor.AssetDatabase.GUIDToAssetPath(guid);
-                if (path.Contains("Enemy_MechaDragon"))
-                {
-                    if (mechaBossPrefab == null)
-                        mechaBossPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
-                }
-                else if (path.Contains("Enemy_") || path.Contains("Bug") || path.Contains("Spider"))
+                if (path.Contains("Enemy_AlienBug") || path.Contains("Enemy_Spider"))
                 {
                     GameObject p = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(path);
                     if (p != null && !list.Contains(p)) list.Add(p);
@@ -394,12 +529,37 @@ public class EnemySpawner : MonoBehaviour
             }
         }
 
-        if (mechaBossPrefab == null)
+        // 2. Tải 5 loại Boss riêng biệt từ Assets/prefabsEnemy/ theo đúng quy tắc dự án
+        if (bossPrefabs == null || bossPrefabs.Length == 0 || bossPrefabs[0] == null)
         {
+            List<GameObject> bList = new List<GameObject>();
 #if UNITY_EDITOR
-            // Chỉ lấy duy nhất Boss Mecha từ thư mục Assets/prefabsEnemy theo đúng yêu cầu
-            mechaBossPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabsEnemy/Enemy_MechaDragon.prefab");
+            string[] bossPaths = new string[]
+            {
+                "Assets/prefabsEnemy/Enemy_MechaDragon.prefab",
+                "Assets/prefabsEnemy/Boss_HeavyTitan.prefab",
+                "Assets/prefabsEnemy/Boss_SteampunkWarlord.prefab",
+                "Assets/prefabsEnemy/Boss_SpiderQueen.prefab",
+                "Assets/prefabsEnemy/Boss_ToxicBehemoth.prefab"
+            };
+            foreach (var bPath in bossPaths)
+            {
+                GameObject bObj = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>(bPath);
+                if (bObj == null)
+                {
+                    if (bPath.Contains("HeavyTitan")) bObj = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/HeavyRobot/HeavyRobot_Prefab.prefab");
+                    else if (bPath.Contains("SteampunkWarlord")) bObj = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Models/CombatSteampunkRobot/CombatSteampunkRobot_Prefabs.prefab");
+                    else if (bPath.Contains("SpiderQueen")) bObj = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabsEnemy/Enemy_Spider.prefab");
+                    else if (bPath.Contains("ToxicBehemoth")) bObj = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabsEnemy/Enemy_AlienBug.prefab");
+                }
+                if (bObj != null && !bList.Contains(bObj)) bList.Add(bObj);
+            }
 #endif
+            if (bList.Count > 0)
+            {
+                bossPrefabs = bList.ToArray();
+                mechaBossPrefab = bossPrefabs[0];
+            }
         }
     }
 
@@ -421,24 +581,24 @@ public class EnemySpawner : MonoBehaviour
         Transform existing = canvas.transform.Find("[HUD_Boss_Timer]");
         if (existing != null) Destroy(existing.gameObject);
 
-        GameObject timerObj = new GameObject("[HUD_Boss_Timer]", typeof(RectTransform));
-        timerObj.transform.SetParent(canvas.transform, false);
-        RectTransform rt = timerObj.GetComponent<RectTransform>();
+        bossTimerObj = new GameObject("[HUD_Boss_Timer]", typeof(RectTransform));
+        bossTimerObj.transform.SetParent(canvas.transform, false);
+        RectTransform rt = bossTimerObj.GetComponent<RectTransform>();
         rt.anchorMin = new Vector2(0f, 1f);
         rt.anchorMax = new Vector2(0f, 1f);
         rt.pivot = new Vector2(0f, 1f);
-        rt.anchoredPosition = new Vector2(24f, -170f); // Ngay dưới thanh máu Player
-        rt.sizeDelta = new Vector2(260f, 32f);
+        rt.anchoredPosition = new Vector2(16f, -125f); // Đặt ngay dưới Panel Ngày Đêm ở góc trên bên trái
+        rt.sizeDelta = new Vector2(250f, 26f);
 
-        Image bg = timerObj.AddComponent<Image>();
-        bg.color = new Color(0.08f, 0.08f, 0.12f, 0.90f);
+        Image bg = bossTimerObj.AddComponent<Image>();
+        bg.color = new Color(0.08f, 0.08f, 0.12f, 0.88f);
 
-        Outline outline = timerObj.AddComponent<Outline>();
-        outline.effectColor = new Color(1f, 0.35f, 0.1f, 0.8f);
-        outline.effectDistance = new Vector2(1f, -1f);
+        Outline outline = bossTimerObj.AddComponent<Outline>();
+        outline.effectColor = new Color(0.2f, 0.6f, 1f, 0.75f);
+        outline.effectDistance = new Vector2(1.5f, -1.5f);
 
         GameObject txtGo = new GameObject("Text", typeof(RectTransform), typeof(Text));
-        txtGo.transform.SetParent(timerObj.transform, false);
+        txtGo.transform.SetParent(bossTimerObj.transform, false);
         RectTransform tRt = txtGo.GetComponent<RectTransform>();
         tRt.anchorMin = Vector2.zero;
         tRt.anchorMax = Vector2.one;
@@ -446,30 +606,63 @@ public class EnemySpawner : MonoBehaviour
 
         bossCountdownText = txtGo.GetComponent<Text>();
         bossCountdownText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
-        bossCountdownText.fontSize = 18;
+        bossCountdownText.fontSize = 11;
         bossCountdownText.fontStyle = FontStyle.Bold;
         bossCountdownText.alignment = TextAnchor.MiddleCenter;
-        bossCountdownText.color = new Color(1f, 0.85f, 0.3f, 1f);
-        bossCountdownText.text = "⏱️ Boss Mecha: 01:00";
+        bossCountdownText.color = new Color(0.2f, 0.95f, 0.6f);
+        bossCountdownText.text = "☀️ <b>TRINH SÁT: ĐÊM SẼ CÓ ĐẠI BOSS!</b>";
+
+        bossTimerObj.SetActive(true);
     }
 
     private void UpdateBossTimerHUD()
     {
-        if (bossCountdownText == null) return;
-
-        float remaining = Mathf.Max(0f, bossEnemyInterval - bossTimer);
-        int minutes = Mathf.FloorToInt(remaining / 60f);
-        int seconds = Mathf.FloorToInt(remaining % 60f);
-
-        if (remaining <= 10f)
+        if (bossCountdownText == null || bossTimerObj == null) return;
+        if (!showBossTimerHUD)
         {
-            bossCountdownText.color = Color.Lerp(Color.red, Color.yellow, Mathf.PingPong(Time.time * 4f, 1f));
-            bossCountdownText.text = $"⚠️ BOSS MECHA ĐẾN: {minutes:D2}:{seconds:D2}!";
+            if (bossTimerObj.activeSelf) bossTimerObj.SetActive(false);
+            return;
+        }
+
+        if (!bossTimerObj.activeSelf) bossTimerObj.SetActive(true);
+
+        // 1. Nếu Boss đang xuất hiện và còn sống
+        if (activeBossObject != null && activeBossObject.activeInHierarchy)
+        {
+            Enemy e = activeBossObject.GetComponent<Enemy>();
+            if (e != null && !e.isDead && e.currentHealth > 0f)
+            {
+                bossCountdownText.color = Color.Lerp(Color.red, new Color(1f, 0.5f, 0.1f, 1f), Mathf.PingPong(Time.time * 5f, 1f));
+                bossCountdownText.text = $"👹 <b>{activeBossName} (HP: {(int)e.currentHealth}/{(int)e.maxHealth})</b>";
+                return;
+            }
+            else
+            {
+                activeBossObject = null;
+            }
+        }
+
+        // 2. Nếu đang chuẩn bị vào đêm và đếm ngược Boss
+        if (isNightBossPending && !hasBossSpawnedTonight)
+        {
+            float remaining = Mathf.Max(0f, nightBossSpawnDelay - nightBossTimer);
+            int sec = Mathf.CeilToInt(remaining);
+            bossCountdownText.color = Color.Lerp(Color.red, new Color(1f, 0.85f, 0.1f, 1f), Mathf.PingPong(Time.time * 6f, 1f));
+            bossCountdownText.text = $"⚠️ <b>ĐẠI BOSS XUẤT HIỆN SAU: {sec}s!</b> ⏱️";
+            return;
+        }
+
+        // 3. Trạng thái bình thường: thông báo rõ ràng cho người chơi
+        bool isNight = DayNightSystem.Instance != null && DayNightSystem.Instance.isNight;
+        if (isNight)
+        {
+            bossCountdownText.color = new Color(0.4f, 0.85f, 1f);
+            bossCountdownText.text = $"🌙 <b>ĐÊM {currentNightIndex}: PHÒNG THỦ CĂN CỨ!</b>";
         }
         else
         {
-            bossCountdownText.color = new Color(1f, 0.85f, 0.3f, 1f);
-            bossCountdownText.text = $"⏱️ Boss Mecha: {minutes:D2}:{seconds:D2}";
+            bossCountdownText.color = new Color(0.2f, 0.95f, 0.6f);
+            bossCountdownText.text = $"☀️ <b>TRINH SÁT: ĐÊM SẼ CÓ ĐẠI BOSS!</b>";
         }
     }
 

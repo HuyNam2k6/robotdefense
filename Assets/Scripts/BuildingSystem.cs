@@ -45,6 +45,60 @@ public class BuildingSystem : MonoBehaviour
 	public int SelectedIndex => selectedIndex;
 	public bool IsCurrentItemWall => selectedIndex >= 0 && selectedIndex < items.Length && items[selectedIndex].isWall;
 
+	[Header("--- Giới Hạn Mua & Miễn Phí Ban Đầu ---")]
+	public const int MaxWeaponLimit = 3; // Giới hạn mua tối đa là 3 cho tất cả các loại vũ khí
+	public static int freePhaotuhanhRemaining = 1; // Miễn phí 1 Pháo Tự Hành khi mới bắt đầu
+	public static int freeThunderRemaining = 1;     // Miễn phí 1 Thunder khi mới bắt đầu
+
+	public static int GetTurretCountByType(TurretType type)
+	{
+		int count = 0;
+		var list = UpgradableTurret.AllTurrets;
+		for (int i = 0; i < list.Count; i++)
+		{
+			if (list[i] != null && list[i].gameObject.activeInHierarchy && list[i].turretType == type)
+			{
+				count++;
+			}
+		}
+		return count;
+	}
+
+	public static int GetWeaponCount(int itemIndex)
+	{
+		if (itemIndex == 0) return GetTurretCountByType(TurretType.Phaotuhanh);
+		if (itemIndex == 1) return GetTurretCountByType(TurretType.Thunder);
+		if (itemIndex == 2) return GetTurretCountByType(TurretType.FlamethrowerTurret);
+		return 0;
+	}
+
+	public static bool CanPurchaseWeapon(int itemIndex, out string reason)
+	{
+		if (itemIndex == 3) // Tường: Không giới hạn
+		{
+			reason = "";
+			return true;
+		}
+
+		int count = GetWeaponCount(itemIndex);
+		if (count >= MaxWeaponLimit)
+		{
+			string wName = (itemIndex == 0) ? "Pháo Tự Hành" : (itemIndex == 1) ? "Trụ Sét Thunder" : "Súng Phun Lửa";
+			reason = $"⚠️ Đã đạt giới hạn tối đa ({count}/{MaxWeaponLimit}) cho {wName}!";
+			return false;
+		}
+
+		reason = "";
+		return true;
+	}
+
+	public static int GetWeaponEffectiveCost(int itemIndex, int defaultCost)
+	{
+		if (itemIndex == 0 && freePhaotuhanhRemaining > 0) return 0; // Miễn phí lần đầu
+		if (itemIndex == 1 && freeThunderRemaining > 0) return 0;     // Miễn phí lần đầu
+		return defaultCost;
+	}
+
 	void Start()
 	{
 		mainCamera = Camera.main;
@@ -116,19 +170,11 @@ public class BuildingSystem : MonoBehaviour
 					if (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject())
 					{
 						isDraggingWall = true;
-						Quaternion startRot = Quaternion.Euler(0f, currentYRotation, 0f);
-						wallDragStart = GetWallPlacementSnap(hit.point, segLen, ref startRot);
-						currentYRotation = startRot.eulerAngles.y;
+						wallDragStart = GetWallPlacementSnap(hit.point, segLen);
 					}
 				}
 
-				Quaternion tempRot = Quaternion.Euler(0f, currentYRotation, 0f);
-				Vector3 startSnap = isDraggingWall ? wallDragStart : GetWallPlacementSnap(hit.point, segLen, ref tempRot);
-				if (!isDraggingWall)
-				{
-					currentYRotation = tempRot.eulerAngles.y;
-				}
-
+				Vector3 startSnap = isDraggingWall ? wallDragStart : GetWallPlacementSnap(hit.point, segLen);
 				Vector3 curSnap = SnapToGrid(hit.point, segLen);
 
 				float dx = curSnap.x - startSnap.x;
@@ -138,7 +184,7 @@ public class BuildingSystem : MonoBehaviour
 				bool isDragMove = (Mathf.Abs(dx) >= segLen * 0.5f) || (Mathf.Abs(dz) >= segLen * 0.5f);
 
 				int count = 1;
-				// Khi không kéo dài: góc xoay tuân thủ 100% hướng xoay người chơi vừa bấm nút XOAY hoặc góc snap
+				// Khi không kéo dài: góc xoay tuân thủ 100% hướng xoay người chơi vừa bấm nút XOAY hoặc phím R
 				bool isHorizontal = (Mathf.Abs(currentYRotation - 0f) < 25f || Mathf.Abs(currentYRotation - 180f) < 25f);
 				float dirSign = 1f;
 				Quaternion wallRot = Quaternion.Euler(0f, currentYRotation, 0f);
@@ -183,7 +229,7 @@ public class BuildingSystem : MonoBehaviour
 						}
 
 						EnsurePreviewCount(count);
-						float fixedY = startSnap.y; // KHÓA ĐỘ CAO CHUẨN: Cả hàng nằm phẳng lì trên 1 mặt bằng, không bị giật cấp bậc thang!
+						float fixedY = startSnap.y; // KHÓA ĐỘ CAO CHUẨN: Cả hàng nằm phẳng lì trên 1 mặt bằng!
 
 						for (int i = 0; i < count; i++)
 						{
@@ -198,14 +244,13 @@ public class BuildingSystem : MonoBehaviour
 				}
 				else
 				{
-					// Chưa nhấn chuột: 1 đoạn tường hologram di chuyển theo chuột, tự động hút khít vào tường gần nhất nếu có
-					Quaternion hoverRot = Quaternion.Euler(0f, currentYRotation, 0f);
-					Vector3 hoverSnap = GetWallPlacementSnap(hit.point, segLen, ref hoverRot);
+					// Chưa nhấn chuột: 1 đoạn tường hologram di chuyển theo chuột, giữ đúng hướng xoay người chơi đã chọn
+					Vector3 hoverSnap = GetWallPlacementSnap(hit.point, segLen);
 
 					EnsurePreviewCount(1);
 					previewPool[0].SetActive(true);
 					previewPool[0].transform.position = hoverSnap;
-					previewPool[0].transform.rotation = hoverRot;
+					previewPool[0].transform.rotation = Quaternion.Euler(0f, currentYRotation, 0f);
 				}
 
 				// Thả chuột trái: XÂY DỰNG TOÀN BỘ CÁC ĐOẠN TƯỜNG
@@ -270,7 +315,16 @@ public class BuildingSystem : MonoBehaviour
 				{
 					if (EventSystem.current == null || !EventSystem.current.IsPointerOverGameObject())
 					{
-						int itemCost = items[selectedIndex].cost;
+						// 1. Kiểm tra giới hạn mua tối đa là 3 cho vũ khí (Tường không giới hạn)
+						if (!CanPurchaseWeapon(selectedIndex, out string limitReason))
+						{
+							if (GameEconomy.Instance != null) GameEconomy.Instance.TriggerNotEnoughCoins(limitReason);
+							CancelPlacement();
+							return;
+						}
+
+						// 2. Kiểm tra giá tiền thực tế (có miễn phí 1 Thunder và 1 Pháo Tự Hành ban đầu không)
+						int itemCost = GetWeaponEffectiveCost(selectedIndex, items[selectedIndex].cost);
 						if (itemCost > 0 && GameEconomy.Instance != null)
 						{
 							if (!GameEconomy.Instance.SpendCoins(itemCost))
@@ -278,6 +332,18 @@ public class BuildingSystem : MonoBehaviour
 								GameEconomy.Instance.TriggerNotEnoughCoins($"Không đủ vàng để mua {items[selectedIndex].itemName}!");
 								return;
 							}
+						}
+
+						// 3. Tiêu hao lượt miễn phí ban đầu nếu vừa sử dụng
+						if (selectedIndex == 0 && freePhaotuhanhRemaining > 0)
+						{
+							freePhaotuhanhRemaining--;
+							Debug.Log("<color=#00FF88>🎁 [Khởi Đầu Miễn Phí]</color> Đã mua và đặt Pháo Tự Hành MIỄN PHÍ thành công!");
+						}
+						else if (selectedIndex == 1 && freeThunderRemaining > 0)
+						{
+							freeThunderRemaining--;
+							Debug.Log("<color=#00FF88>🎁 [Khởi Đầu Miễn Phí]</color> Đã mua và đặt Trụ Sét Thunder MIỄN PHÍ thành công!");
 						}
 
 						SpawnRealObject(items[selectedIndex].prefab, hit.point, Quaternion.Euler(0f, currentYRotation, 0f));
@@ -308,11 +374,11 @@ public class BuildingSystem : MonoBehaviour
 	/// <summary>
 	/// Tự động hút dính khít (Smart Magnetic Snap) vào mép tường có sẵn hoặc snap vào ô lưới
 	/// </summary>
-	private Vector3 GetWallPlacementSnap(Vector3 rawPoint, float segLen, ref Quaternion wallRot)
+	private Vector3 GetWallPlacementSnap(Vector3 rawPoint, float segLen)
 	{
-		// 1. Tìm đoạn tường đã có trong bán kính 1.3m để hút dính khít
+		// 1. Tìm đoạn tường đã có trong bán kính 1.45m để hút dính khít theo các socket vuông góc
 		WallSegment nearest = null;
-		float minDistSqr = 1.3f * 1.3f;
+		float minDistSqr = 1.45f * 1.45f;
 
 		for (int i = 0; i < WallSegment.AllWalls.Count; i++)
 		{
@@ -331,33 +397,29 @@ public class BuildingSystem : MonoBehaviour
 		if (nearest != null)
 		{
 			Vector3 nearPos = nearest.transform.position;
-			Vector3 delta = rawPoint - nearPos;
-			delta.y = 0f;
-
-			// Lấy góc xoay của tường gần nhất
-			float nearRotY = nearest.transform.eulerAngles.y;
-			bool nearIsHorizontal = (Mathf.Abs(nearRotY - 0f) < 25f || Mathf.Abs(nearRotY - 180f) < 25f);
-
-			Vector3 forwardDir = nearIsHorizontal ? Vector3.right : Vector3.forward;
-			Vector3 sideDir = nearIsHorizontal ? Vector3.forward : Vector3.right;
-
-			float forwardProj = Vector3.Dot(delta, forwardDir);
-			float sideProj = Vector3.Dot(delta, sideDir);
-
-			if (Mathf.Abs(forwardProj) >= Mathf.Abs(sideProj))
+			// 4 vị trí socket xung quanh tường gần nhất
+			Vector3[] sockets = new Vector3[]
 			{
-				// Nối tiếp cùng hàng (đầu hoặc đuôi): Dính khít 100%
-				float sign = Mathf.Sign(forwardProj);
-				wallRot = nearIsHorizontal ? Quaternion.identity : Quaternion.Euler(0f, 90f, 0f);
-				return new Vector3(nearPos.x + forwardDir.x * segLen * sign, nearPos.y, nearPos.z + forwardDir.z * segLen * sign);
-			}
-			else
+				new Vector3(nearPos.x + segLen, nearPos.y, nearPos.z),
+				new Vector3(nearPos.x - segLen, nearPos.y, nearPos.z),
+				new Vector3(nearPos.x, nearPos.y, nearPos.z + segLen),
+				new Vector3(nearPos.x, nearPos.y, nearPos.z - segLen)
+			};
+
+			Vector3 bestSocket = sockets[0];
+			float bestDistSqr = float.MaxValue;
+			for (int s = 0; s < sockets.Length; s++)
 			{
-				// Nối góc vuông 90 độ: Dính khít vào cạnh bên và tự động xoay vuông góc
-				float sign = Mathf.Sign(sideProj);
-				wallRot = nearIsHorizontal ? Quaternion.Euler(0f, 90f, 0f) : Quaternion.identity;
-				return new Vector3(nearPos.x + sideDir.x * segLen * sign, nearPos.y, nearPos.z + sideDir.z * segLen * sign);
+				float d = (sockets[s].x - rawPoint.x) * (sockets[s].x - rawPoint.x) + 
+				          (sockets[s].z - rawPoint.z) * (sockets[s].z - rawPoint.z);
+				if (d < bestDistSqr)
+				{
+					bestDistSqr = d;
+					bestSocket = sockets[s];
+				}
 			}
+			bestSocket.y = SampleGroundY(bestSocket.x, bestSocket.z, nearPos.y);
+			return bestSocket;
 		}
 
 		// 2. Nếu ở khoảng đất trống chưa có tường -> Snap theo lưới chuẩn
@@ -392,11 +454,13 @@ public class BuildingSystem : MonoBehaviour
 
 		if (selectedIndex >= 0 && selectedIndex < items.Length && items[selectedIndex].isWall)
 		{
-			realObj.transform.localScale = Vector3.one * 1.5f;
+			// Hạ thấp chiều cao tường (Y = 0.95f) để pháo có thể bắn qua được
+			Vector3 wallScale = new Vector3(1.5f, 0.95f, 1.5f);
+			realObj.transform.localScale = wallScale;
 
 			WallSegment ws = realObj.GetComponent<WallSegment>();
 			if (ws == null) ws = realObj.AddComponent<WallSegment>();
-			ws.SetBaseScale(Vector3.one * 1.5f);
+			ws.SetBaseScale(wallScale);
 			if (GameEconomy.Instance != null)
 			{
 				ws.ApplyLevel(GameEconomy.Instance.wallLevel);
@@ -412,10 +476,17 @@ public class BuildingSystem : MonoBehaviour
 		return realObj;
 	}
 
-	// Gọi từ nút bấm trên UI Shop
+	// Gọi từ nút bấm trên UI Shop hoặc phím tắt
 	public void SelectItem(int index)
 	{
 		if (items == null || index < 0 || index >= items.Length || items[index].prefab == null) return;
+
+		// Kiểm tra giới hạn mua tối đa là 3 cho vũ khí trước khi bắt đầu chọn đặt
+		if (!CanPurchaseWeapon(index, out string limitReason))
+		{
+			if (GameEconomy.Instance != null) GameEconomy.Instance.TriggerNotEnoughCoins(limitReason);
+			return;
+		}
 
 		if (selectedIndex == index)
 		{
@@ -442,7 +513,7 @@ public class BuildingSystem : MonoBehaviour
 			p.name = $"[Hologram_Preview_{previewPool.Count}]";
 			if (items[selectedIndex].isWall)
 			{
-				p.transform.localScale = Vector3.one * 1.5f;
+				p.transform.localScale = new Vector3(1.5f, 0.95f, 1.5f);
 			}
 
 			foreach (Collider col in p.GetComponentsInChildren<Collider>()) col.enabled = false;
@@ -482,6 +553,14 @@ public class BuildingSystem : MonoBehaviour
 		if (currentYRotation < 0f) currentYRotation += 360f;
 		// Snap tròn vào các góc vuông 0°, 90°, 180°, 270° chuẩn lưới
 		currentYRotation = Mathf.Round(currentYRotation / 90f) * 90f % 360f;
+
+		bool isH = (Mathf.Abs(currentYRotation - 0f) < 25f || Mathf.Abs(currentYRotation - 180f) < 25f);
+		string dirName = isH ? "HÀNG NGANG (Trục X)" : "HÀNG DỌC (Trục Z)";
+		if (Camera.main != null)
+		{
+			FloatingDamageText.SpawnResource(Camera.main.transform.position + Camera.main.transform.forward * 9.0f, $"🔄 Hướng Đặt: {dirName}", new Color(0.15f, 0.85f, 1f), 0.12f);
+		}
+		Debug.Log($"<color=cyan>[BuildingSystem]</color> Đã xoay công trình sang hướng: {dirName} (Góc: {currentYRotation}°)");
 
 		for (int i = 0; i < previewPool.Count; i++)
 		{

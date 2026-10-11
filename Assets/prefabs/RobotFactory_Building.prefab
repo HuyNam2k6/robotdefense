@@ -295,6 +295,7 @@ MonoBehaviour:
   - {fileID: 4794048648525567209, guid: 2cdb96d87bc68eb46b1b876143858c2a, type: 3}
   - {fileID: 8485568676544218801, guid: 82339fc9396edda4ca08ab59e1a183fa, type: 3}
   - {fileID: 6164772977230688056, guid: 2e5c47a0e6ff4c84f914202975b98554, type: 3}
+  stoneMinerRobotPrefab: {fileID: 0}
   spawnPoint: {fileID: 8763511909001670242}
   rallyPoint: {fileID: 4724443823891376958}
   cogs:
