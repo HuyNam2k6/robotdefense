@@ -1,0 +1,67 @@
+================================================================================
+THONG TIN COMMIT GIT - DU AN ROBOT DEFENSE
+================================================================================
+
+MA COMMIT (HASH DAY DU):
+469b8f4831bb634acb2e4889d03159bf34458937
+
+MA COMMIT (HASH RUT GON):
+469b8f4
+
+NGAY GIO COMMIT:
+Thu Hai, 12/10/2026 13:34:22 +07:00
+
+TAC GIA (AUTHOR):
+HuyNam\Enemy <huynam006006@gmail.com>
+
+BRANCH:
+main (ahead of origin/main by 11 commits)
+Luu y: KHONG thuc hien git push theo quy dinh cua du an (Can xac nhan nguoi dung truoc)!
+
+================================================================================
+TIEU DE COMMIT (COMMIT TITLE):
+================================================================================
+feat: Spam quai lien tuc, BaseHQ cap 4 mo khoa cap 6, Idle AFK, Global Tech Tree va toi uu UI
+
+================================================================================
+NOI DUNG CHI TIET CAC THAY DOI (COMMIT DETAILS):
+================================================================================
+
+1. HE THONG SPAWN QUAI LIEN TUC (ENEMY CONTINUOUS SPAWNING):
+   - Khac phuc triet de loi quai ngung xuat hien: Ban ngay quai spawn lien tuc khong ngung nghi moi 0.9s - 1.0s / con.
+   - Bo sung dot bay quai don dap (Mini Swarm 5 - 10 con) xuat hien song song moi 4.5s - 7.5s giup nguoi choi thoa suc cay vang va da tay ban pha.
+   - Toi uu CPU & FPS: Quan ly so quai con song qua Enemy.AllEnemies.Count (gioi han 40 con ban ngay, 55 con ban dem), khi quai chet he thong lai tiep tuc spam.
+
+2. NANG CAP CONG TRINH CAP 6 KHI LOI NANG LUONG DAT CAP 4 (BASEHQ LEVEL 4 -> LEVEL 6):
+   - Thay doi logic BaseHQ.CanUpgradeBuildingToLevel va MaxAllowedBuildingLevel: Khi Loi Nang Luong (BaseHQ) dat Cap 4 (Cap MAX), tu dong mo khoa toan bo cong trinh phong thu (Tru Set, Phao Tu Hanh, Sung Phun Lua, Buc Tuong) duoc phep nang cap len Cap 6 (Titan MAX)!
+   - Dong bo giao dien Shop UI, Bang Canh Bao (CenterWarningBanner) va Bang Thong Tin Can Cu (BaseHQ Info Modal).
+
+3. CO CHE IDLE & TU DONG HOA (IDLE GAME MECHANICS):
+   - Thu nhap thu dong (Passive Income): Cong deu dan Vang, Go, Da moi giay (Gold/sec, Wood/sec, Stone/sec) ngay ca khi nguoi choi khong thao tac.
+   - Nam cham hut coin toan ban do (Global Coin Magnet): Khi nguoi choi dung yen, toan bo tien vang tren map tu dong bay ve tui do.
+   - Nhan thuong Offline AFK (Offline AFK Reward System): Popup chao mung nguoi choi quay tro lai va nhan tai nguyen tich luy trong thoi gian offline (toi da 8 tieng).
+   - Nhan vat tu dong chien dau (Player Auto-Defense): Khi nguoi choi dung yen, tu dong ngam va ban quai vat gan nhat.
+
+4. CAY CONG NGHE TOAN CUC (GLOBAL TECH TREE):
+   - Tich hop he thong nang cap chi so vi mo: Sat thuong tru, Mau tuong thanh, Toc do di chuyen cua Player, San luong tai nguyen.
+   - Tich hop nut nang cap so luong lon: [x1], [x5], [MAX] tien loi cho the loai Idle.
+   - Giao dien bang Cong Nghe (880x760px) do net cao, tieu de va icon ro rang.
+
+5. NANG CAP NHA MAY CHE TAO RO BOT (ROBOT FACTORY & CRAFTING UI):
+   - Tang kich thuoc nha may gap doi giup quan sat de dang va dep mat.
+   - Doi nut "Di chuyen" thanh nut "🤖 CHE TAO RO BOT" tren The Nha May; nhan nut mo ngay Bang Che Tao.
+   - Ngan chan tinh trang click nha may bi bien thanh tru phong thu.
+
+6. THANH MAU VU KHI & NHA MAY THONG MINH:
+   - Thanh mau cua Tru va Nha May phong to ro net (260x38px).
+   - Co che thong minh: Khi moi dat ra luon hien, sau 5 giay tu dong an di; khi dinh sat thuong lap tuc hien lai.
+
+7. NANG CAP HE THONG DI CHUYEN & THAO TAC KEO THA:
+   - Tich hop Virtual Joystick o goc man hinh de dieu khien Player di chuyen muot ma.
+   - Khac phuc triet de loi keo tha vu khi bi khung / tu tut xuong o nua tren man hinh bang mat phang toan hoc (Plane Ground Raycast).
+
+8. AM THANH & HIEN THI:
+   - Bo sung audio am thanh ban phao tu hanh (phongphaotuhanh.wav) chi phat ra khi phao khai hoa.
+   - Doi ten nut "PHONG THU" thanh "🛒 CUA HANG", dat nut "🔬 CONG NGHE" ngay ben canh can doi, dep mat.
+   - Khac phuc toan bo cac canh bao CS0618 (Obsolete API) ve FindObjectsByType trong Unity.
+================================================================================
