@@ -5,7 +5,7 @@ public class ExplosionEffect : MonoBehaviour
 {
     [Header("--- Kích thước & Sát thương vụ nổ ---")]
     public float explosionRadius = 1.2f; // Thu nhỏ lại gọn gàng vừa vặn
-    public float damage = 8f; // Cân bằng giảm sát thương pháo tự hành theo yêu cầu
+    public float damage = 5f; // Giảm sát thương pháo tự hành mỗi quả theo yêu cầu (nhiều đạn nhưng sát thương vừa phải)
     public LayerMask enemyLayer = ~0;
     public string enemyTag = "Enemy";
 

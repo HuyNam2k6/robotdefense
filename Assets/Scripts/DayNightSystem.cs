@@ -49,11 +49,11 @@ public class DayNightSystem : MonoBehaviour
     public float timeRemaining = 25.0f;
 
     [Header("=== TẦN SUẤT QUÁI VẬT SPAWN (INTERVAL) ===")]
-    [Tooltip("Tần suất sinh quái ban ngày (2.4s/con để nhiều quái ban ngày cho người chơi farm vàng)")]
-    public float dayEnemyInterval = 2.4f;
+    [Tooltip("Tần suất sinh quái ban ngày (1.0s/con để nhiều quái ban ngày cho người chơi farm vàng nâng cấp)")]
+    public float dayEnemyInterval = 1.0f;
 
-    [Tooltip("Tần suất sinh quái ban đêm (quái dồn dập tấn công: 0.65s/con)")]
-    public float nightEnemyInterval = 0.65f;
+    [Tooltip("Tần suất sinh quái ban đêm (quái dồn dập tấn công: 0.38s/con)")]
+    public float nightEnemyInterval = 0.38f;
 
     [Header("=== ÁNH SÁNG 4 PHA NGOÀI TRỜI ĐỘC LẬP (DEDICATED LIGHT) ===")]
     [Tooltip("Nguồn sáng Directional Light riêng biệt cho chu kỳ Sáng - Trưa - Chiều - Tối")]

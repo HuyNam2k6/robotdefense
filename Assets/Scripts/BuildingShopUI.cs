@@ -120,7 +120,20 @@ public class BuildingShopUI : MonoBehaviour
 			buildingSystem = FindAnyObjectByType<BuildingSystem>();
 
 		if (shoppingCartButton != null)
+		{
 			shoppingCartButton.onClick.AddListener(ToggleShopPanel);
+
+			// ĐỔI CHỮ "PHÒNG THỦ" SANG "CỬA HÀNG" THEO YÊU CẦU
+			Text btnTxt = shoppingCartButton.GetComponentInChildren<Text>();
+			if (btnTxt != null)
+			{
+				btnTxt.text = "<size=34>🛒</size>\n<size=18><b>CỬA HÀNG</b></size>";
+				btnTxt.color = new Color(1f, 0.88f, 0.25f, 1f);
+			}
+
+			// TẠO NÚT "CÔNG NGHỆ" NGAY BÊN CẠNH CỬA HÀNG
+			EnsureTechToggleButton();
+		}
 
 		if (closeDashboardButton != null)
 			closeDashboardButton.onClick.AddListener(CloseShopPanel);
@@ -167,6 +180,7 @@ public class BuildingShopUI : MonoBehaviour
 			dashboardPanel.SetActive(false);
 
 		SwitchTab(0);
+		ApplyReducedWeaponCosts();
 		UpdateUI();
 	}
 
@@ -207,12 +221,20 @@ public class BuildingShopUI : MonoBehaviour
 				{
 					shoppingCartButton.gameObject.SetActive(false);
 				}
+				if (techToggleBtnObj != null && techToggleBtnObj.activeSelf)
+				{
+					techToggleBtnObj.SetActive(false);
+				}
 			}
 			else
 			{
 				if (shoppingCartButton != null && !shoppingCartButton.gameObject.activeSelf)
 				{
 					shoppingCartButton.gameObject.SetActive(true);
+				}
+				if (techToggleBtnObj != null && !techToggleBtnObj.activeSelf)
+				{
+					techToggleBtnObj.SetActive(true);
 				}
 			}
 		}
@@ -313,7 +335,7 @@ public class BuildingShopUI : MonoBehaviour
 
 	public void OnBuyStarterPack()
 	{
-		const int packCost = 4990;
+		const int packCost = 500;
 		if (GameEconomy.Instance != null && GameEconomy.Instance.coins < packCost)
 		{
 			ShowNotEnoughCoinsWarning($"⚠️ Không đủ vàng để mua Gói Khởi Đầu! (Cần {packCost}🪙)");
@@ -326,6 +348,47 @@ public class BuildingShopUI : MonoBehaviour
 			// Bắt đầu đặt Pháo Tự Hành trước
 			if (buildingSystem != null) buildingSystem.SelectItem(0);
 			Debug.Log("<color=#FFD700><b>[Kho Hàng - Gói Khởi Đầu]</b></color> Đã mở Gói Khởi Đầu! Bắt đầu bố trí Pháo Tự Hành.");
+		}
+	}
+
+	public void ApplyReducedWeaponCosts()
+	{
+		if (buildingSystem != null && buildingSystem.items != null)
+		{
+			if (buildingSystem.items.Length > 0 && buildingSystem.items[0] != null) buildingSystem.items[0].cost = 150;
+			if (buildingSystem.items.Length > 1 && buildingSystem.items[1] != null) buildingSystem.items[1].cost = 250;
+			if (buildingSystem.items.Length > 2 && buildingSystem.items[2] != null) buildingSystem.items[2].cost = 300;
+			if (buildingSystem.items.Length > 3 && buildingSystem.items[3] != null) buildingSystem.items[3].cost = 25;
+		}
+
+		SetCardPriceText("Card_Phaotuhanh", "🪙 <b>150</b>");
+		SetCardPriceText("Card_Thunder", "🪙 <b>250</b>");
+		SetCardPriceText("Card_Flamethrower", "🪙 <b>300</b>");
+		SetCardPriceText("Card_Wall", "🪙 <b>25/Đoạn</b>");
+	}
+
+	private void SetCardPriceText(string cardName, string priceString)
+	{
+		if (dashboardPanel == null) return;
+		Transform card = null;
+		Transform[] allChildren = dashboardPanel.GetComponentsInChildren<Transform>(true);
+		for (int i = 0; i < allChildren.Length; i++)
+		{
+			if (allChildren[i].name == cardName)
+			{
+				card = allChildren[i];
+				break;
+			}
+		}
+
+		if (card != null)
+		{
+			Transform btnBuy = card.Find("Btn_Buy");
+			if (btnBuy != null)
+			{
+				Text t = btnBuy.GetComponentInChildren<Text>();
+				if (t != null) t.text = priceString;
+			}
 		}
 	}
 
@@ -439,9 +502,10 @@ public class BuildingShopUI : MonoBehaviour
 				int wCost = GameEconomy.Instance.GetWallUpgradeCost();
 				string nextName = GameEconomy.WallLevelNames[wLevel];
 
-				if (wLevel + 1 > BaseHQ.CurrentMapLevel)
+				if (!BaseHQ.CanUpgradeBuildingToLevel(wLevel + 1, out _))
 				{
-					upgradeWallText.text = $"🔒 <b>NÂNG TƯỜNG (CẦN MAP CẤP {wLevel + 1})</b>\n<color=#FF8888>✦ Cần nâng cấp Map chính trước</color>";
+					int reqLvl = Mathf.Min(wLevel + 1, 4);
+					upgradeWallText.text = $"🔒 <b>NÂNG TƯỜNG (CẦN LÕI CẤP {reqLvl})</b>\n<color=#FF8888>✦ Cần nâng cấp Lò Năng Lượng trước</color>";
 				}
 				else
 				{
@@ -625,19 +689,16 @@ public class BuildingShopUI : MonoBehaviour
 			return;
 		}
 
-		bool queued = RobotFactory.Instance.QueueCraftRobot();
-		if (queued)
+		CloseShopPanel();
+
+		if (RobotCraftingUI.Instance != null)
 		{
-			UpdateUI();
-			Transform btnT = craftRobotButton != null ? craftRobotButton.transform : (defenseRobotButton != null ? defenseRobotButton.transform : null);
-			if (btnT != null)
-			{
-				StartCoroutine(AnimateButtonBounce(btnT));
-			}
+			RobotCraftingUI.Instance.OpenPanel(RobotFactory.Instance);
 		}
 		else
 		{
-			ShowNotEnoughCoinsWarning("⚠️ Quân đội đã đạt tối đa (8/8)! Robot đang bảo vệ căn cứ.");
+			// Dự phòng nếu chưa có UI, tự động xếp hàng chế tạo
+			RobotFactory.Instance.QueueCraftRobot();
 		}
 	}
 
@@ -691,7 +752,7 @@ public class BuildingShopUI : MonoBehaviour
 	{
 		if (GameEconomy.Instance != null)
 		{
-			if (GameEconomy.Instance.wallLevel + 1 > BaseHQ.CurrentMapLevel)
+			if (!BaseHQ.CanUpgradeBuildingToLevel(GameEconomy.Instance.wallLevel + 1, out string reason))
 			{
 				CenterWarningBanner.ShowUpgradeBlocked("Bức Tường", GameEconomy.Instance.wallLevel, GameEconomy.Instance.wallLevel + 1);
 				return;
@@ -731,5 +792,60 @@ public class BuildingShopUI : MonoBehaviour
 		notEnoughCoinsBanner.SetActive(true);
 		yield return new WaitForSeconds(1.8f);
 		notEnoughCoinsBanner.SetActive(false);
+	}
+
+	private GameObject techToggleBtnObj;
+
+	private void EnsureTechToggleButton()
+	{
+		if (techToggleBtnObj != null || shoppingCartButton == null) return;
+
+		Transform parent = shoppingCartButton.transform.parent;
+		if (parent == null) return;
+
+		techToggleBtnObj = new GameObject("Btn_TechToggle", typeof(RectTransform));
+		techToggleBtnObj.layer = shoppingCartButton.gameObject.layer;
+		techToggleBtnObj.transform.SetParent(parent, false);
+
+		RectTransform rt = techToggleBtnObj.GetComponent<RectTransform>();
+		RectTransform shopRt = shoppingCartButton.GetComponent<RectTransform>();
+
+		rt.anchorMin = shopRt.anchorMin;
+		rt.anchorMax = shopRt.anchorMax;
+		rt.pivot = shopRt.pivot;
+		// Đặt ngay bên trái nút Cửa Hàng (cách 14px)
+		rt.anchoredPosition = new Vector2(shopRt.anchoredPosition.x - shopRt.sizeDelta.x - 14f, shopRt.anchoredPosition.y);
+		rt.sizeDelta = shopRt.sizeDelta;
+
+		Image img = techToggleBtnObj.AddComponent<Image>();
+		img.color = new Color(0.08f, 0.14f, 0.24f, 0.96f);
+
+		Outline ol = techToggleBtnObj.AddComponent<Outline>();
+		ol.effectColor = new Color(0f, 0.85f, 1f, 0.9f);
+		ol.effectDistance = new Vector2(2f, -2f);
+
+		Button btn = techToggleBtnObj.AddComponent<Button>();
+		btn.onClick.AddListener(() =>
+		{
+			if (GlobalTechTree.Instance != null)
+			{
+				GlobalTechTree.Instance.ToggleTechModal();
+			}
+		});
+
+		GameObject txtObj = new GameObject("Text", typeof(RectTransform));
+		txtObj.layer = techToggleBtnObj.layer;
+		txtObj.transform.SetParent(techToggleBtnObj.transform, false);
+		RectTransform trt = txtObj.GetComponent<RectTransform>();
+		trt.anchorMin = Vector2.zero;
+		trt.anchorMax = Vector2.one;
+		trt.sizeDelta = Vector2.zero;
+
+		Text txt = txtObj.AddComponent<Text>();
+		Font safeFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+		txt.font = safeFont;
+		txt.text = "<size=34>🔬</size>\n<size=18><b>CÔNG NGHỆ</b></size>";
+		txt.alignment = TextAnchor.MiddleCenter;
+		txt.color = new Color(0f, 0.95f, 1f, 1f);
 	}
 }

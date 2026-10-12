@@ -9,7 +9,7 @@ public class Enemy : MonoBehaviour
     public float maxHealth = 50f;
     public float currentHealth;
     public float moveSpeed = 3f;
-    public int goldReward = 15;
+    public int goldReward = 30;
     public float attackRange = 1.8f;
     public float attackDamage = 10f;
     public float attackCooldown = 1.2f;
@@ -291,7 +291,7 @@ public class Enemy : MonoBehaviour
             attackCooldown = baseAttackCooldown * 1.40f; // Chậm hơn 40%
             maxHealth = baseMaxHealth * 0.90f;
             moveSpeed = baseMoveSpeed * 1.15f;
-            goldReward = Mathf.Max(12, baseGoldReward);
+            goldReward = Mathf.Max(25, baseGoldReward);
         }
 
         currentHealth = Mathf.Min(currentHealth, maxHealth);

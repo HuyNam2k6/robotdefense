@@ -100,7 +100,18 @@ public class TopResourceHUD : MonoBehaviour
         }
     }
 
+    private float hudRefreshTimer = 0f;
     private int lastStoneCount = -1;
+
+    private void Update()
+    {
+        hudRefreshTimer += Time.deltaTime;
+        if (hudRefreshTimer >= 0.5f)
+        {
+            hudRefreshTimer = 0f;
+            RefreshAllValues();
+        }
+    }
 
     /// <summary>
     /// Cập nhật hiển thị số lượng tài nguyên có dấu phẩy phân cách hàng nghìn (ví dụ 12,450)
@@ -109,7 +120,14 @@ public class TopResourceHUD : MonoBehaviour
     {
         if (GameEconomy.Instance == null) return;
 
-        if (coinText != null) coinText.text = GameEconomy.Instance.coins.ToString("#,##0");
+        if (coinText != null)
+        {
+            float rate = GameEconomy.Instance.GetCurrentCoinsPerSecond();
+            if (rate > 0f)
+                coinText.text = $"{GameEconomy.Instance.coins:#,##0} <color=#00FF88><size=11>+{rate:0}/s</size></color>";
+            else
+                coinText.text = GameEconomy.Instance.coins.ToString("#,##0");
+        }
         if (stoneText != null)
         {
             stoneText.text = GameEconomy.Instance.stoneCount.ToString("#,##0");
@@ -480,6 +498,50 @@ public class TopResourceHUD : MonoBehaviour
     private Slider sfxSlider;
     private Text sfxPercentText;
     private Text sfxMuteBtnText;
+
+    private void CreateTechButton(Transform parent, Vector2 size)
+    {
+        GameObject techBtnObj = new GameObject("Btn_TechTree", typeof(RectTransform));
+        techBtnObj.layer = LayerMask.NameToLayer("UI");
+        techBtnObj.transform.SetParent(parent, false);
+
+        RectTransform r = techBtnObj.GetComponent<RectTransform>();
+        r.sizeDelta = size;
+
+        Image bg = techBtnObj.AddComponent<Image>();
+        bg.sprite = capsuleBgSprite;
+        bg.type = Image.Type.Sliced;
+        bg.color = new Color(0.08f, 0.14f, 0.28f, 0.95f);
+
+        Outline ol = techBtnObj.AddComponent<Outline>();
+        ol.effectColor = new Color(0.15f, 0.65f, 1f, 0.9f);
+        ol.effectDistance = new Vector2(1.5f, -1.5f);
+
+        Button btn = techBtnObj.AddComponent<Button>();
+        btn.onClick.AddListener(() =>
+        {
+            if (GlobalTechTree.Instance != null)
+            {
+                GlobalTechTree.Instance.ToggleTechModal();
+            }
+        });
+
+        GameObject iconObj = new GameObject("Icon", typeof(RectTransform));
+        iconObj.layer = LayerMask.NameToLayer("UI");
+        iconObj.transform.SetParent(techBtnObj.transform, false);
+        RectTransform iconRect = iconObj.GetComponent<RectTransform>();
+        iconRect.anchorMin = Vector2.zero;
+        iconRect.anchorMax = Vector2.one;
+        iconRect.sizeDelta = Vector2.zero;
+
+        Text t = iconObj.AddComponent<Text>();
+        t.font = safeFont;
+        t.fontSize = 26;
+        t.alignment = TextAnchor.MiddleCenter;
+        t.text = "🔬";
+        t.color = new Color(0f, 0.95f, 1f, 1f);
+        t.raycastTarget = false;
+    }
 
     private Text quickAudioBtnText;
 

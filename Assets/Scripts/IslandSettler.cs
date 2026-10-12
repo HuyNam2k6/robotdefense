@@ -238,7 +238,7 @@ public class IslandSettler : MonoBehaviour
 
     private void FindPlayer()
     {
-        var player = Object.FindFirstObjectByType<PlayerController>();
+        var player = PlayerController.Instance ?? Object.FindAnyObjectByType<PlayerController>();
         if (player != null) playerTransform = player.transform;
     }
 
@@ -286,7 +286,7 @@ public class IslandSettler : MonoBehaviour
         // Nếu chưa có nhà nào được đặt trên Scene, chạy về gần BaseHQ
         if (targetHouse == null)
         {
-            var baseHQ = Object.FindFirstObjectByType<BaseHQ>();
+            var baseHQ = BaseHQ.Instance ?? Object.FindAnyObjectByType<BaseHQ>();
             if (baseHQ != null)
             {
                 targetMovePoint = baseHQ.transform.position + (Vector3)Random.insideUnitCircle * 3.5f;

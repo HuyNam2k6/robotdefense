@@ -33,6 +33,7 @@ public class WallSegment : MonoBehaviour
         if (cost <= 0 || (GameEconomy.Instance != null && GameEconomy.Instance.SpendCoins(cost)))
         {
             currentHealth = maxHealth;
+            ShowHealthBarTemporary(5.0f);
             UpdateHealthBar();
             TriggerUpgradePunch();
             FloatingDamageText.Spawn(transform.position + Vector3.up * 1.5f, 0, Color.green);
@@ -53,11 +54,22 @@ public class WallSegment : MonoBehaviour
     private UnityEngine.UI.Image healthBarFillImage;
     private UnityEngine.UI.Text healthBarText;
     private Camera mainCamera;
+    private float healthBarVisibleTimer = 5.0f; // Luôn hiện 5s khi vừa đặt ra, sau 5s sẽ ẩn đi
+
+    public void ShowHealthBarTemporary(float duration = 5.0f)
+    {
+        healthBarVisibleTimer = Mathf.Max(healthBarVisibleTimer, duration);
+        if (healthBarObj != null && !healthBarObj.activeSelf)
+        {
+            healthBarObj.SetActive(true);
+        }
+    }
 
     public void TakeDamage(float amount)
     {
         if (isDestroyed) return;
         currentHealth -= amount;
+        ShowHealthBarTemporary(5.0f); // Khi bị dính sát thương thanh hp lại hiện lên trong 5s
         UpdateHealthBar();
         FloatingDamageText.Spawn(transform.position + Vector3.up * 1.5f, amount, new Color(0.9f, 0.6f, 0.2f));
         if (currentHealth <= 0f)
@@ -134,11 +146,33 @@ public class WallSegment : MonoBehaviour
     {
         if (healthBarObj != null)
         {
-            if (mainCamera == null) mainCamera = Camera.main;
-            if (mainCamera != null)
+            if (healthBarVisibleTimer > 0f)
             {
-                healthBarObj.transform.rotation = mainCamera.transform.rotation;
-                healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
+                healthBarVisibleTimer -= Time.deltaTime;
+                if (!healthBarObj.activeSelf) healthBarObj.SetActive(true);
+            }
+            else
+            {
+                if (!isSelected && healthBarObj.activeSelf)
+                {
+                    healthBarObj.SetActive(false);
+                }
+            }
+
+            if (healthBarObj.activeSelf)
+            {
+                if (mainCamera == null) mainCamera = Camera.main;
+                if (mainCamera != null)
+                {
+                    healthBarObj.transform.rotation = mainCamera.transform.rotation;
+                    healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
+
+                    Vector3 pLossy = transform.lossyScale;
+                    float sx = pLossy.x > 0.001f ? (1f / pLossy.x) : 1f;
+                    float sy = pLossy.y > 0.001f ? (1f / pLossy.y) : 1f;
+                    float sz = pLossy.z > 0.001f ? (1f / pLossy.z) : 1f;
+                    healthBarObj.transform.localScale = new Vector3(sx * 0.018f, sy * 0.018f, sz * 0.018f);
+                }
             }
         }
     }
@@ -162,8 +196,8 @@ public class WallSegment : MonoBehaviour
         cs.dynamicPixelsPerUnit = 10;
 
         RectTransform rt = healthBarObj.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(145f, 22f);
-        rt.localScale = Vector3.one * 0.0115f;
+        rt.sizeDelta = new Vector2(200f, 28f);
+        rt.localScale = Vector3.one * 0.018f;
 
         GameObject bg = new GameObject("BG", typeof(RectTransform), typeof(UnityEngine.UI.Image));
         bg.transform.SetParent(healthBarObj.transform, false);
@@ -171,10 +205,10 @@ public class WallSegment : MonoBehaviour
         bgRt.anchorMin = Vector2.zero;
         bgRt.anchorMax = Vector2.one;
         bgRt.sizeDelta = Vector2.zero;
-        bg.GetComponent<UnityEngine.UI.Image>().color = new Color(0.08f, 0.1f, 0.14f, 0.92f);
+        bg.GetComponent<UnityEngine.UI.Image>().color = new Color(0.08f, 0.1f, 0.14f, 0.94f);
         var bgOutline = bg.AddComponent<UnityEngine.UI.Outline>();
-        bgOutline.effectColor = new Color(0.2f, 0.4f, 0.6f, 0.9f);
-        bgOutline.effectDistance = new Vector2(1.2f, -1.2f);
+        bgOutline.effectColor = new Color(0.2f, 0.5f, 0.8f, 0.95f);
+        bgOutline.effectDistance = new Vector2(1.5f, -1.5f);
 
         GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(UnityEngine.UI.Image));
         fill.transform.SetParent(healthBarObj.transform, false);
@@ -194,13 +228,13 @@ public class WallSegment : MonoBehaviour
         txtRt.sizeDelta = Vector2.zero;
         healthBarText = txt.GetComponent<UnityEngine.UI.Text>();
         healthBarText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
-        healthBarText.fontSize = 13;
+        healthBarText.fontSize = 16;
         healthBarText.fontStyle = FontStyle.Bold;
         healthBarText.alignment = TextAnchor.MiddleCenter;
         healthBarText.color = Color.white;
         var txtOutline = txt.AddComponent<UnityEngine.UI.Outline>();
-        txtOutline.effectColor = new Color(0f, 0f, 0f, 0.9f);
-        txtOutline.effectDistance = new Vector2(1f, -1f);
+        txtOutline.effectColor = new Color(0f, 0f, 0f, 0.95f);
+        txtOutline.effectDistance = new Vector2(1.2f, -1.2f);
 
         UpdateHealthBar();
     }
@@ -269,6 +303,7 @@ public class WallSegment : MonoBehaviour
     public void SetSelected(bool selected)
     {
         isSelected = selected;
+        if (selected) ShowHealthBarTemporary(5.0f);
 
         if (gameObject.activeInHierarchy)
         {

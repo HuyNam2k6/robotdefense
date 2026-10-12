@@ -68,11 +68,11 @@ public class CivilianHouse : MonoBehaviour
         if (DayNightSystem.Instance != null && DayNightSystem.Instance.isNight)
             return true;
 
-        // 2. Kiểm tra quái vật còn sống trong phạm vi đảo
-        var enemies = Object.FindObjectsByType<Enemy>(FindObjectsSortMode.None);
-        for (int i = 0; i < enemies.Length; i++)
+        // 2. Kiểm tra quái vật còn sống trong phạm vi đảo (Duyệt Enemy.AllEnemies tối ưu 0 allocation)
+        for (int i = 0; i < Enemy.AllEnemies.Count; i++)
         {
-            if (enemies[i] != null && enemies[i].gameObject.activeInHierarchy && enemies[i].currentHealth > 0)
+            Enemy e = Enemy.AllEnemies[i];
+            if (e != null && e.gameObject.activeInHierarchy && e.currentHealth > 0)
             {
                 return true;
             }

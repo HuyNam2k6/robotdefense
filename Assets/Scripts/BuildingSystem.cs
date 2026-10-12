@@ -96,6 +96,12 @@ public class BuildingSystem : MonoBehaviour
 	{
 		if (itemIndex == 0 && freePhaotuhanhRemaining > 0) return 0; // Miễn phí lần đầu
 		if (itemIndex == 1 && freeThunderRemaining > 0) return 0;     // Miễn phí lần đầu
+
+		// Giảm giá tiền mua vũ khí xuống thấp theo yêu cầu người chơi
+		if (itemIndex == 0) return Mathf.Min(defaultCost, 150); // Pháo Tự Hành: 150 Vàng
+		if (itemIndex == 1) return Mathf.Min(defaultCost, 250); // Trụ Sét: 250 Vàng
+		if (itemIndex == 2) return Mathf.Min(defaultCost, 300); // Súng Phun Lửa: 300 Vàng
+		if (itemIndex == 3) return Mathf.Min(defaultCost, 25);  // Bức Tường: 25 Vàng/Đoạn
 		return defaultCost;
 	}
 
@@ -105,6 +111,15 @@ public class BuildingSystem : MonoBehaviour
 		if (blueHologramMaterial == null)
 		{
 			CreateDefaultHologramMaterial();
+		}
+
+		// Khởi tạo giá mua vũ khí thấp chuẩn cho người chơi
+		if (items != null)
+		{
+			if (items.Length > 0 && items[0] != null) items[0].cost = 150;
+			if (items.Length > 1 && items[1] != null) items[1].cost = 250;
+			if (items.Length > 2 && items[2] != null) items[2].cost = 300;
+			if (items.Length > 3 && items[3] != null) items[3].cost = 25;
 		}
 	}
 
@@ -153,7 +168,32 @@ public class BuildingSystem : MonoBehaviour
 		if (mainCamera == null) return;
 
 		Ray ray = mainCamera.ScreenPointToRay(Input.mousePosition);
-		bool hasGroundHit = Physics.Raycast(ray, out RaycastHit hit, 500f, groundLayer);
+		bool hasGroundHit = false;
+		RaycastHit hit = new RaycastHit();
+
+		// Ưu tiên chiếu lên mặt phẳng ngang đảo (Plane) ở độ cao mặt đất ~9.6m
+		// giúp việc kéo thả vũ khí lướt mượt mà 100%, không bị khựng hay nhảy vị trí khi lướt qua nóc BaseHQ, cây cối, đá, tường
+		float baseIslandY = 9.6f;
+		if (Terrain.activeTerrain != null)
+		{
+			baseIslandY = Terrain.activeTerrain.transform.position.y + 9.6f;
+		}
+
+		Plane groundPlane = new Plane(Vector3.up, new Vector3(0f, baseIslandY, 0f));
+		if (groundPlane.Raycast(ray, out float enterDist) && enterDist > 0f)
+		{
+			Vector3 planePt = ray.GetPoint(enterDist);
+			float trueY = SampleTrueGroundY(planePt.x, planePt.z, baseIslandY);
+			hit.point = new Vector3(planePt.x, trueY, planePt.z);
+			hit.normal = Vector3.up;
+			hasGroundHit = true;
+		}
+		else if (Physics.Raycast(ray, out hit, 500f, groundLayer))
+		{
+			float trueY = SampleTrueGroundY(hit.point.x, hit.point.z, hit.point.y);
+			hit.point = new Vector3(hit.point.x, trueY, hit.point.z);
+			hasGroundHit = true;
+		}
 
 		bool isCurrentWall = items[selectedIndex].isWall;
 
@@ -300,15 +340,19 @@ public class BuildingSystem : MonoBehaviour
 				SetAllPreviewsActive(false);
 			}
 		}
-		// 2. XỬ LÝ CHO CÔNG TRÌNH ĐƠN (Ụ PHÁO)
+		// 2. XỬ LÝ CHO CÔNG TRÌNH ĐƠN (Ụ PHÁO, TRỤ SÉT, NHÀ MÁY...)
 		else
 		{
 			EnsurePreviewCount(1);
 
 			if (hasGroundHit)
 			{
+				// Luôn chuẩn hóa độ cao bám sát mặt đất tuyệt đối (không bị lơ lửng trên không)
+				float trueGroundY = SampleTrueGroundY(hit.point.x, hit.point.z, hit.point.y);
+				Vector3 groundPlacementPos = new Vector3(hit.point.x, trueGroundY, hit.point.z);
+
 				previewPool[0].SetActive(true);
-				previewPool[0].transform.position = hit.point;
+				previewPool[0].transform.position = groundPlacementPos;
 				previewPool[0].transform.rotation = Quaternion.Euler(0f, currentYRotation, 0f);
 
 				if (Input.GetMouseButtonDown(0))
@@ -346,7 +390,8 @@ public class BuildingSystem : MonoBehaviour
 							Debug.Log("<color=#00FF88>🎁 [Khởi Đầu Miễn Phí]</color> Đã mua và đặt Trụ Sét Thunder MIỄN PHÍ thành công!");
 						}
 
-						SpawnRealObject(items[selectedIndex].prefab, hit.point, Quaternion.Euler(0f, currentYRotation, 0f));
+						// Đặt công trình bám chặt dưới mặt đất chuẩn xác 100%
+						SpawnRealObject(items[selectedIndex].prefab, groundPlacementPos, Quaternion.Euler(0f, currentYRotation, 0f));
 
 						if (!continuousPlacement)
 						{
@@ -428,23 +473,48 @@ public class BuildingSystem : MonoBehaviour
 		return gridSnap;
 	}
 
-	private float SampleGroundY(float x, float z, float defaultY)
+	/// <summary>
+	/// Tính toán độ cao mặt đất chính xác tuyệt đối (Terrain hoặc Mesh mặt đất),
+	/// hoàn toàn bỏ qua người chơi, bot, quái vật, vật thể bay để không bao giờ bị lơ lửng trên không!
+	/// </summary>
+	public float SampleTrueGroundY(float x, float z, float fallbackY)
 	{
-		RaycastHit[] hits = Physics.RaycastAll(new Vector3(x, 100f, z), Vector3.down, 200f, groundLayer);
+		// 1. Nếu có Terrain đang hoạt động, lấy mẫu độ cao bề mặt đất tự nhiên của Terrain
+		if (Terrain.activeTerrain != null)
+		{
+			float tY = Terrain.activeTerrain.SampleHeight(new Vector3(x, 0f, z)) + Terrain.activeTerrain.transform.position.y;
+			return tY;
+		}
+
+		// 2. Bắn tia thẳng đứng từ độ cao 250m xuống để tìm mặt đất chính xác
+		RaycastHit[] hits = Physics.RaycastAll(new Vector3(x, 250f, z), Vector3.down, 500f, groundLayer);
 		if (hits != null && hits.Length > 0)
 		{
 			System.Array.Sort(hits, (a, b) => b.point.y.CompareTo(a.point.y));
 			foreach (var h in hits)
 			{
 				if (h.collider == null || h.collider.isTrigger) continue;
-				if (h.collider.GetComponentInParent<WallSegment>() != null) continue;
+
+				// Loại trừ các vật thể di động và công trình trên không
+				if (h.collider.CompareTag("Player") || h.collider.GetComponentInParent<PlayerController>() != null) continue;
+				if (h.collider.CompareTag("Enemy") || h.collider.GetComponentInParent<Enemy>() != null) continue;
+				if (h.collider.GetComponentInParent<FriendlyCombatRobot>() != null) continue;
 				if (h.collider.GetComponentInParent<WorkerBot>() != null) continue;
+				if (h.collider.GetComponentInParent<mineBotFarm>() != null) continue;
 				if (h.collider.GetComponentInParent<TurretController>() != null) continue;
+				if (h.collider.GetComponentInParent<UpgradableTurret>() != null) continue;
+				if (h.collider.GetComponentInParent<WallSegment>() != null) continue;
 
 				return h.point.y;
 			}
 		}
-		return defaultY;
+
+		return fallbackY;
+	}
+
+	private float SampleGroundY(float x, float z, float defaultY)
+	{
+		return SampleTrueGroundY(x, z, defaultY);
 	}
 
 	GameObject SpawnRealObject(GameObject prefab, Vector3 position, Quaternion rotation)
@@ -465,6 +535,15 @@ public class BuildingSystem : MonoBehaviour
 			{
 				ws.ApplyLevel(GameEconomy.Instance.wallLevel);
 			}
+		}
+		else if (realObj.GetComponent<RobotFactory>() != null || (selectedIndex >= 0 && selectedIndex < items.Length && items[selectedIndex].itemName.ToLower().Contains("nhà máy")))
+		{
+			// ĐÂY LÀ NHÀ MÁY CHẾ TẠO ROBOT: TUYỆT ĐỐI KHÔNG GẮN UpgradableTurret!
+			UpgradableTurret accidentalUt = realObj.GetComponent<UpgradableTurret>();
+			if (accidentalUt != null) Destroy(accidentalUt);
+
+			RobotFactory rf = realObj.GetComponent<RobotFactory>();
+			if (rf == null) rf = realObj.AddComponent<RobotFactory>();
 		}
 		else
 		{

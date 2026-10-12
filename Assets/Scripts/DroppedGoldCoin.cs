@@ -128,12 +128,16 @@ public class DroppedGoldCoin : MonoBehaviour
         float distToPlayer = Vector3.Distance(transform.position, playerPos);
         float dist2D = Vector2.Distance(new Vector2(transform.position.x, transform.position.z), new Vector2(playerPos.x, playerPos.z));
 
-        // Ban ngày từ trường hút mạnh hơn (lên tới 8m)
+        // 5. Tính năng Idle Tự Động Thu Gom (Auto-Magnet):
+        // Nếu ở gần Player HOẶC sau khi chạm đất 0.8 giây: Tự động kích hoạt nam châm hút toàn bản đồ
         float currentMagnetDist = (DayNightSystem.Instance != null && !DayNightSystem.Instance.isNight) 
             ? magnetDistance * 1.6f 
             : magnetDistance;
 
-        if (distToPlayer <= currentMagnetDist || dist2D <= currentMagnetDist)
+        bool isCloseToPlayer = (distToPlayer <= currentMagnetDist || dist2D <= currentMagnetDist);
+        bool isIdleAutoCollect = isLanded && (Time.time - spawnTime >= 0.8f);
+
+        if (isCloseToPlayer || isIdleAutoCollect)
         {
             isBeingAttracted = true;
         }

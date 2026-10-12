@@ -23,6 +23,11 @@ public class RocketLauncherTurret : MonoBehaviour
     public LayerMask enemyLayer = ~0;
     public string enemyTag = "Enemy";
 
+    [Header("--- Âm thanh bắn (Audio) ---")]
+    [Tooltip("File âm thanh tiếng pháo tự hành khai hỏa (chỉ phát khi pháo bắn)")]
+    public AudioClip fireSound;
+    public AudioSource audioSource;
+
     private float cooldownTimer = 0f;
     private Transform currentTarget;
     private readonly List<Transform> targetList = new List<Transform>();
@@ -35,6 +40,29 @@ public class RocketLauncherTurret : MonoBehaviour
 #if UNITY_EDITOR
             rocketPrefab = UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabsEnemy/PerfectRocket.prefab")
                         ?? UnityEditor.AssetDatabase.LoadAssetAtPath<GameObject>("Assets/prefabs/PerfectRocket.prefab");
+#endif
+        }
+
+        if (audioSource == null)
+        {
+            audioSource = GetComponent<AudioSource>();
+            if (audioSource == null) audioSource = gameObject.AddComponent<AudioSource>();
+        }
+
+        if (audioSource != null)
+        {
+            audioSource.playOnAwake = false;
+            audioSource.loop = false;
+            audioSource.spatialBlend = 0.5f;
+            audioSource.minDistance = 5f;
+            audioSource.maxDistance = 50f;
+        }
+
+        if (fireSound == null)
+        {
+#if UNITY_EDITOR
+            fireSound = UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/phongphaotuhanh.wav")
+                     ?? UnityEditor.AssetDatabase.LoadAssetAtPath<AudioClip>("Assets/Audio/phongphaotuhanh.mp3");
 #endif
         }
     }
@@ -70,6 +98,13 @@ public class RocketLauncherTurret : MonoBehaviour
     {
         // Snapshot danh sách các mục tiêu tại thời điểm bắt đầu loạt bắn
         List<Transform> activeTargets = new List<Transform>(targetList);
+
+        // Phát âm thanh tiếng pháo tự hành bắn (Chỉ phát đúng thời điểm pháo bắt đầu loạt bắn)
+        if (audioSource != null && fireSound != null && activeTargets.Count > 0)
+        {
+            audioSource.pitch = Random.Range(0.96f, 1.04f);
+            audioSource.PlayOneShot(fireSound, 1.0f);
+        }
 
         for (int i = 0; i < rocketsPerVolley; i++)
         {

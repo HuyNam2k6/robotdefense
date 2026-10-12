@@ -384,7 +384,8 @@ public class FriendlyCombatRobot : MonoBehaviour
             Enemy enemy = target.GetComponent<Enemy>();
             if (enemy != null && enemy.currentHealth > 0f)
             {
-                enemy.TakeDamage(attackDamage);
+                float actualDmg = attackDamage * GlobalTechTree.DamageMultiplier;
+                enemy.TakeDamage(actualDmg);
             }
         }
     }
@@ -397,7 +398,8 @@ public class FriendlyCombatRobot : MonoBehaviour
         Enemy enemy = target.GetComponent<Enemy>();
         if (enemy != null && enemy.currentHealth > 0f)
         {
-            enemy.TakeDamage(attackDamage);
+            float actualDmg = attackDamage * GlobalTechTree.DamageMultiplier;
+            enemy.TakeDamage(actualDmg);
 
             // Tia lửa va chạm cận chiến
             CreateMeleeHitSpark(target.position + Vector3.up * 1.0f);
@@ -603,7 +605,7 @@ public class FriendlyCombatRobot : MonoBehaviour
         bg.name = "BG";
         bg.transform.SetParent(hpBarRoot, false);
         bg.transform.localPosition = Vector3.zero;
-        bg.transform.localScale = new Vector3(1.6f, 0.22f, 1f);
+        bg.transform.localScale = new Vector3(2.4f, 0.32f, 1f);
         Collider colBg = bg.GetComponent<Collider>();
         if (colBg != null) Destroy(colBg);
 
@@ -612,7 +614,7 @@ public class FriendlyCombatRobot : MonoBehaviour
         {
             Shader sh = Shader.Find("Universal Render Pipeline/Unlit") ?? Shader.Find("Unlit/Color");
             Material mBg = new Material(sh);
-            mBg.color = new Color(0.08f, 0.1f, 0.15f, 0.95f);
+            mBg.color = new Color(0.06f, 0.08f, 0.12f, 0.95f);
             rBg.material = mBg;
         }
 
@@ -621,7 +623,7 @@ public class FriendlyCombatRobot : MonoBehaviour
         fg.name = "FG";
         fg.transform.SetParent(hpBarRoot, false);
         fg.transform.localPosition = new Vector3(0f, 0f, -0.01f);
-        fg.transform.localScale = new Vector3(1.54f, 0.17f, 1f);
+        fg.transform.localScale = new Vector3(2.32f, 0.24f, 1f);
         Collider colFg = fg.GetComponent<Collider>();
         if (colFg != null) Destroy(colFg);
 
@@ -655,12 +657,12 @@ public class FriendlyCombatRobot : MonoBehaviour
             hpBarRoot.rotation = Quaternion.LookRotation(hpBarRoot.position - mainCam.transform.position);
         }
 
-        // Cập nhật tỉ lệ độ dài thanh máu
+        // Cập nhật tỉ lệ độ dài thanh máu to rõ nét
         if (hpBarForeground != null)
         {
             float hpRatio = Mathf.Clamp01(currentHealth / maxHealth);
-            hpBarForeground.localScale = new Vector3(1.06f * hpRatio, 0.10f, 1f);
-            hpBarForeground.localPosition = new Vector3(-0.53f * (1f - hpRatio), 0f, -0.01f);
+            hpBarForeground.localScale = new Vector3(2.32f * hpRatio, 0.24f, 1f);
+            hpBarForeground.localPosition = new Vector3(-1.16f * (1f - hpRatio), 0f, -0.01f);
 
             // Đổi màu vàng / đỏ khi máu yếu
             Renderer r = hpBarForeground.GetComponent<Renderer>();

@@ -78,9 +78,6 @@ public class PlayerController : MonoBehaviour
 	// Thanh máu nổi trên đầu Player (World-Space)
 	public float floatingBarHeight = 2.3f;
 	private GameObject floatingHealthBarObj;
-	private RectTransform floatingHealthBarFill;
-	private Image floatingHealthBarFillImage;
-	private Text floatingHealthBarText;
 
 	// Đếm thời gian đứng yên
 	private float idleTimer = 0f;
@@ -175,6 +172,11 @@ public class PlayerController : MonoBehaviour
 		// ========== 1. ĐỌC INPUT (BÀN PHÍM HOẶC JOYSTICK) ==========
 		float h = Input.GetAxisRaw("Horizontal");
 		float v = Input.GetAxisRaw("Vertical");
+
+		if (joystick == null)
+		{
+			joystick = VirtualJoystick.Instance ?? FindAnyObjectByType<VirtualJoystick>();
+		}
 
 		if (joystick != null && (Mathf.Abs(joystick.Horizontal) > 0.05f || Mathf.Abs(joystick.Vertical) > 0.05f))
 		{
@@ -349,6 +351,9 @@ public class PlayerController : MonoBehaviour
 
 		// ========== 10. ÂM THANH DI CHUYỂN BƯỚC CHÂN (PLayer.mp3) ==========
 		HandleMovementAudio();
+
+		// ========== 11. TỰ ĐỘNG TẤN CÔNG BẢO VỆ CHỈ HUY (IDLE AUTO-DEFENSE) ==========
+		UpdateAutoDefense();
 	}
 
 	/// <summary>
@@ -869,9 +874,6 @@ public class PlayerController : MonoBehaviour
 		Transform existing = transform.Find("[Player_FloatingHealthBar]");
 		if (existing != null) Destroy(existing.gameObject);
 		floatingHealthBarObj = null;
-		floatingHealthBarFill = null;
-		floatingHealthBarFillImage = null;
-		floatingHealthBarText = null;
 	}
 
 	private void UpdateHealthBar()
@@ -956,6 +958,51 @@ public class PlayerController : MonoBehaviour
 			{
 				moveAudioSource.Pause();
 			}
+		}
+	}
+
+	// ================= 11. TỰ ĐỘNG PHÒNG VỆ CHỈ HUY (IDLE AUTO-COMBAT) =================
+	[Header("--- Tự Động Tấn Công Phòng Vệ (Idle Auto-Defense) ---")]
+	public bool enableAutoDefense = true;
+	public float autoDefenseRange = 8.0f;
+	public float autoDefenseCooldown = 0.5f;
+	public float autoDefenseDamage = 50f;
+	private float autoDefenseTimer = 0f;
+
+	private void UpdateAutoDefense()
+	{
+		if (!enableAutoDefense || isDead) return;
+
+		autoDefenseTimer += Time.deltaTime;
+		if (autoDefenseTimer < autoDefenseCooldown) return;
+
+		// Quét tìm quái gần nhất trong Enemy.AllEnemies (100% Raycast/Static List, 0 GC allocation)
+		Enemy nearestEnemy = null;
+		float minDist = autoDefenseRange;
+		Vector3 myPos = transform.position;
+
+		for (int i = 0; i < Enemy.AllEnemies.Count; i++)
+		{
+			Enemy e = Enemy.AllEnemies[i];
+			if (e == null || !e.gameObject.activeInHierarchy || e.currentHealth <= 0f) continue;
+
+			float d = Vector3.Distance(myPos, e.transform.position);
+			if (d <= minDist)
+			{
+				minDist = d;
+				nearestEnemy = e;
+			}
+		}
+
+		if (nearestEnemy != null)
+		{
+			autoDefenseTimer = 0f;
+			float dmg = autoDefenseDamage * GlobalTechTree.DamageMultiplier;
+			nearestEnemy.TakeDamage(dmg);
+
+			// Hiệu ứng tia năng lượng bảo vệ chỉ huy
+			Vector3 hitPos = nearestEnemy.transform.position + Vector3.up * 1.0f;
+			FloatingDamageText.SpawnResource(hitPos, $"⚡ -{dmg:F0}", new Color(0f, 0.95f, 1f), 0.15f);
 		}
 	}
 }

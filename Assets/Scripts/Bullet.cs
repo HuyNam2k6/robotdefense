@@ -64,8 +64,9 @@ public class Bullet : MonoBehaviour
 		{
 			hasHit = true;
 			transform.position = enemyHitPos;
-			hitEnemy.TakeDamage(damage);
-			Debug.Log($"<color=red>[Đạn Lửa]</color> Raycast trúng Enemy: {hitEnemy.name}! Trừ {damage} HP!");
+			float actualDmg = damage * GlobalTechTree.DamageMultiplier;
+			hitEnemy.TakeDamage(actualDmg);
+			Debug.Log($"<color=red>[Đạn Lửa]</color> Raycast trúng Enemy: {hitEnemy.name}! Trừ {actualDmg:F0} HP!");
 			SpawnImpactEffect(enemyHitPos, true);
 			Destroy(gameObject);
 			return;
@@ -103,15 +104,16 @@ public class Bullet : MonoBehaviour
 		if (other.CompareTag("Enemy") || other.GetComponentInParent<Enemy>() != null)
 		{
 			Enemy enemy = other.GetComponent<Enemy>() ?? other.GetComponentInParent<Enemy>();
+			float actualDmg = damage * GlobalTechTree.DamageMultiplier;
 			if (enemy != null)
 			{
-				enemy.TakeDamage(damage);
-				Debug.Log($"<color=red>[Đạn Lửa]</color> Bắn trúng quái: {enemy.name}! Gây sát thương thực tế: {damage}");
+				enemy.TakeDamage(actualDmg);
+				Debug.Log($"<color=red>[Đạn Lửa]</color> Bắn trúng quái: {enemy.name}! Gây sát thương thực tế: {actualDmg:F0}");
 			}
 			else
 			{
-				other.SendMessage("TakeDamage", (float)damage, SendMessageOptions.DontRequireReceiver);
-				Debug.Log($"<color=red>[Đạn Lửa]</color> Gửi TakeDamage tới: {other.name}! Sát thương: {damage}");
+				other.SendMessage("TakeDamage", (float)actualDmg, SendMessageOptions.DontRequireReceiver);
+				Debug.Log($"<color=red>[Đạn Lửa]</color> Gửi TakeDamage tới: {other.name}! Sát thương: {actualDmg:F0}");
 			}
 
 			SpawnImpactEffect(hitPoint, true);

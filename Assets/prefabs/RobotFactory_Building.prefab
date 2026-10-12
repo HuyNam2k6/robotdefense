@@ -240,7 +240,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 2, y: 2, z: 2}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1672906135441236747}
@@ -306,6 +306,10 @@ MonoBehaviour:
   factoryBody: {fileID: 1672906135441236747}
   weldingLight: {fileID: 9166750740544355119}
   craftRobotCost: 0
+  maxHealth: 2500
+  currentHealth: 2500
+  healthBarHeight: 5.6
+  isDestroyed: 0
 --- !u!1 &3052474159999660443
 GameObject:
   m_ObjectHideFlags: 0

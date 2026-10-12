@@ -16,11 +16,11 @@ public class EnemySpawner : MonoBehaviour
     public static EnemySpawner Instance { get; private set; }
 
     [Header("=== CÀI ĐẶT THỜI GIAN SPAWN (TIMERS) ===")]
-    [Tooltip("Thời gian sinh quái vật thường ban ngày (2.4s sinh 1 con để nhiều quái ban ngày cho người chơi cày vàng)")]
-    public float normalEnemyDayInterval = 2.4f;
+    [Tooltip("Thời gian sinh quái vật thường ban ngày (1.0s sinh 1 con để nhiều quái ban ngày cho người chơi cày vàng nâng cấp)")]
+    public float normalEnemyDayInterval = 1.0f;
 
-    [Tooltip("Thời gian sinh quái vật thường ban đêm")]
-    public float normalEnemyNightInterval = 0.65f;
+    [Tooltip("Thời gian sinh quái vật thường ban đêm (0.38s sinh dồn dập)")]
+    public float normalEnemyNightInterval = 0.38f;
 
     [Header("=== LỊCH XUẤT HIỆN BOSS: MỖI ĐÊM ĐỀU CÓ 1 ĐẠI BOSS ===")]
     [Tooltip("Thời gian từ khi bắt đầu đêm đến khi Boss xuất hiện (giây)")]
@@ -84,6 +84,9 @@ public class EnemySpawner : MonoBehaviour
     private void Start()
     {
         normalTimer = 0f;
+        dayBatchTimer = 0f;
+        currentDayBatchInterval = 5.0f;
+        currentDayBatchCount = 10;
         EnsurePrefabsLoaded();
         EnsureSpawnPointsExist();
 
@@ -107,8 +110,16 @@ public class EnemySpawner : MonoBehaviour
         Debug.Log($"<color=#FF3333><b>[EnemySpawner]</b> 🌙 ĐÊM THỨ {nightNumber} BẮT ĐẦU! Đại Boss sẽ xuất hiện sau {nightBossSpawnDelay:F0}s!</color>");
     }
 
+    [Header("=== SPAWN QUÁI BAN NGÀY THEO BẦY RANDOM ===")]
+    [Tooltip("Thời gian đếm ngược đợt quái ban ngày hiện tại")]
+    public float dayBatchTimer = 0f;
+    [Tooltip("Khoảng cách ngẫu nhiên tới đợt spawn kế tiếp (4.5s - 15.0s)")]
+    public float currentDayBatchInterval = 5.0f;
+    [Tooltip("Số lượng quái trong đợt spawn hiện tại (lúc 5s ra ~10 con, lúc 15s ra ~3 con)")]
+    public int currentDayBatchCount = 10;
+
     /// <summary>
-    /// Được gọi mỗi khi bình minh đến: Cập nhật trạng thái sang ban ngày
+    /// Được gọi mỗi khi bình minh đến: Cập nhật trạng thái sang ban ngày & kích hoạt đợt quái đầu tiên 10 con sau 5s
     /// </summary>
     public void OnDayStarted(int dayNumber)
     {
@@ -116,29 +127,92 @@ public class EnemySpawner : MonoBehaviour
         hasBossSpawnedTonight = false;
         activeBossObject = null;
         activeBossName = "";
+
+        dayBatchTimer = 0f;
+        currentDayBatchInterval = 5.0f;
+        currentDayBatchCount = 10;
+        Debug.Log($"<color=#00FF88><b>[EnemySpawner]</b> ☀️ NGÀY THỨ {dayNumber} BẮT ĐẦU! Đợt quái ban ngày đầu tiên (10 con) sẽ xuất hiện sau 5.0s.</color>");
+    }
+
+    private void ScheduleNextDayBatch()
+    {
+        dayBatchTimer = 0f;
+        // Đợt bầy quái xuất hiện đều đặn 4.5s - 7.5s thay vì chờ lâu tới 15s
+        currentDayBatchInterval = Random.Range(4.5f, 7.5f);
+        currentDayBatchCount = Random.Range(5, 10);
+    }
+
+    private IEnumerator SpawnDayBatchRoutine(int count)
+    {
+        for (int i = 0; i < count; i++)
+        {
+            int active = Enemy.AllEnemies != null ? Enemy.AllEnemies.Count : 0;
+            if (active >= 40) break;
+
+            SpawnNormalEnemy();
+            if (i < count - 1)
+            {
+                yield return new WaitForSeconds(0.12f); // Phân tán nhẹ 0.12s để quái không bị chồng khít lên nhau
+            }
+        }
+        Debug.Log($"<color=#00FF88>[EnemySpawner]</color> ☀️ Ban ngày đã sinh đợt quái {count} con! Đợt tiếp theo: {currentDayBatchCount} con sau {currentDayBatchInterval:F1}s.");
     }
 
     private void Update()
     {
         bool isNight = DayNightSystem.Instance == null || DayNightSystem.Instance.isNight;
+        int activeCount = Enemy.AllEnemies != null ? Enemy.AllEnemies.Count : 0;
+        int maxAllowedEnemies = isNight ? 55 : 40;
 
-        // 1. Sinh quái thường:
-        // Ban ngày: giảm lực công, tăng tốc độ (chu kỳ 5s/con)
-        // Ban đêm: cơ động mạnh mẽ, dồn dập (chu kỳ 0.7s/con)
-        normalTimer += Time.deltaTime;
-        float currentNormalInterval = isNight 
-            ? (DayNightSystem.Instance != null ? DayNightSystem.Instance.nightEnemyInterval : normalEnemyNightInterval) 
-            : (DayNightSystem.Instance != null ? DayNightSystem.Instance.dayEnemyInterval : normalEnemyDayInterval);
-
-        if (normalTimer >= currentNormalInterval)
+        if (isNight)
         {
-            normalTimer = 0f;
-            SpawnNormalEnemy();
-
-            // Ban đêm: Thỉnh thoảng sinh thêm quái tạo bầy đàn
-            if (isNight && Random.value < 0.35f)
+            // 1. BAN ĐÊM: Sinh quái liên tục dồn dập (0.38s/con)
+            normalTimer += Time.deltaTime;
+            float nightInterval = DayNightSystem.Instance != null ? DayNightSystem.Instance.nightEnemyInterval : normalEnemyNightInterval;
+            if (normalTimer >= nightInterval)
             {
-                SpawnNormalEnemy();
+                normalTimer = 0f;
+                if (activeCount < maxAllowedEnemies)
+                {
+                    SpawnNormalEnemy();
+                    if (Random.value < 0.60f && activeCount + 1 < maxAllowedEnemies) SpawnNormalEnemy();
+                    if (Random.value < 0.30f && activeCount + 2 < maxAllowedEnemies) SpawnNormalEnemy();
+                }
+            }
+        }
+        else
+        {
+            // 1. BAN NGÀY: Sinh quái LIÊN TỤC KHÔNG NGỪNG NGHỈ (Spam liên tục để cày vàng)
+            // A. Dòng quái liên tục đều đặn mỗi ~0.9s - 1.0s ra 1 con
+            normalTimer += Time.deltaTime;
+            float dayInterval = DayNightSystem.Instance != null ? DayNightSystem.Instance.dayEnemyInterval : normalEnemyDayInterval;
+            if (dayInterval <= 0.05f) dayInterval = 1.0f;
+            if (normalTimer >= dayInterval)
+            {
+                normalTimer = 0f;
+                if (activeCount < maxAllowedEnemies)
+                {
+                    SpawnNormalEnemy();
+                    if (Random.value < 0.35f && activeCount + 1 < maxAllowedEnemies)
+                    {
+                        SpawnNormalEnemy();
+                    }
+                }
+            }
+
+            // B. Song song các đợt bầy quái ùa ra (mini swarm) mỗi 4.5s - 7.5s
+            dayBatchTimer += Time.deltaTime;
+            if (dayBatchTimer >= currentDayBatchInterval)
+            {
+                if (activeCount < maxAllowedEnemies)
+                {
+                    int spawnCount = Mathf.Min(currentDayBatchCount, maxAllowedEnemies - activeCount);
+                    if (spawnCount > 0)
+                    {
+                        StartCoroutine(SpawnDayBatchRoutine(spawnCount));
+                    }
+                }
+                ScheduleNextDayBatch();
             }
         }
 

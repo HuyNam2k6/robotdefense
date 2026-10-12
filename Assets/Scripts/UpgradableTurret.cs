@@ -64,6 +64,7 @@ public class UpgradableTurret : MonoBehaviour
         if (cost <= 0 || (GameEconomy.Instance != null && GameEconomy.Instance.SpendCoins(cost)))
         {
             currentHealth = maxHealth;
+            ShowHealthBarTemporary(5.0f);
             UpdateHealthBar();
             TriggerPunchHop();
             FloatingDamageText.Spawn(transform.position + Vector3.up * 2.5f, 0, Color.green);
@@ -84,11 +85,25 @@ public class UpgradableTurret : MonoBehaviour
     private UnityEngine.UI.Image healthBarFillImage;
     private UnityEngine.UI.Text healthBarText;
     private Camera mainCamera;
+    private float healthBarVisibleTimer = 5.0f; // Luôn hiện 5s khi vừa đặt ra, sau 5s sẽ tự động ẩn đi
+
+    /// <summary>
+    /// Hiển thị thanh máu tạm thời trong số giây quy định (mặc định 5s) khi vừa đặt ra hoặc bị dính sát thương
+    /// </summary>
+    public void ShowHealthBarTemporary(float duration = 5.0f)
+    {
+        healthBarVisibleTimer = Mathf.Max(healthBarVisibleTimer, duration);
+        if (healthBarObj != null && !healthBarObj.activeSelf)
+        {
+            healthBarObj.SetActive(true);
+        }
+    }
 
     public void TakeDamage(float amount)
     {
         if (isDestroyed) return;
         currentHealth -= amount;
+        ShowHealthBarTemporary(5.0f); // Khi bị dính sát thương, thanh HP lại hiện lên trong 5s theo yêu cầu
         UpdateHealthBar();
         FloatingDamageText.Spawn(transform.position + Vector3.up * 2.2f, amount, new Color(1f, 0.5f, 0.2f));
         if (currentHealth <= 0f)
@@ -177,12 +192,36 @@ public class UpgradableTurret : MonoBehaviour
     {
         if (healthBarObj != null)
         {
-            if (mainCamera == null) mainCamera = Camera.main;
-            if (mainCamera != null)
+            // Cơ chế ẩn sau 5s: khi hết thời gian và không được chọn thì ẩn đi
+            if (healthBarVisibleTimer > 0f)
             {
-                healthBarObj.transform.rotation = mainCamera.transform.rotation;
-                float actualH = GetCalculatedHealthBarHeight();
-                healthBarObj.transform.position = transform.position + Vector3.up * actualH;
+                healthBarVisibleTimer -= Time.deltaTime;
+                if (!healthBarObj.activeSelf) healthBarObj.SetActive(true);
+            }
+            else
+            {
+                if (!isSelected && healthBarObj.activeSelf)
+                {
+                    healthBarObj.SetActive(false);
+                }
+            }
+
+            if (healthBarObj.activeSelf)
+            {
+                if (mainCamera == null) mainCamera = Camera.main;
+                if (mainCamera != null)
+                {
+                    healthBarObj.transform.rotation = mainCamera.transform.rotation;
+                    float actualH = GetCalculatedHealthBarHeight();
+                    healthBarObj.transform.position = transform.position + Vector3.up * actualH;
+
+                    // Chuẩn hóa scale theo lossyScale của vũ khí để đảm bảo độ to đồng nhất và KHÔNG bị teo nhỏ khi vũ khí có scale khác 1!
+                    Vector3 pLossy = transform.lossyScale;
+                    float sx = pLossy.x > 0.001f ? (1f / pLossy.x) : 1f;
+                    float sy = pLossy.y > 0.001f ? (1f / pLossy.y) : 1f;
+                    float sz = pLossy.z > 0.001f ? (1f / pLossy.z) : 1f;
+                    healthBarObj.transform.localScale = new Vector3(sx * 0.024f, sy * 0.024f, sz * 0.024f);
+                }
             }
         }
     }
@@ -206,10 +245,10 @@ public class UpgradableTurret : MonoBehaviour
         var cs = healthBarObj.AddComponent<UnityEngine.UI.CanvasScaler>();
         cs.dynamicPixelsPerUnit = 10;
 
-        // Phóng to thanh máu vượt trội: 185f x 26f (world width ~2.5m, cực kỳ dễ nhìn từ góc camera xa)
+        // Phóng to thanh máu vũ khí rõ nét vượt trội: 260f x 38f (cực kỳ to và dễ nhìn từ mọi góc camera)
         RectTransform rt = healthBarObj.GetComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(185f, 26f);
-        rt.localScale = Vector3.one * 0.0135f;
+        rt.sizeDelta = new Vector2(260f, 38f);
+        rt.localScale = Vector3.one * 0.024f;
 
         // Nền đen xám viền kim loại công nghệ
         GameObject bg = new GameObject("BG", typeof(RectTransform), typeof(UnityEngine.UI.Image));
@@ -218,17 +257,17 @@ public class UpgradableTurret : MonoBehaviour
         bgRt.anchorMin = Vector2.zero;
         bgRt.anchorMax = Vector2.one;
         bgRt.sizeDelta = Vector2.zero;
-        bg.GetComponent<UnityEngine.UI.Image>().color = new Color(0.06f, 0.08f, 0.12f, 0.94f);
+        bg.GetComponent<UnityEngine.UI.Image>().color = new Color(0.06f, 0.08f, 0.12f, 0.95f);
         var bgOutline = bg.AddComponent<UnityEngine.UI.Outline>();
-        bgOutline.effectColor = new Color(0.2f, 0.45f, 0.7f, 0.95f);
-        bgOutline.effectDistance = new Vector2(1.5f, -1.5f);
+        bgOutline.effectColor = new Color(0.2f, 0.6f, 1.0f, 0.98f);
+        bgOutline.effectDistance = new Vector2(2.0f, -2.0f);
 
         // Thanh máu sinh động (Fill Bar)
         GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(UnityEngine.UI.Image));
         fill.transform.SetParent(healthBarObj.transform, false);
         healthBarFill = fill.GetComponent<RectTransform>();
-        healthBarFill.anchorMin = new Vector2(0.02f, 0.12f);
-        healthBarFill.anchorMax = new Vector2(0.98f, 0.88f);
+        healthBarFill.anchorMin = new Vector2(0.015f, 0.10f);
+        healthBarFill.anchorMax = new Vector2(0.985f, 0.90f);
         healthBarFill.sizeDelta = Vector2.zero;
         healthBarFill.pivot = new Vector2(0f, 0.5f);
         healthBarFillImage = fill.GetComponent<UnityEngine.UI.Image>();
@@ -243,13 +282,13 @@ public class UpgradableTurret : MonoBehaviour
         txtRt.sizeDelta = Vector2.zero;
         healthBarText = txt.GetComponent<UnityEngine.UI.Text>();
         healthBarText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
-        healthBarText.fontSize = 14;
+        healthBarText.fontSize = 18; // Tăng to rõ nét từ 14 lên 18
         healthBarText.fontStyle = FontStyle.Bold;
         healthBarText.alignment = TextAnchor.MiddleCenter;
         healthBarText.color = Color.white;
         var txtOutline = txt.AddComponent<UnityEngine.UI.Outline>();
-        txtOutline.effectColor = new Color(0f, 0f, 0f, 0.95f);
-        txtOutline.effectDistance = new Vector2(1.2f, -1.2f);
+        txtOutline.effectColor = new Color(0f, 0f, 0f, 0.98f);
+        txtOutline.effectDistance = new Vector2(1.8f, -1.8f);
 
         UpdateHealthBar();
     }
@@ -290,6 +329,7 @@ public class UpgradableTurret : MonoBehaviour
 
         if (selected)
         {
+            ShowHealthBarTemporary(5.0f);
             TriggerPunchHop();
         }
         else
@@ -791,9 +831,9 @@ public class UpgradableTurret : MonoBehaviour
             case TurretType.Phaotuhanh:
                 if (rocketLauncher != null)
                 {
-                    // Cấp 1 -> 6: Cân bằng số lượng tên lửa 8 -> 18 quả, nạp đạn 2.2s -> 1.2s (giảm áp lực sát thương dồn)
-                    rocketLauncher.rocketsPerVolley = 8 + (currentLevel - 1) * 2;
-                    rocketLauncher.fireCooldown = Mathf.Max(1.2f, 2.2f - (currentLevel - 1) * 0.2f);
+                    // Cấp 1 -> 6: Khôi phục đầy đủ số lượng tên lửa (16, 22, 28, 34, 40, 48 quả) theo yêu cầu!
+                    rocketLauncher.rocketsPerVolley = 16 + (currentLevel - 1) * (currentLevel == 6 ? 8 : 6);
+                    rocketLauncher.fireCooldown = Mathf.Max(0.75f, 2.0f - (currentLevel - 1) * 0.25f);
                     rocketLauncher.attackRange = 30f + (currentLevel - 1) * 4f;
                 }
                 break;
@@ -837,12 +877,12 @@ public class UpgradableTurret : MonoBehaviour
                 return $"⚡ DPS: <b>{curDps}</b> (TỐI ĐA)  |  Tầm Bắn: <b>{curRange}m</b>";
 
             case TurretType.Phaotuhanh:
-                int curRockets = 8 + (currentLevel - 1) * 2;
-                float curCd = Mathf.Max(1.2f, 2.2f - (currentLevel - 1) * 0.2f);
+                int curRockets = 16 + (currentLevel - 1) * (currentLevel == 6 ? 8 : 6);
+                float curCd = Mathf.Max(0.75f, 2.0f - (currentLevel - 1) * 0.25f);
                 if (currentLevel < MaxLevel)
                 {
-                    int nextRockets = 8 + currentLevel * 2;
-                    float nextCd = Mathf.Max(1.2f, 2.2f - currentLevel * 0.2f);
+                    int nextRockets = 16 + currentLevel * (currentLevel + 1 == 6 ? 8 : 6);
+                    float nextCd = Mathf.Max(0.75f, 2.0f - currentLevel * 0.25f);
                     return $"🚀 Loạt: <b>{curRockets} quả</b> ➔ <color=#00FFFF><b>{nextRockets} quả</b></color>  |  Nạp: <b>{curCd:F1}s</b> ➔ <color=#00FFFF><b>{nextCd:F1}s</b></color>";
                 }
                 return $"🚀 Loạt Bắn: <b>{curRockets} quả</b> (TỐI ĐA)  |  Nạp: <b>{curCd:F1}s</b>";
@@ -1004,6 +1044,10 @@ public class UpgradableTurret : MonoBehaviour
             if (obj.transform.parent != null && (obj.transform.parent.GetComponentInParent<UpgradableTurret>() != null || obj.transform.parent.GetComponentInParent<TurretController>() != null))
                 continue;
 
+            // TUYỆT ĐỐI BỎ QUA NHÀ MÁY ROBOT
+            if (obj.GetComponent<RobotFactory>() != null || obj.name.ToLower().Contains("factory") || obj.name.ToLower().Contains("nhà máy"))
+                continue;
+
             string n = obj.name.ToLower();
             if (n == "thunder" || n.StartsWith("thunder") || 
                 n == "phaotuhanhl" || n.StartsWith("phaotu") || 
@@ -1013,6 +1057,17 @@ public class UpgradableTurret : MonoBehaviour
                 {
                     obj.AddComponent<UpgradableTurret>();
                 }
+            }
+        }
+
+        // Dọn dẹp triệt để: Gỡ bỏ UpgradableTurret nếu bị gắn nhầm trên RobotFactory
+        RobotFactory[] allFactories = Object.FindObjectsByType<RobotFactory>(FindObjectsInactive.Include);
+        foreach (var rf in allFactories)
+        {
+            UpgradableTurret utOnFactory = rf.GetComponent<UpgradableTurret>();
+            if (utOnFactory != null)
+            {
+                Object.DestroyImmediate(utOnFactory);
             }
         }
     }

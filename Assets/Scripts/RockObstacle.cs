@@ -17,7 +17,7 @@ public class RockObstacle : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     public static void EnsureAllRocksInSceneHaveSolidColliders()
     {
-        GameObject[] allObjs = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        GameObject[] allObjs = Object.FindObjectsByType<GameObject>(FindObjectsInactive.Include);
         int fixedCount = 0;
         foreach (var go in allObjs)
         {

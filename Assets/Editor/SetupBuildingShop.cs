@@ -100,7 +100,7 @@ namespace IdleFactoryDefense.Editor
 			{
 				itemName = "Pháo Tự Hành",
 				prefab = phaotuhanhPrefab != null ? phaotuhanhPrefab : flamePrefab,
-				cost = 1500,
+				cost = 150,
 				icon = iconPhaotuhanh,
 				isWall = false,
 				segmentLength = 1f
@@ -110,7 +110,7 @@ namespace IdleFactoryDefense.Editor
 			{
 				itemName = "Trụ Sét",
 				prefab = thunderPrefab != null ? thunderPrefab : flamePrefab,
-				cost = 2500,
+				cost = 250,
 				icon = iconThunder,
 				isWall = false,
 				segmentLength = 1f
@@ -120,7 +120,7 @@ namespace IdleFactoryDefense.Editor
 			{
 				itemName = "Súng Phun Lửa",
 				prefab = flamePrefab,
-				cost = 3200,
+				cost = 300,
 				icon = iconFlame,
 				isWall = false,
 				segmentLength = 1f
@@ -130,7 +130,7 @@ namespace IdleFactoryDefense.Editor
 			{
 				itemName = "Bức Tường",
 				prefab = wallPrefab,
-				cost = 100,
+				cost = 25,
 				icon = iconWall,
 				isWall = true,
 				segmentLength = 2.85f
@@ -226,7 +226,7 @@ namespace IdleFactoryDefense.Editor
 			tbtr.sizeDelta = Vector2.zero;
 
 			Text tbTxt = tbTxtObj.AddComponent<Text>();
-			tbTxt.text = "<size=44>🛡️</size>\n<size=20><b>PHÒNG THỦ</b></size>";
+			tbTxt.text = "<size=36>🛒</size>\n<size=18><b>CỬA HÀNG</b></size>";
 			tbTxt.font = safeFont;
 			tbTxt.fontSize = 20;
 			tbTxt.alignment = TextAnchor.MiddleCenter;
@@ -425,19 +425,19 @@ namespace IdleFactoryDefense.Editor
 
 			// Card 1: Pháo Tự Hành (Phaotuhanh)
 			Button btnBuyPhaotu = CreateWeaponDefenseCard(cardsRowObj.transform, "Card_Phaotuhanh", "Pháo Tự Hành", iconPhaotuhanh, 
-				"Bắn loạt rocket tầm xa hỏa lực mạnh.", "🎯 Tầm xa +30%", "1,500", safeFont, uiLayer);
+				"Bắn loạt rocket tầm xa hỏa lực mạnh.", "🎯 Tầm xa +30%", "150", safeFont, uiLayer);
 
 			// Card 2: Trụ Sét (Thunder)
 			Button btnBuyThunder = CreateWeaponDefenseCard(cardsRowObj.transform, "Card_Thunder", "Trụ Sét", iconThunder, 
-				"Phóng chuỗi tia sét giật tê liệt địch.", "⚡ Tê liệt +25%", "2,500", safeFont, uiLayer);
+				"Phóng chuỗi tia sét giật tê liệt địch.", "⚡ Tê liệt +25%", "250", safeFont, uiLayer);
 
 			// Card 3: Súng Phun Lửa (FlamethrowerTurret)
 			Button btnBuyFlame = CreateWeaponDefenseCard(cardsRowObj.transform, "Card_Flamethrower", "Súng Phun Lửa", iconFlame, 
-				"Thiêu đốt quái vật liên tục diện rộng.", "🔥 Thiêu đốt +40%", "3,200", safeFont, uiLayer);
+				"Thiêu đốt quái vật liên tục diện rộng.", "🔥 Thiêu đốt +40%", "300", safeFont, uiLayer);
 
 			// Card 4: Tường Phòng Thủ (Wall)
 			Button btnBuyWallItem = CreateWeaponDefenseCard(cardsRowObj.transform, "Card_Wall", "Tường Phòng Thủ", iconWall, 
-				"Kéo dài chặn đường tiến công của địch.", "🛡️ Phòng thủ +50%", "100/Đoạn", safeFont, uiLayer);
+				"Kéo dài chặn đường tiến công của địch.", "🛡️ Phòng thủ +50%", "25/Đoạn", safeFont, uiLayer);
 
 			// ================= 4. TRANG 2: KHO HÀNG (PAGE WAREHOUSE - NƠI CHỨA GÓI ƯU ĐÃI & KHO LƯU TRỮ) =================
 			GameObject pageWarObj = CreateSubPage(contentAreaObj.transform, "Page_Warehouse", uiLayer);

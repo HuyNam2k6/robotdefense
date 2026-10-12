@@ -33,6 +33,7 @@ public class LightningTurret : MonoBehaviour
     public int chainSegments = 8;
 
     private LineRenderer lineRenderer;
+    private Light localLightningLight;
     private Transform currentTarget;
     private Collider currentCollider;
     private readonly Collider[] buffer = new Collider[32];
@@ -78,6 +79,46 @@ public class LightningTurret : MonoBehaviour
             
             firePoint = fp.transform;
         }
+
+        EnsureLocalPointLight();
+    }
+
+    /// <summary>
+    /// Đảm bảo ánh sáng sấm sét chỉ là Point Light cục bộ bán kính đúng 2m, tuyệt đối KHÔNG ảnh hưởng cả map!
+    /// </summary>
+    private void EnsureLocalPointLight()
+    {
+        // 1. Quét dọn và triệt tiêu tất cả Directional Light hoặc đèn chiếu quá rộng trên trụ
+        Light[] allChildLights = GetComponentsInChildren<Light>(true);
+        for (int i = 0; i < allChildLights.Length; i++)
+        {
+            Light l = allChildLights[i];
+            if (l != null)
+            {
+                l.type = LightType.Point;
+                l.range = 2.0f; // Khóa chặt bán kính chỉ 2 mét theo yêu cầu
+                l.shadows = LightShadows.None;
+                l.color = new Color(0.25f, 0.85f, 1.0f);
+                l.intensity = 2.0f;
+                l.enabled = false; // Mặc định tắt, chỉ sáng khi bắn sét
+                if (localLightningLight == null) localLightningLight = l;
+            }
+        }
+
+        // 2. Nếu chưa có đèn cục bộ, tự động tạo 1 Point Light 2m nhẹ tại đỉnh trụ
+        if (localLightningLight == null)
+        {
+            GameObject lObj = new GameObject("Lightning_PointLight_2m");
+            lObj.transform.SetParent(firePoint != null ? firePoint : transform, false);
+            lObj.transform.localPosition = Vector3.zero;
+            localLightningLight = lObj.AddComponent<Light>();
+            localLightningLight.type = LightType.Point;
+            localLightningLight.range = 2.0f; // Bán kính đúng 2 mét
+            localLightningLight.color = new Color(0.25f, 0.85f, 1.0f);
+            localLightningLight.intensity = 2.0f;
+            localLightningLight.shadows = LightShadows.None;
+            localLightningLight.enabled = false;
+        }
     }
 
     private void EnsureChainRenderers()
@@ -109,6 +150,7 @@ public class LightningTurret : MonoBehaviour
     void OnDisable()
     {
         if (lineRenderer != null) lineRenderer.enabled = false;
+        if (localLightningLight != null) localLightningLight.enabled = false;
         DisableAllChainLines();
     }
 
@@ -122,6 +164,7 @@ public class LightningTurret : MonoBehaviour
         else
         {
             lineRenderer.enabled = false;
+            if (localLightningLight != null) localLightningLight.enabled = false;
             DisableAllChainLines();
         }
     }
@@ -159,17 +202,24 @@ public class LightningTurret : MonoBehaviour
             Enemy enemy = currentTarget.GetComponent<Enemy>() ?? currentTarget.GetComponentInParent<Enemy>();
             if (enemy != null)
             {
-                enemy.TakeDamage(damagePerSecond * Time.deltaTime);
+                enemy.TakeDamage(damagePerSecond * GlobalTechTree.DamageMultiplier * Time.deltaTime);
             }
             else
             {
-                currentTarget.SendMessage("TakeDamage", damagePerSecond * Time.deltaTime, SendMessageOptions.DontRequireReceiver);
+                currentTarget.SendMessage("TakeDamage", damagePerSecond * GlobalTechTree.DamageMultiplier * Time.deltaTime, SendMessageOptions.DontRequireReceiver);
             }
         }
 
         lineRenderer.enabled = true;
         Vector3 startPos = firePoint != null ? firePoint.position : transform.position + Vector3.up * 2.8f;
         if (startPos.y < transform.position.y + 1.2f) startPos.y = transform.position.y + 2.8f;
+
+        if (localLightningLight != null)
+        {
+            localLightningLight.enabled = true;
+            localLightningLight.range = 2.0f; // Đúng 2m cục bộ theo yêu cầu
+            localLightningLight.transform.position = startPos;
+        }
 
         Vector3 targetPos = currentCollider != null ? currentCollider.bounds.center : (currentTarget.position + Vector3.up * 1.0f);
         
@@ -209,7 +259,7 @@ public class LightningTurret : MonoBehaviour
             if (distSqr <= radiusSqr)
             {
                 // Sát thương lây lan
-                e.TakeDamage(damagePerSecond * chainDamageRatio * Time.deltaTime);
+                e.TakeDamage(damagePerSecond * GlobalTechTree.DamageMultiplier * chainDamageRatio * Time.deltaTime);
 
                 // Hiển thị tia sét nhánh zíc zắc từ mục tiêu chính sang quái phụ
                 if (activeChainCount < chainRenderers.Count)

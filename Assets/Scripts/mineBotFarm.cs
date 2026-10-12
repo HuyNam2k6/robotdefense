@@ -172,8 +172,9 @@ public class mineBotFarm : WorkerBot
 
         if (finalMoveDir.sqrMagnitude > 0.001f)
         {
-            // Dịch chuyển vị trí bằng Code
-            transform.position += finalMoveDir * moveSpeed * Time.deltaTime;
+            // Dịch chuyển vị trí bằng Code (Tăng tốc theo Viện Công Nghệ)
+            float actualSpeed = moveSpeed * GlobalTechTree.MiningSpeedMultiplier;
+            transform.position += finalMoveDir * actualSpeed * Time.deltaTime;
 
             // Xoay mặt mượt mà về hướng di chuyển
             Quaternion targetRotation = Quaternion.LookRotation(finalMoveDir);
@@ -261,20 +262,21 @@ public class mineBotFarm : WorkerBot
     {
         if (!isMining || targetRock == null) return;
 
-        // 1. Tăng số đá khai thác
-        stoneMinedCount++;
+        // 1. Tăng số đá khai thác theo Công Nghệ Khai Thác
+        int stoneGained = Mathf.Max(1, Mathf.RoundToInt(1 * GlobalTechTree.MiningSpeedMultiplier));
+        stoneMinedCount += stoneGained;
 
         // 2. Cộng tài nguyên vào hệ thống kinh tế
         if (GameEconomy.Instance != null)
         {
-            GameEconomy.Instance.AddStone(1);
+            GameEconomy.Instance.AddStone(stoneGained);
         }
 
-        // 3. Hiển thị chữ số nảy tài nguyên "+1 ĐÁ 🪨" màu xanh ngọc sáng to rõ ràng trên đỉnh tảng đá
+        // 3. Hiển thị chữ số nảy tài nguyên "+X ĐÁ 🪨" màu xanh ngọc sáng to rõ ràng trên đỉnh tảng đá
         Vector3 popupPos = (targetRock != null) ? (targetRock.position + Vector3.up * 2.5f) : (transform.position + Vector3.up * 4.2f);
-        FloatingDamageText.SpawnResource(popupPos, "+1 ĐÁ 🪨", new Color(0.2f, 0.95f, 1f, 1f), 0.08f);
+        FloatingDamageText.SpawnResource(popupPos, $"+{stoneGained} ĐÁ 🪨", new Color(0.2f, 0.95f, 1f, 1f), 0.08f);
 
-        Debug.Log($"<color=#00FF88>⚡ [Animation Event - OnMiningHit] Cúp nện trúng đá! Đã khai thác 1 Đá từ {targetRock.name}! Tổng đá: {stoneMinedCount}</color>");
+        Debug.Log($"<color=#00FF88>⚡ [Animation Event - OnMiningHit] Cúp nện trúng đá! Đã khai thác {stoneGained} Đá từ {targetRock.name}! Tổng đá: {stoneMinedCount}</color>");
     }
 
     private void EnsureOverheadBadge()

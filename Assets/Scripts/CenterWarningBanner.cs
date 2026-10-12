@@ -138,10 +138,13 @@ public class CenterWarningBanner : MonoBehaviour
     /// Hiển thị thông báo to rõ ràng giữa màn hình theo đúng yêu cầu:
     /// "Vui lòng nâng cấp lò năng lượng (nhà chính) lên cấp {requiredLevel} để nâng cấp {buildingName}!"
     /// </summary>
-    public static void ShowUpgradeBlocked(string buildingName, int currentBuildingLevel, int requiredHQLevel)
+    public static void ShowUpgradeBlocked(string buildingName, int currentBuildingLevel, int targetBuildingLevel)
     {
+        int requiredHQLevel = Mathf.Min(targetBuildingLevel, 4);
         string title = $"⚠️ VUI LÒNG NÂNG CẤP LÒ NĂNG LƯỢNG LÊN CẤP {requiredHQLevel}!";
-        string desc = $"<b>{buildingName}</b> đang ở Cấp {currentBuildingLevel}. Để nâng cấp lên <color=#00FFFF>Cấp {currentBuildingLevel + 1}</color>, cần nâng cấp Nhà Chính trước!";
+        string desc = (targetBuildingLevel >= 5)
+            ? $"<b>{buildingName}</b> đang ở Cấp {currentBuildingLevel}. Hãy nâng Lò Năng Lượng lên <color=#00FFFF>Cấp 4 (MAX)</color> để mở khóa công trình lên Cấp {targetBuildingLevel}!"
+            : $"<b>{buildingName}</b> đang ở Cấp {currentBuildingLevel}. Để nâng cấp lên <color=#00FFFF>Cấp {targetBuildingLevel}</color>, cần nâng cấp Lò Năng Lượng lên Cấp {requiredHQLevel} trước!";
         Show(title, desc, 3.2f);
     }
 

@@ -48,7 +48,7 @@ public class LightTurret : MonoBehaviour
     private static void AutoInit()
     {
         // Quét tìm các đối tượng LightTurret hoặc có tên lightturret / lightturent
-        if (FindFirstObjectByType<LightTurret>() == null)
+        if (FindAnyObjectByType<LightTurret>() == null)
         {
             GameObject[] allGos = FindObjectsByType<GameObject>(FindObjectsInactive.Exclude);
             for (int i = 0; i < allGos.Length; i++)

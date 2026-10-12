@@ -139,9 +139,55 @@ public class RobotFactory : MonoBehaviour
     private Transform progressBarFill;
     private Camera mainCam;
 
+    [Header("=== MÁU & THANH HP NHÀ MÁY (WORLD-SPACE HEALTHBAR) ===")]
+    public float maxHealth = 2500f;
+    public float currentHealth = 2500f;
+    public float healthBarHeight = 5.6f;
+    public bool isDestroyed = false;
+    private GameObject healthBarObj;
+    private RectTransform healthBarFill;
+    private UnityEngine.UI.Image healthBarFillImage;
+    private UnityEngine.UI.Text healthBarText;
+    private float healthBarVisibleTimer = 5.0f; // Luôn hiện 5s khi vừa đặt ra, sau 5s sẽ tự động ẩn đi
+
+    /// <summary>
+    /// Hiển thị thanh máu tạm thời trong 5 giây khi vừa đặt ra hoặc bị dính sát thương
+    /// </summary>
+    public void ShowHealthBarTemporary(float duration = 5.0f)
+    {
+        healthBarVisibleTimer = Mathf.Max(healthBarVisibleTimer, duration);
+        if (healthBarObj != null && !healthBarObj.activeSelf)
+        {
+            healthBarObj.SetActive(true);
+        }
+    }
+
+    public void TakeDamage(float amount)
+    {
+        if (isDestroyed) return;
+        currentHealth -= amount;
+        ShowHealthBarTemporary(5.0f); // Khi bị dính sát thương thanh HP lại hiện lên trong 5s theo yêu cầu
+        UpdateHealthBar();
+        FloatingDamageText.Spawn(transform.position + Vector3.up * 3.2f, amount, new Color(1f, 0.45f, 0.2f));
+
+        if (currentHealth <= 0f)
+        {
+            currentHealth = 0f;
+            isDestroyed = true;
+            Debug.LogWarning("<color=red>[RobotFactory]</color> Nhà Máy Sản Xuất Robot đã bị phá hủy!");
+        }
+    }
+
     void Awake()
     {
         Instance = this;
+        currentHealth = maxHealth;
+        isDestroyed = false;
+
+        // TUYỆT ĐỐI GỠ BỎ UpgradableTurret nếu bị dính nhầm để không bao giờ bị biến thành trụ phòng thủ!
+        UpgradableTurret ut = GetComponent<UpgradableTurret>();
+        if (ut != null) Destroy(ut);
+
         if (factoryBody != null) originalBodyScale = factoryBody.localScale;
         if (spawnPoint == null) spawnPoint = transform;
 
@@ -158,12 +204,14 @@ public class RobotFactory : MonoBehaviour
         }
 
         CreateWorldSpaceProgressBar();
+        CreateFloatingHealthBar();
     }
 
     void Start()
     {
         mainCam = Camera.main;
         if (weldingLight != null) weldingLight.enabled = false;
+        ShowHealthBarTemporary(5.0f); // Khi vừa đặt ra sẽ luôn hiện trong 5s
 
         // Tự động load 4 prefab robot nếu inspector chưa gắn
         if (combatRobotPrefabs == null || combatRobotPrefabs.Length == 0)
@@ -242,11 +290,11 @@ public class RobotFactory : MonoBehaviour
     }
 
     /// <summary>
-    /// Nhấp chuột hoặc chạm vào Nhà Máy trên không gian 3D -> Mở Bảng Chế Tạo Robot to nửa màn hình!
+    /// Nhấp chuột hoặc chạm vào Nhà Máy trên không gian 3D -> Mở Bảng Quản Lý & Nâng Cấp Nhà Máy!
     /// </summary>
     void OnMouseDown()
     {
-        TryOpenCraftingPanel();
+        OnFactoryClicked();
     }
 
     private void CheckMobileTouchRaycast()
@@ -266,7 +314,7 @@ public class RobotFactory : MonoBehaviour
                     {
                         if (hit.transform == transform || hit.transform.IsChildOf(transform))
                         {
-                            TryOpenCraftingPanel();
+                            OnFactoryClicked();
                         }
                     }
                 }
@@ -274,10 +322,21 @@ public class RobotFactory : MonoBehaviour
         }
     }
 
-    public void TryOpenCraftingPanel()
+    private void OnFactoryClicked()
     {
         if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
+        BuildingSystem bs = FindAnyObjectByType<BuildingSystem>();
+        if (bs != null && bs.IsPlacing) return; // Đang kéo đặt công trình thì bỏ qua
+
+        if (WallSelectionManager.Instance != null)
+        {
+            WallSelectionManager.Instance.SelectFactory(this);
+        }
+    }
+
+    public void TryOpenCraftingPanel()
+    {
         BuildingSystem bs = FindAnyObjectByType<BuildingSystem>();
         if (bs != null && bs.IsPlacing) return; // Đang kéo đặt công trình thì bỏ qua
 
@@ -288,9 +347,18 @@ public class RobotFactory : MonoBehaviour
         }
         else
         {
-            // Fallback mở Shop nếu chưa có UI chuyên dụng
-            BuildingShopUI shop = FindAnyObjectByType<BuildingShopUI>();
-            if (shop != null) shop.ToggleShopPanel();
+            RobotCraftingUI craftingUI = FindAnyObjectByType<RobotCraftingUI>();
+            if (craftingUI != null)
+            {
+                craftingUI.OpenPanel(this);
+                Debug.Log("<color=#00FFFF>[Robot Factory]</color> Đã mở Bảng Chế Tạo Robot Chiến Đấu.");
+            }
+            else
+            {
+                // Fallback mở Shop nếu chưa có UI chuyên dụng
+                BuildingShopUI shop = FindAnyObjectByType<BuildingShopUI>();
+                if (shop != null) shop.ToggleShopPanel();
+            }
         }
     }
 
@@ -638,6 +706,123 @@ public class RobotFactory : MonoBehaviour
                 {
                     progressBarFill.localScale = new Vector3(0.01f, 0.20f, 1f);
                     progressBarFill.localPosition = new Vector3(-1.17f, 0f, -0.01f);
+                }
+            }
+        }
+    }
+
+    // ================= THANH MÁU NỔI CHO NHÀ MÁY (WORLD-SPACE HEALTHBAR) =================
+    private void CreateFloatingHealthBar()
+    {
+        Transform existing = transform.Find("[Factory_HealthBar]");
+        if (existing != null) Destroy(existing.gameObject);
+
+        healthBarObj = new GameObject("[Factory_HealthBar]");
+        healthBarObj.transform.SetParent(transform, false);
+        healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
+
+        Canvas canvas = healthBarObj.AddComponent<Canvas>();
+        canvas.renderMode = RenderMode.WorldSpace;
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = 460;
+        var cs = healthBarObj.AddComponent<UnityEngine.UI.CanvasScaler>();
+        cs.dynamicPixelsPerUnit = 10;
+
+        RectTransform rt = healthBarObj.GetComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(280f, 42f);
+        rt.localScale = Vector3.one * 0.024f;
+
+        GameObject bg = new GameObject("BG", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+        bg.transform.SetParent(healthBarObj.transform, false);
+        RectTransform bgRt = bg.GetComponent<RectTransform>();
+        bgRt.anchorMin = Vector2.zero;
+        bgRt.anchorMax = Vector2.one;
+        bgRt.sizeDelta = Vector2.zero;
+        bg.GetComponent<UnityEngine.UI.Image>().color = new Color(0.06f, 0.08f, 0.12f, 0.95f);
+        var bgOutline = bg.AddComponent<UnityEngine.UI.Outline>();
+        bgOutline.effectColor = new Color(0f, 0.85f, 0.5f, 0.98f);
+        bgOutline.effectDistance = new Vector2(2.0f, -2.0f);
+
+        GameObject fill = new GameObject("Fill", typeof(RectTransform), typeof(UnityEngine.UI.Image));
+        fill.transform.SetParent(healthBarObj.transform, false);
+        healthBarFill = fill.GetComponent<RectTransform>();
+        healthBarFill.anchorMin = new Vector2(0.015f, 0.10f);
+        healthBarFill.anchorMax = new Vector2(0.985f, 0.90f);
+        healthBarFill.sizeDelta = Vector2.zero;
+        healthBarFill.pivot = new Vector2(0f, 0.5f);
+        healthBarFillImage = fill.GetComponent<UnityEngine.UI.Image>();
+        healthBarFillImage.color = new Color(0.15f, 0.95f, 0.45f, 1f);
+
+        GameObject txt = new GameObject("Text", typeof(RectTransform), typeof(UnityEngine.UI.Text));
+        txt.transform.SetParent(healthBarObj.transform, false);
+        RectTransform txtRt = txt.GetComponent<RectTransform>();
+        txtRt.anchorMin = Vector2.zero;
+        txtRt.anchorMax = Vector2.one;
+        txtRt.sizeDelta = Vector2.zero;
+        healthBarText = txt.GetComponent<UnityEngine.UI.Text>();
+        healthBarText.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+        healthBarText.fontSize = 18;
+        healthBarText.fontStyle = FontStyle.Bold;
+        healthBarText.alignment = TextAnchor.MiddleCenter;
+        healthBarText.color = Color.white;
+        var txtOutline = txt.AddComponent<UnityEngine.UI.Outline>();
+        txtOutline.effectColor = new Color(0f, 0f, 0f, 0.98f);
+        txtOutline.effectDistance = new Vector2(1.8f, -1.8f);
+
+        UpdateHealthBar();
+    }
+
+    public void UpdateHealthBar()
+    {
+        if (healthBarFill == null) return;
+        float pct = maxHealth > 0f ? Mathf.Clamp01(currentHealth / maxHealth) : 0f;
+        healthBarFill.localScale = new Vector3(pct, 1f, 1f);
+
+        if (healthBarFillImage != null)
+        {
+            if (pct > 0.5f)
+                healthBarFillImage.color = Color.Lerp(new Color(1f, 0.85f, 0.2f), new Color(0.15f, 0.95f, 0.45f), (pct - 0.5f) * 2f);
+            else
+                healthBarFillImage.color = Color.Lerp(new Color(0.95f, 0.2f, 0.2f), new Color(1f, 0.85f, 0.2f), pct * 2f);
+        }
+
+        if (healthBarText != null)
+        {
+            healthBarText.text = $"<b>🏭 TRẠI LÍNH CẤP {factoryLevel}: {Mathf.CeilToInt(currentHealth)}/{Mathf.CeilToInt(maxHealth)}</b>";
+        }
+    }
+
+    void LateUpdate()
+    {
+        if (healthBarObj != null)
+        {
+            // Tự động ẩn thanh máu sau 5s khi vừa đặt ra hoặc sau đòn đánh
+            if (healthBarVisibleTimer > 0f)
+            {
+                healthBarVisibleTimer -= Time.deltaTime;
+                if (!healthBarObj.activeSelf) healthBarObj.SetActive(true);
+            }
+            else
+            {
+                if (healthBarObj.activeSelf)
+                {
+                    healthBarObj.SetActive(false);
+                }
+            }
+
+            if (healthBarObj.activeSelf)
+            {
+                if (mainCam == null) mainCam = Camera.main;
+                if (mainCam != null)
+                {
+                    healthBarObj.transform.rotation = mainCam.transform.rotation;
+                    healthBarObj.transform.position = transform.position + Vector3.up * healthBarHeight;
+
+                    Vector3 pLossy = transform.lossyScale;
+                    float sx = pLossy.x > 0.001f ? (1f / pLossy.x) : 1f;
+                    float sy = pLossy.y > 0.001f ? (1f / pLossy.y) : 1f;
+                    float sz = pLossy.z > 0.001f ? (1f / pLossy.z) : 1f;
+                    healthBarObj.transform.localScale = new Vector3(sx * 0.024f, sy * 0.024f, sz * 0.024f);
                 }
             }
         }

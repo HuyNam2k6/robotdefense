@@ -210,6 +210,11 @@ public class RobotCraftingUI : MonoBehaviour
         if (factory != null) currentFactory = factory;
         else if (currentFactory == null) currentFactory = RobotFactory.Instance ?? FindAnyObjectByType<RobotFactory>();
 
+        if (WallSelectionManager.Instance != null)
+        {
+            WallSelectionManager.Instance.DeselectAll();
+        }
+
         if (mainCraftingPanel != null)
         {
             mainCraftingPanel.SetActive(true);
@@ -530,10 +535,10 @@ public class RobotCraftingUI : MonoBehaviour
                     int w = currentFactory.GetUpgradeWood();
                     int s = currentFactory.GetUpgradeStone();
 
-                    if (nextLvl > BaseHQ.CurrentMapLevel)
+                    if (!BaseHQ.CanUpgradeBuildingToLevel(nextLvl, out _))
                     {
                         if (upgradeFactoryText != null)
-                            upgradeFactoryText.text = $"🔒 <b>NÂNG NHÀ MÁY (CẦN MAP CẤP {nextLvl})</b>\n<color=#FF8888>✦ Nâng cấp Map chính để mở khóa</color>";
+                            upgradeFactoryText.text = $"🔒 <b>NÂNG NHÀ MÁY (CẦN LÕI CẤP {nextLvl})</b>\n<color=#FF8888>✦ Nâng cấp Lò Năng Lượng để mở khóa</color>";
                         upgradeFactoryButton.interactable = false;
                     }
                     else

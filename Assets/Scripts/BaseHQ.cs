@@ -36,14 +36,29 @@ public class BaseHQ : MonoBehaviour
     public static int CurrentMapLevel => Instance != null ? Instance.level : 1;
 
     /// <summary>
-    /// Quy tắc cốt lõi: Khi Map chính ở Level N, toàn bộ công trình khác chỉ được nâng tối đa lên Level N!
+    /// Giới hạn cấp độ tối đa mà các công trình khác được phép nâng lên dựa theo Lò Năng Lượng (BaseHQ).
+    /// Quy tắc:
+    /// - Khi Lõi Năng Lượng ở Cấp 1 -> Công trình tối đa Cấp 1
+    /// - Khi Lõi Năng Lượng ở Cấp 2 -> Công trình tối đa Cấp 2
+    /// - Khi Lõi Năng Lượng ở Cấp 3 -> Công trình tối đa Cấp 3
+    /// - Khi Lõi Năng Lượng ở Cấp 4 (Cấp MAX của Lõi) -> Mở khóa toàn bộ công trình khác (Trụ, Tường) được nâng lên tối đa CẤP 6!
     /// </summary>
+    public static int MaxAllowedBuildingLevel => CurrentMapLevel >= 4 ? 6 : CurrentMapLevel;
+
     public static bool CanUpgradeBuildingToLevel(int targetLevel, out string reason)
     {
         int mapLvl = CurrentMapLevel;
-        if (targetLevel > mapLvl)
+        int maxAllowed = MaxAllowedBuildingLevel;
+        if (targetLevel > maxAllowed)
         {
-            reason = $"⚠️ Lò năng lượng đang ở Cấp {mapLvl}! Vui lòng nâng cấp Lò Năng Lượng lên Cấp {targetLevel}!";
+            if (mapLvl < 4)
+            {
+                reason = $"⚠️ Lò năng lượng đang ở Cấp {mapLvl}! Vui lòng nâng cấp Lò Năng Lượng lên Cấp 4 để mở khóa công trình Cấp {targetLevel}!";
+            }
+            else
+            {
+                reason = $"⚠️ Đã đạt cấp độ tối đa của công trình (Cấp {maxAllowed})!";
+            }
             return false;
         }
         reason = "";
@@ -146,6 +161,8 @@ public class BaseHQ : MonoBehaviour
         initialRotation = transform.rotation;
         isPositionLocked = true;
 
+        Time.timeScale = 1f;
+        AudioListener.pause = false;
         currentHealth = maxHealth;
         isDestroyed = false;
 
@@ -450,7 +467,14 @@ public class BaseHQ : MonoBehaviour
         UpdateHealthBarVisual();
         UpdateHQPanelUI();
 
-        CenterWarningBanner.Show($"🎉 ĐÃ NÂNG CẤP LÒ NĂNG LƯỢNG LÊN CẤP {level}!", $"🔓 Giới hạn nâng cấp toàn bộ Vũ Khí, Bức Tường và Nhà Máy đã mở rộng lên Cấp {level}!", 3.5f);
+        if (level >= 4)
+        {
+            CenterWarningBanner.Show("🎉 ĐÃ NÂNG CẤP LÒ NĂNG LƯỢNG LÊN CẤP 4 (MAX)!", "🔓 Lõi năng lượng tối đa đã MỞ KHÓA TOÀN BỘ VŨ KHÍ & TƯỜNG LÊN CẤP 6 (TITAN MAX)!", 3.8f);
+        }
+        else
+        {
+            CenterWarningBanner.Show($"🎉 ĐÃ NÂNG CẤP LÒ NĂNG LƯỢNG LÊN CẤP {level}!", $"🔓 Giới hạn nâng cấp toàn bộ Vũ Khí, Bức Tường và Nhà Máy đã mở rộng lên Cấp {level}!", 3.5f);
+        }
         Debug.Log($"<color=#00FF88><b>[BaseHQ]</b> Đã nâng cấp Nhà Chính lên Cấp {level} thành công!</color>");
         return true;
     }
@@ -494,14 +518,15 @@ public class BaseHQ : MonoBehaviour
         if (hqInfoModalDetailsText != null)
         {
             string nextInfo = (level < MaxLevel)
-                ? $"✦ <b>Cấp kế tiếp (Cấp {level + 1}):</b> Mở rộng giới hạn nâng cấp mọi vũ khí lên Cấp {level + 1}, tăng độ bền căn cứ lên <color=#00FF88>{HealthPerLevel[level]:F0} HP</color>.\n✦ <b>Tài nguyên cần để nâng cấp:</b>\n   • <color=#FFD700>🪙 {GetUpgradeCoins()} Vàng</color>\n   • <color=#DEB887>🪵 {GetUpgradeWood()} Gỗ</color>\n   • <color=#C0C0C0>🪨 {GetUpgradeStone()} Đá</color>"
-                : "✦ <b>Cấp tối đa:</b> Lò Năng Lượng đã đạt công suất tối đa! Toàn bộ công nghệ đã được khai phóng.";
+                ? $"✦ <b>Cấp kế tiếp (Cấp {level + 1}):</b> Mở rộng giới hạn nâng cấp mọi vũ khí lên Cấp {level + 1}{(level + 1 == 4 ? " (Đồng thời mở khóa Cấp 6 cho Trụ & Tường!)" : "")}, tăng độ bền căn cứ lên <color=#00FF88>{HealthPerLevel[level]:F0} HP</color>.\n✦ <b>Tài nguyên cần để nâng cấp:</b>\n   • <color=#FFD700>🪙 {GetUpgradeCoins()} Vàng</color>\n   • <color=#DEB887>🪵 {GetUpgradeWood()} Gỗ</color>\n   • <color=#C0C0C0>🪨 {GetUpgradeStone()} Đá</color>"
+                : "✦ <b>Cấp tối đa:</b> Lò Năng Lượng đã đạt công suất tối đa! Toàn bộ công trình đã được mở khóa lên Cấp 6 (Titan Max).";
 
+            string maxCapStr = (level >= 4) ? "<color=#FFD700>Cấp 6 (Titan MAX)</color>" : $"Cấp {level}";
             hqInfoModalDetailsText.text = 
                 $"✦ <b>Tên công trình:</b> LÒ NĂNG LƯỢNG TRUNG TÂM [HQ CORE]\n" +
                 $"✦ <b>Cấp độ căn cứ:</b> <color=#00FFFF>CẤP {level} / {MaxLevel}</color>\n" +
                 $"✦ <b>Độ bền kết cấu:</b> <color=#00FF88>{currentHealth:F0} / {maxHealth:F0} HP</color>\n" +
-                $"✦ <b>Công nghệ căn cứ:</b> Cho phép nâng cấp Trụ Sét, Pháo Tự Hành, Súng Phun Lửa, Bức Tường và Nhà Máy tối đa đến <b>Cấp {level}</b>.\n\n" +
+                $"✦ <b>Công nghệ căn cứ:</b> Cho phép nâng cấp Trụ Sét, Pháo Tự Hành, Súng Phun Lửa, Bức Tường và Nhà Máy tối đa đến <b>{maxCapStr}</b>.\n\n" +
                 $"{nextInfo}";
         }
     }
@@ -586,10 +611,10 @@ public class BaseHQ : MonoBehaviour
             rowRt.anchorMax = new Vector2(0.5f, 0f);
             rowRt.pivot = new Vector2(0.5f, 0f);
             rowRt.anchoredPosition = new Vector2(0f, 20f);
-            rowRt.sizeDelta = new Vector2(820f, 130f);
+            rowRt.sizeDelta = new Vector2(880f, 130f);
 
             HorizontalLayoutGroup hlg = rowObj.AddComponent<HorizontalLayoutGroup>();
-            hlg.spacing = 14f;
+            hlg.spacing = 10f;
             hlg.childAlignment = TextAnchor.MiddleCenter;
             hlg.childControlWidth = false;
             hlg.childControlHeight = false;
@@ -597,23 +622,34 @@ public class BaseHQ : MonoBehaviour
             hlg.childForceExpandHeight = false;
 
             // NÚT 1: [ℹ️ THÔNG TIN]
-            hqInfoButton = CreateHQCardButton(rowObj.transform, "Btn_HQ_Info", new Vector2(190f, 110f), new Color(0.12f, 0.55f, 0.85f), safeFont, out Text infoTxt);
-            infoTxt.text = "ℹ️ <b>THÔNG TIN</b>\n<color=#00FFFF>✦ Chỉ Số Căn Cứ</color>";
+            hqInfoButton = CreateHQCardButton(rowObj.transform, "Btn_HQ_Info", new Vector2(145f, 110f), new Color(0.12f, 0.55f, 0.85f), safeFont, out Text infoTxt);
+            infoTxt.text = "ℹ️ <b>THÔNG TIN</b>\n<color=#00FFFF>✦ Căn Cứ</color>";
             hqInfoButton.onClick.AddListener(OpenInfoModal);
 
-            // NÚT 2: [⭐ NÂNG CẤP LÒ NĂNG LƯỢNG] (410px rộng rãi ghi rõ Vàng, Gỗ, Đá)
-            hqUpgradeButton = CreateHQCardButton(rowObj.transform, "Btn_HQ_Upgrade", new Vector2(410f, 110f), new Color(0.85f, 0.55f, 0.12f), safeFont, out hqUpgradeButtonText);
+            // NÚT 2: [🔬 VIỆN CÔNG NGHỆ]
+            Button hqTechBtn = CreateHQCardButton(rowObj.transform, "Btn_HQ_Tech", new Vector2(185f, 110f), new Color(0.2f, 0.45f, 0.85f), safeFont, out Text techTxt);
+            techTxt.text = "🔬 <b>CÔNG NGHỆ</b>\n<color=#00FF88>✦ Nâng Cấp Toàn Quân</color>";
+            hqTechBtn.onClick.AddListener(() =>
+            {
+                if (GlobalTechTree.Instance != null)
+                {
+                    GlobalTechTree.Instance.OpenTechModal();
+                }
+            });
+
+            // NÚT 3: [⭐ NÂNG CẤP LÒ NĂNG LƯỢNG] (360px rộng rãi ghi rõ Vàng, Gỗ, Đá)
+            hqUpgradeButton = CreateHQCardButton(rowObj.transform, "Btn_HQ_Upgrade", new Vector2(360f, 110f), new Color(0.85f, 0.55f, 0.12f), safeFont, out hqUpgradeButtonText);
             hqUpgradeButton.onClick.AddListener(() => UpgradeHQ());
 
-            // Nút 3: [🔧 SỬA CHỮA]
-            hqRepairButton = CreateHQCardButton(rowObj.transform, "Btn_HQ_Repair", new Vector2(130f, 110f), new Color(0.18f, 0.65f, 0.35f), safeFont, out hqRepairButtonText);
+            // Nút 4: [🔧 SỬA CHỮA]
+            hqRepairButton = CreateHQCardButton(rowObj.transform, "Btn_HQ_Repair", new Vector2(105f, 110f), new Color(0.18f, 0.65f, 0.35f), safeFont, out hqRepairButtonText);
             hqRepairButtonText.text = "🔧\n<b>SỬA</b>";
             hqRepairButton.onClick.AddListener(OnRepairButtonClicked);
 
-            // Nút 4: [✕ ĐÓNG]
-            hqCloseButton = CreateHQCardButton(rowObj.transform, "Btn_HQ_Close", new Vector2(50f, 110f), new Color(0.6f, 0.2f, 0.2f), safeFont, out Text closeTxt);
+            // Nút 5: [✕ ĐÓNG]
+            hqCloseButton = CreateHQCardButton(rowObj.transform, "Btn_HQ_Close", new Vector2(45f, 110f), new Color(0.6f, 0.2f, 0.2f), safeFont, out Text closeTxt);
             closeTxt.text = "<b>✕</b>";
-            closeTxt.fontSize = 26;
+            closeTxt.fontSize = 24;
             hqCloseButton.onClick.AddListener(CloseHQInteractionMenu);
 
             hqActionPanel.SetActive(false);
@@ -861,6 +897,11 @@ public class BaseHQ : MonoBehaviour
         }
     }
 
+    public void TakeDamage(int amount)
+    {
+        TakeDamage((float)amount);
+    }
+
     private GameObject defeatDialogObj;
 
     private void OnBaseDestroyed()
@@ -868,20 +909,26 @@ public class BaseHQ : MonoBehaviour
         if (isDestroyed) return;
         isDestroyed = true;
 
-        int nightIndex = (DayNightSystem.Instance != null) ? DayNightSystem.Instance.currentDay : 1;
-        string defeatTitle = $"Thủ thất bại ở đêm thứ {nightIndex}";
+        int currentDay = (DayNightSystem.Instance != null) ? DayNightSystem.Instance.currentDay : 1;
+        bool isNight = (DayNightSystem.Instance != null) && DayNightSystem.Instance.isNight;
+        string timeStr = isNight ? $"Đêm thứ {currentDay}" : $"Ngày thứ {currentDay}";
+        string defeatTitle = $"Lõi năng lượng bị phá hủy ở {timeStr}";
 
         FloatingDamageText.SpawnResource(transform.position + Vector3.up * 4.5f, $"☠️ {defeatTitle}!", new Color(1f, 0.2f, 0.2f, 1f), 0.16f);
-        Debug.LogWarning($"<color=#FF2222>[BaseHQ]</color> {defeatTitle}");
+        Debug.LogWarning($"<color=#FF2222>[BaseHQ]</color> 💥 {defeatTitle}! Đã tạm dừng toàn bộ trò chơi.");
 
-        // Hiện Dialog Thất Bại với nút OK để trở về như lúc chưa chơi ván này
-        ShowDefeatDialog(nightIndex);
+        // ================= TOÀN BỘ GAME BỊ ĐỨNG LẠI (FREEZE GAME SCALE = 0) THEO YÊU CẦU =================
+        Time.timeScale = 0f;
+        AudioListener.pause = true;
+
+        // Hiện Dialog Thất Bại với nút Chơi Lại để khôi phục hoạt động
+        ShowDefeatDialog(currentDay, isNight);
     }
 
-    private void ShowDefeatDialog(int nightIndex)
+    private void ShowDefeatDialog(int currentDay, bool isNight)
     {
         Canvas canvas = null;
-        Canvas[] allCanvases = FindObjectsByType<Canvas>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        Canvas[] allCanvases = FindObjectsByType<Canvas>(FindObjectsInactive.Exclude);
         foreach (var c in allCanvases)
         {
             if (c.renderMode == RenderMode.ScreenSpaceOverlay)
@@ -897,22 +944,25 @@ public class BaseHQ : MonoBehaviour
             GameObject cGo = new GameObject("[Defeat_Canvas]", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
             canvas = cGo.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            canvas.sortingOrder = 999;
+            canvas.sortingOrder = 9999;
         }
 
         if (defeatDialogObj != null) Destroy(defeatDialogObj);
 
         defeatDialogObj = new GameObject("[Defeat_Dialog_Modal]", typeof(RectTransform), typeof(Image));
         defeatDialogObj.transform.SetParent(canvas.transform, false);
+        defeatDialogObj.transform.SetAsLastSibling();
+
         RectTransform rtModal = defeatDialogObj.GetComponent<RectTransform>();
         rtModal.anchorMin = Vector2.zero;
         rtModal.anchorMax = Vector2.one;
         rtModal.offsetMin = Vector2.zero;
         rtModal.offsetMax = Vector2.zero;
 
-        // Nền đen mờ phủ toàn màn hình
+        // Nền đen mờ phủ toàn màn hình, chặn hoàn toàn click xuyên thấu
         Image imgModal = defeatDialogObj.GetComponent<Image>();
-        imgModal.color = new Color(0.04f, 0.02f, 0.02f, 0.88f);
+        imgModal.color = new Color(0.04f, 0.02f, 0.02f, 0.92f);
+        imgModal.raycastTarget = true;
 
         // Hộp thông báo trung tâm
         GameObject box = new GameObject("Box", typeof(RectTransform), typeof(Image), typeof(Outline));
@@ -921,34 +971,35 @@ public class BaseHQ : MonoBehaviour
         rtBox.anchorMin = new Vector2(0.5f, 0.5f);
         rtBox.anchorMax = new Vector2(0.5f, 0.5f);
         rtBox.pivot = new Vector2(0.5f, 0.5f);
-        rtBox.sizeDelta = new Vector2(520f, 260f);
+        rtBox.sizeDelta = new Vector2(560f, 290f);
 
         Image imgBox = box.GetComponent<Image>();
         imgBox.color = new Color(0.12f, 0.04f, 0.04f, 0.98f);
 
         Outline outline = box.GetComponent<Outline>();
         outline.effectColor = new Color(1f, 0.2f, 0.2f, 1f);
-        outline.effectDistance = new Vector2(3f, -3f);
+        outline.effectDistance = new Vector2(3.5f, -3.5f);
 
         Font safeFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf") ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
 
-        // Tiêu đề: THỦ THẤT BẠI Ở ĐÊM THỨ X
+        // Tiêu đề: LÕI NĂNG LƯỢNG ĐÃ BỊ PHÁ HỦY!
         GameObject titleObj = new GameObject("Title", typeof(RectTransform), typeof(Text));
         titleObj.transform.SetParent(box.transform, false);
         RectTransform rtTitle = titleObj.GetComponent<RectTransform>();
         rtTitle.anchorMin = new Vector2(0f, 1f);
         rtTitle.anchorMax = new Vector2(1f, 1f);
         rtTitle.pivot = new Vector2(0.5f, 1f);
-        rtTitle.anchoredPosition = new Vector2(0f, -22f);
-        rtTitle.sizeDelta = new Vector2(500f, 50f);
+        rtTitle.anchoredPosition = new Vector2(0f, -20f);
+        rtTitle.sizeDelta = new Vector2(540f, 52f);
         Text txtTitle = titleObj.GetComponent<Text>();
         txtTitle.font = safeFont;
-        txtTitle.text = $"☠️ <b>THỦ THẤT BẠI Ở ĐÊM THỨ {nightIndex}</b> ☠️";
+        txtTitle.text = "💥 <b>LÕI NĂNG LƯỢNG ĐÃ BỊ PHÁ HỦY!</b> 💥";
         txtTitle.fontSize = 24;
         txtTitle.alignment = TextAnchor.MiddleCenter;
-        txtTitle.color = new Color(1f, 0.25f, 0.25f, 1f);
+        txtTitle.color = new Color(1f, 0.28f, 0.28f, 1f);
 
-        // Mô tả
+        // Mô tả chi tiết
+        string timeContext = isNight ? $"Đêm thứ {currentDay}" : $"Ngày thứ {currentDay}";
         GameObject descObj = new GameObject("Desc", typeof(RectTransform), typeof(Text));
         descObj.transform.SetParent(box.transform, false);
         RectTransform rtDesc = descObj.GetComponent<RectTransform>();
@@ -956,31 +1007,39 @@ public class BaseHQ : MonoBehaviour
         rtDesc.anchorMax = new Vector2(1f, 1f);
         rtDesc.pivot = new Vector2(0.5f, 1f);
         rtDesc.anchoredPosition = new Vector2(0f, -80f);
-        rtDesc.sizeDelta = new Vector2(480f, 60f);
+        rtDesc.sizeDelta = new Vector2(520f, 85f);
         Text txtDesc = descObj.GetComponent<Text>();
         txtDesc.font = safeFont;
-        txtDesc.text = "Lò năng lượng căn cứ đã bị phá hủy hoàn toàn!\nNhấn nút bên dưới để khởi động lại ván chơi mới từ đầu.";
-        txtDesc.fontSize = 15;
+        txtDesc.text = $"Căn cứ đã thất thủ tại <b><color=#FFD700>{timeContext}</color></b>!\nToàn bộ trò chơi đã tạm dừng hoạt động.\nNhấn nút <b>CHƠI LẠI</b> bên dưới để bắt đầu hoạt động tiếp tục.";
+        txtDesc.fontSize = 17;
+        txtDesc.lineSpacing = 1.15f;
         txtDesc.alignment = TextAnchor.MiddleCenter;
-        txtDesc.color = new Color(0.9f, 0.9f, 0.9f, 1f);
+        txtDesc.color = new Color(0.92f, 0.92f, 0.92f, 1f);
 
-        // Nút OK
-        GameObject btnObj = new GameObject("Btn_OK", typeof(RectTransform), typeof(Image), typeof(Button));
+        // Nút CHƠI LẠI (RESTART)
+        GameObject btnObj = new GameObject("Btn_Restart", typeof(RectTransform), typeof(Image), typeof(Button));
         btnObj.transform.SetParent(box.transform, false);
         RectTransform rtBtn = btnObj.GetComponent<RectTransform>();
         rtBtn.anchorMin = new Vector2(0.5f, 0f);
         rtBtn.anchorMax = new Vector2(0.5f, 0f);
         rtBtn.pivot = new Vector2(0.5f, 0f);
-        rtBtn.anchoredPosition = new Vector2(0f, 25f);
-        rtBtn.sizeDelta = new Vector2(220f, 52f);
+        rtBtn.anchoredPosition = new Vector2(0f, 24f);
+        rtBtn.sizeDelta = new Vector2(280f, 58f);
 
         Image imgBtn = btnObj.GetComponent<Image>();
-        imgBtn.color = new Color(0.85f, 0.15f, 0.15f, 1f);
+        imgBtn.color = new Color(0.12f, 0.72f, 0.35f, 1f); // Nút màu xanh lá nổi bật
+
+        Outline btnOutline = btnObj.AddComponent<Outline>();
+        btnOutline.effectColor = new Color(0.1f, 0.3f, 0.15f, 1f);
+        btnOutline.effectDistance = new Vector2(2f, -2f);
 
         Button btn = btnObj.GetComponent<Button>();
         btn.onClick.AddListener(() =>
         {
+            // KHÔI PHỤC HOẠT ĐỘNG TOÀN BỘ GAME KHI BẤM CHƠI LẠI
+            AudioListener.pause = false;
             Time.timeScale = 1f;
+            Debug.Log("<color=#00FF88>🔄 [BaseHQ]</color> Người chơi bấm Chơi Lại! Khôi phục Time.timeScale = 1 và tải lại ván chơi mới.");
             UnityEngine.SceneManagement.SceneManager.LoadScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene().buildIndex);
         });
 
@@ -992,8 +1051,8 @@ public class BaseHQ : MonoBehaviour
         rtBtnTxt.sizeDelta = Vector2.zero;
         Text txtBtn = btnTxtObj.GetComponent<Text>();
         txtBtn.font = safeFont;
-        txtBtn.text = "<b>OK (CHƠI LẠI)</b>";
-        txtBtn.fontSize = 18;
+        txtBtn.text = "🔄 <b>CHƠI LẠI (BẮT ĐẦU TIẾP)</b>";
+        txtBtn.fontSize = 19;
         txtBtn.alignment = TextAnchor.MiddleCenter;
         txtBtn.color = Color.white;
 

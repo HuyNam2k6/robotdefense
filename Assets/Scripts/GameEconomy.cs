@@ -65,6 +65,63 @@ public class GameEconomy : MonoBehaviour
         }
     }
 
+    [Header("--- Thu Nhập Thụ Động (Idle Passive Income) ---")]
+    public float basePassiveGoldPerSecond = 12f;
+    public float passiveWoodPerSecond = 2f;
+    public float passiveStonePerSecond = 2f;
+    private float passiveAccumulator = 0f;
+
+    public float GetCurrentCoinsPerSecond()
+    {
+        float rate = basePassiveGoldPerSecond;
+        if (BaseHQ.Instance != null)
+        {
+            rate += (BaseHQ.Instance.level - 1) * 25f;
+        }
+        if (GlobalTechTree.Instance != null)
+        {
+            rate *= (1f + GlobalTechTree.Instance.goldBonusPercent / 100f);
+        }
+        return rate;
+    }
+
+    public float GetCurrentStonePerSecond()
+    {
+        float rate = passiveStonePerSecond;
+        if (BaseHQ.Instance != null) rate += (BaseHQ.Instance.level - 1) * 3f;
+        return rate;
+    }
+
+    public float GetCurrentWoodPerSecond()
+    {
+        float rate = passiveWoodPerSecond;
+        if (BaseHQ.Instance != null) rate += (BaseHQ.Instance.level - 1) * 3f;
+        return rate;
+    }
+
+    private void Update()
+    {
+        float dt = Time.deltaTime;
+        if (dt <= 0f) return;
+
+        passiveAccumulator += dt;
+        if (passiveAccumulator >= 1.0f)
+        {
+            int secondsToAdd = Mathf.FloorToInt(passiveAccumulator);
+            passiveAccumulator -= secondsToAdd;
+
+            int goldToAdd = Mathf.RoundToInt(GetCurrentCoinsPerSecond() * secondsToAdd);
+            int stoneToAdd = Mathf.RoundToInt(GetCurrentStonePerSecond() * secondsToAdd);
+            int woodToAdd = Mathf.RoundToInt(GetCurrentWoodPerSecond() * secondsToAdd);
+
+            if (goldToAdd > 0) coins += goldToAdd;
+            if (stoneToAdd > 0) stoneCount += stoneToAdd;
+            if (woodToAdd > 0) woodCount += woodToAdd;
+
+            OnEconomyChanged?.Invoke();
+        }
+    }
+
     public void AddCoins(int amount)
     {
         coins += amount;

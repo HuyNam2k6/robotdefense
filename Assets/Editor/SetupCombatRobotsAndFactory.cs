@@ -427,6 +427,9 @@ namespace RobotDefense.Editor
             factoryComp.factoryBody = (bodyObj != null) ? bodyObj.transform : null;
             factoryComp.weldingLight = wLight;
 
+            // Tăng kích thước nhà máy chế tạo rô bốt lên gấp đôi (2x) theo yêu cầu
+            root.transform.localScale = Vector3.one * 2f;
+
             string prefabPath = "Assets/prefabs/RobotFactory_Building.prefab";
             GameObject savedPrefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             Object.DestroyImmediate(root);

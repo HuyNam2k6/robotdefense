@@ -241,24 +241,25 @@ public class WallSelectionManager : MonoBehaviour
             if (Physics.Raycast(ray, out RaycastHit hit, 350f))
             {
                 WallSegment clickedWall = hit.collider.GetComponentInParent<WallSegment>();
-                UpgradableTurret clickedTurret = hit.collider.GetComponentInParent<UpgradableTurret>();
-                BaseHQ clickedHQ = hit.collider.GetComponentInParent<BaseHQ>();
                 RobotFactory clickedFactory = hit.collider.GetComponentInParent<RobotFactory>();
+                // Nếu click vào Nhà Máy Robot -> TUYỆT ĐỐI KHÔNG GÁN clickedTurret
+                UpgradableTurret clickedTurret = (clickedFactory == null) ? hit.collider.GetComponentInParent<UpgradableTurret>() : null;
+                BaseHQ clickedHQ = hit.collider.GetComponentInParent<BaseHQ>();
                 CivilianHouse clickedHouse = hit.collider.GetComponentInParent<CivilianHouse>();
 
-                if (clickedWall != null || clickedTurret != null || clickedHQ != null || clickedFactory != null || clickedHouse != null)
+                if (clickedWall != null || clickedFactory != null || clickedTurret != null || clickedHQ != null || clickedHouse != null)
                 {
                     pressedWall = clickedWall;
+                    pressedFactory = clickedFactory;
                     pressedTurret = clickedTurret;
                     pressedHQ = clickedHQ;
-                    pressedFactory = clickedFactory;
                     pressedHouse = clickedHouse;
                     isPressHolding = true;
 
                     Transform targetT = (clickedWall != null) ? clickedWall.transform :
+                                        (clickedFactory != null) ? clickedFactory.transform :
                                         (clickedTurret != null) ? clickedTurret.transform :
                                         (clickedHQ != null) ? clickedHQ.transform :
-                                        (clickedFactory != null) ? clickedFactory.transform :
                                         clickedHouse.transform;
 
                     SetPersistentBlinkTarget(targetT);
@@ -294,17 +295,17 @@ public class WallSelectionManager : MonoBehaviour
                     if (pressedWall != null)
                     {
                         SelectWall(pressedWall);
-                        StartMoveSingle();
+                        StartMoveMode(pressedWall.transform, false);
                     }
                     else if (pressedTurret != null)
                     {
                         SelectTurret(pressedTurret);
-                        StartMoveSingle();
+                        StartMoveMode(pressedTurret.transform, false);
                     }
                     else if (pressedFactory != null)
                     {
                         SelectFactory(pressedFactory);
-                        StartMoveSingle();
+                        StartMoveMode(pressedFactory.transform, false);
                     }
                 }
             }
@@ -327,13 +328,13 @@ public class WallSelectionManager : MonoBehaviour
                     {
                         SelectWall(pressedWall);
                     }
-                    else if (pressedTurret != null)
-                    {
-                        SelectTurret(pressedTurret);
-                    }
                     else if (pressedFactory != null)
                     {
                         SelectFactory(pressedFactory);
+                    }
+                    else if (pressedTurret != null)
+                    {
+                        SelectTurret(pressedTurret);
                     }
                     else if (pressedHouse != null)
                     {
@@ -706,9 +707,28 @@ public class WallSelectionManager : MonoBehaviour
         // ================= 1. NẾU ĐANG CHỌN BỨC TƯỜNG =================
         if (selectedWall != null)
         {
-            if (upgradeRowButton != null) upgradeRowButton.gameObject.SetActive(true);
+            if (actionRowObj != null) actionRowObj.SetActive(true);
+            if (moveSingleButton != null)
+            {
+                moveSingleButton.gameObject.SetActive(true);
+                moveSingleButton.interactable = true;
+                Image btnImg = moveSingleButton.GetComponent<Image>();
+                if (btnImg != null) btnImg.color = new Color(0.18f, 0.65f, 0.55f);
+                if (moveSingleText != null) moveSingleText.text = "📦 <b>DỜI 1 ĐOẠN</b>";
+            }
             if (moveRowButton != null) moveRowButton.gameObject.SetActive(true);
-            if (moveSingleText != null) moveSingleText.text = "📦 <b>DỜI 1 ĐOẠN</b>";
+            if (rotateButton != null) rotateButton.gameObject.SetActive(true);
+            if (upgradeRowButton != null) upgradeRowButton.gameObject.SetActive(true);
+
+            // Điều chỉnh kích thước Card chuẩn 2 hàng nút
+            if (wallCardPanel != null)
+            {
+                RectTransform cardRt = wallCardPanel.GetComponent<RectTransform>();
+                Transform topRow = wallCardPanel.transform.Find("ButtonRowTop");
+                RectTransform topRowRt = topRow != null ? topRow.GetComponent<RectTransform>() : null;
+                if (cardRt != null) cardRt.sizeDelta = new Vector2(780f, 275f);
+                if (topRowRt != null) topRowRt.anchoredPosition = new Vector2(0f, 96f);
+            }
 
             int lvl = selectedWall.currentLevel;
             string curName = (GameEconomy.WallLevelNames != null && lvl >= 1 && lvl <= GameEconomy.WallLevelNames.Length)
@@ -810,12 +830,24 @@ public class WallSelectionManager : MonoBehaviour
                 }
             }
         }
-        // ================= 2. NẾU ĐANG CHỌN Ụ PHÁO =================
+        // ================= 2. NẾU ĐANG CHỌN Ụ PHÁO / VŨ KHÍ =================
         else if (selectedTurret != null)
         {
             if (upgradeRowButton != null) upgradeRowButton.gameObject.SetActive(false);
             if (moveRowButton != null) moveRowButton.gameObject.SetActive(false);
-            if (moveSingleText != null) moveSingleText.text = "📦 <b>DI CHUYỂN TRỤ</b>";
+            if (rotateButton != null) rotateButton.gameObject.SetActive(false);
+            if (moveSingleButton != null) moveSingleButton.gameObject.SetActive(false);
+            if (actionRowObj != null) actionRowObj.SetActive(false); // BỎ NÚT DI CHUYỂN CHO CÁC VŨ KHÍ THEO YÊU CẦU
+
+            // Thu gọn Card vừa vặn 1 hàng nút (Nâng cấp + Sửa chữa + Đóng)
+            if (wallCardPanel != null)
+            {
+                RectTransform cardRt = wallCardPanel.GetComponent<RectTransform>();
+                Transform topRow = wallCardPanel.transform.Find("ButtonRowTop");
+                RectTransform topRowRt = topRow != null ? topRow.GetComponent<RectTransform>() : null;
+                if (cardRt != null) cardRt.sizeDelta = new Vector2(780f, 190f);
+                if (topRowRt != null) topRowRt.anchoredPosition = new Vector2(0f, 20f);
+            }
 
             int lvl = selectedTurret.currentLevel;
             int maxLvl = UpgradableTurret.MaxLevel;
@@ -874,12 +906,36 @@ public class WallSelectionManager : MonoBehaviour
                 }
             }
         }
-        // ================= 3. NẾU ĐANG CHỌN TRẠI HUẤN LUYỆN QUÂN =================
+        // ================= 3. NẾU ĐANG CHỌN TRẠI HUẤN LUYỆN QUÂN / NHÀ MÁY =================
         else if (selectedFactory != null)
         {
             if (upgradeRowButton != null) upgradeRowButton.gameObject.SetActive(false);
             if (moveRowButton != null) moveRowButton.gameObject.SetActive(false);
-            if (moveSingleText != null) moveSingleText.text = "📦 <b>DI CHUYỂN TRẠI LÍNH</b>";
+            if (rotateButton != null) rotateButton.gameObject.SetActive(false);
+            if (repairButton != null) repairButton.gameObject.SetActive(false); // Ẩn nút sửa chữa vì nhà máy không phải công trình hư hỏng
+
+            // THAY THẾ BUTTON DI CHUYỂN THÀNH BUTTON CHẾ TẠO RÔ BỐT THEO YÊU CẦU
+            if (actionRowObj != null) actionRowObj.SetActive(true);
+            if (moveSingleButton != null)
+            {
+                moveSingleButton.gameObject.SetActive(true);
+                moveSingleButton.interactable = true;
+                Image btnImg = moveSingleButton.GetComponent<Image>();
+                if (btnImg != null) btnImg.color = new Color(0.12f, 0.65f, 0.35f, 0.95f);
+                if (moveSingleText != null)
+                {
+                    moveSingleText.text = "🤖 <b>CHẾ TẠO RÔ BỐT</b>\n<color=#00FF88>✦ Bấm Mở Bảng Chế Tạo</color>";
+                }
+            }
+
+            if (wallCardPanel != null)
+            {
+                RectTransform cardRt = wallCardPanel.GetComponent<RectTransform>();
+                Transform topRow = wallCardPanel.transform.Find("ButtonRowTop");
+                RectTransform topRowRt = topRow != null ? topRow.GetComponent<RectTransform>() : null;
+                if (cardRt != null) cardRt.sizeDelta = new Vector2(780f, 275f);
+                if (topRowRt != null) topRowRt.anchoredPosition = new Vector2(0f, 96f);
+            }
 
             int fLvl = selectedFactory.factoryLevel;
             int maxFLvl = RobotFactory.MaxFactoryLevel;
@@ -918,13 +974,6 @@ public class WallSelectionManager : MonoBehaviour
                     upgradeSingleText.text = $"👑 <b>CẤP {maxFLvl} - MAX</b>\n<color=#AAAAAA>(TỐI ĐA)</color>";
                 }
                 if (upgradeSingleButton != null) upgradeSingleButton.interactable = false;
-            }
-
-            if (repairButton != null && repairText != null)
-            {
-                repairButton.gameObject.SetActive(true);
-                repairText.text = "🤖 <b>CHẾ TẠO ROBOT</b>\n<color=#00FFFF>(MỞ BẢNG 15s)</color>";
-                repairButton.interactable = true;
             }
         }
     }
@@ -988,6 +1037,19 @@ public class WallSelectionManager : MonoBehaviour
 
     public void StartMoveSingle()
     {
+        if (selectedFactory != null)
+        {
+            // NÚT TRÊN CARD NHÀ MÁY ĐÃ ĐỔI THÀNH "CHẾ TẠO RÔ BỐT":
+            // KHI NHẤN VÀO NÚT PHẢI MỞ BẢNG CHẾ TẠO, TUYỆT ĐỐI KHÔNG DI CHUYỂN NHÀ MÁY!
+            RobotFactory factory = selectedFactory;
+            DeselectFactory();
+            if (factory != null)
+            {
+                factory.TryOpenCraftingPanel();
+            }
+            return;
+        }
+
         if (selectedWall != null)
         {
             StartMoveMode(selectedWall.transform, false);
@@ -995,10 +1057,6 @@ public class WallSelectionManager : MonoBehaviour
         else if (selectedTurret != null)
         {
             StartMoveMode(selectedTurret.transform, false);
-        }
-        else if (selectedFactory != null)
-        {
-            StartMoveMode(selectedFactory.transform, false);
         }
     }
 
@@ -1242,20 +1300,14 @@ public class WallSelectionManager : MonoBehaviour
                 }
             }
 
-            // Nếu không có đất hoặc rơi xuống biển (dưới 7m) -> KHÔNG HỢP LỆ
-            if (!hasValidGround || gY < 7.0f)
+            // Nếu không có đất hoặc rơi xuống biển (dưới 6.5m) -> KHÔNG HỢP LỆ
+            if (!hasValidGround || gY < 6.5f)
             {
                 return false;
             }
 
             // Nếu mặt đất dốc quá mức (vực dốc đứng) -> KHÔNG HỢP LỆ
-            if (gNorm.y < 0.82f)
-            {
-                return false;
-            }
-
-            // Độ chênh lệch giữa vị trí vật thể và mặt đất (không được bay lơ lửng)
-            if (Mathf.Abs(pos.y - gY) > 1.35f)
+            if (gNorm.y < 0.70f)
             {
                 return false;
             }
@@ -1282,56 +1334,31 @@ public class WallSelectionManager : MonoBehaviour
                 if (otherTurret == null || IsItemBeingMoved(otherTurret.transform)) continue;
 
                 float distXZ = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(otherTurret.transform.position.x, otherTurret.transform.position.z));
-                if (distXZ < 2.3f)
+                if (distXZ < 2.0f)
                 {
                     return false;
                 }
             }
 
-            // C. Đè lên Player hoặc chạm gần Player (Phát hiện siêu nhạy đa tầng)
+            // C. Đè lên Player
             PlayerController player = FindAnyObjectByType<PlayerController>();
             if (player != null)
             {
                 float distXZ = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(player.transform.position.x, player.transform.position.z));
-                float playerSafetyRadius = (selectedWall != null) ? 1.5f : (selectedFactory != null ? 3.0f : 2.6f);
+                float playerSafetyRadius = 1.2f;
                 if (distXZ < playerSafetyRadius)
                 {
                     return false; // DÍNH PLAYER -> BÁO LỖI (MÀU ĐỎ)!
                 }
             }
 
-            // Quét kiểm tra va chạm hộp 3D thực tế quanh từng đoạn tường / trụ / trại lính với Player
-            Vector3 boxCenter = pos + Vector3.up * 1.2f;
-            Vector3 halfExtents = (selectedWall != null) ? new Vector3(0.95f, 1.1f, 0.95f) :
-                                  (selectedFactory != null) ? new Vector3(1.8f, 1.8f, 2.0f) :
-                                  new Vector3(1.6f, 2.2f, 1.6f);
-            Collider[] hitCols = Physics.OverlapBox(boxCenter, halfExtents, item.transform.rotation);
-            if (hitCols != null)
+            // D. Không được đè trực tiếp lên Nhà Chính (BaseHQ)
+            if (BaseHQ.Instance != null)
             {
-                for (int cIdx = 0; cIdx < hitCols.Length; cIdx++)
+                float distHQ = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(BaseHQ.Instance.transform.position.x, BaseHQ.Instance.transform.position.z));
+                if (distHQ < 3.2f)
                 {
-                    Collider col = hitCols[cIdx];
-                    if (col == null || col.isTrigger) continue;
-                    if (col.CompareTag("Player") || col.GetComponentInParent<PlayerController>() != null || col is CharacterController)
-                    {
-                        return false; // DÍNH PLAYER -> BÁO LỖI (MÀU ĐỎ)!
-                    }
-                }
-            }
-
-            // Quét kiểm tra tất cả GameObject có Tag "Player"
-            GameObject[] pObjs = GameObject.FindGameObjectsWithTag("Player");
-            if (pObjs != null)
-            {
-                for (int pIdx = 0; pIdx < pObjs.Length; pIdx++)
-                {
-                    if (pObjs[pIdx] == null) continue;
-                    float d = Vector2.Distance(new Vector2(pos.x, pos.z), new Vector2(pObjs[pIdx].transform.position.x, pObjs[pIdx].transform.position.z));
-                    float r = (selectedWall != null) ? 1.5f : (selectedFactory != null ? 3.0f : 2.6f);
-                    if (d < r)
-                    {
-                        return false; // DÍNH PLAYER -> BÁO LỖI (MÀU ĐỎ)!
-                    }
+                    return false; // ĐÈ LÊN LÕI BASEHQ -> BÁO LỖI (MÀU ĐỎ)!
                 }
             }
         }
@@ -1537,7 +1564,32 @@ public class WallSelectionManager : MonoBehaviour
 
     private Vector3 GetGroundPlacementPoint(Ray ray, out bool hasHit)
     {
-        RaycastHit[] hits = Physics.RaycastAll(ray, 350f);
+        // 1. Chiếu tia lên mặt phẳng ngang đảo (Plane) ở độ cao mặt đất chuẩn (~9.6m)
+        // Đây là giải pháp tối ưu triệt để: Đảm bảo việc kéo rê vũ khí ở nửa trên màn hình lướt cực êm 100%,
+        // hoàn toàn không bao giờ bị khựng, không bị vấp vào nóc BaseHQ, nóc nhà dân hay ngọn cây làm nhảy lùi vị trí!
+        float baseIslandY = 9.6f;
+        Terrain activeT = Terrain.activeTerrain ?? FindAnyObjectByType<Terrain>();
+        if (activeT != null)
+        {
+            baseIslandY = activeT.transform.position.y + 9.6f;
+        }
+
+        Plane groundPlane = new Plane(Vector3.up, new Vector3(0f, baseIslandY, 0f));
+        if (groundPlane.Raycast(ray, out float enterDist) && enterDist > 0f)
+        {
+            Vector3 planePt = ray.GetPoint(enterDist);
+            float actualY = SampleGroundY(planePt.x, planePt.z, planePt.y);
+
+            // Kiểm tra trong phạm vi đảo (độ cao đảo >= 6.5m)
+            if (actualY >= 6.5f)
+            {
+                hasHit = true;
+                return new Vector3(planePt.x, actualY, planePt.z);
+            }
+        }
+
+        // 2. Dự phòng: RaycastAll tìm TerrainCollider
+        RaycastHit[] hits = Physics.RaycastAll(ray, 450f);
         if (hits != null && hits.Length > 0)
         {
             System.Array.Sort(hits, (a, b) => b.point.y.CompareTo(a.point.y));
@@ -1553,8 +1605,8 @@ public class WallSelectionManager : MonoBehaviour
                     h.collider.gameObject.name.ToLower().Contains("ground") ||
                     h.collider.gameObject.name.ToLower().Contains("island"))
                 {
-                    // Mặt đất đảo phải cao từ 7m trở lên (tránh đáy biển và mép vực)
-                    if (h.point.y >= 7.0f)
+                    // Mặt đất đảo phải cao từ 6.5m trở lên
+                    if (h.point.y >= 6.5f)
                     {
                         hasHit = true;
                         return h.point;
